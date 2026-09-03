@@ -83,6 +83,7 @@ export default function Sidebar({
     } else if (role === 'tenant') {
       if (id === 'dashboard') navigate('/tenant/dashboard')
       else if (id === 'my-applications') navigate('/tenant/applications')
+      else if (id === 'agreement') navigate('/tenant/agreement')
     }
   }
 
