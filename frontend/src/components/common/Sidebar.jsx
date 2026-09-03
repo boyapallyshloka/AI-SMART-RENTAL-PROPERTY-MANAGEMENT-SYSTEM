@@ -81,6 +81,7 @@ export default function Sidebar({
       else if (id === 'ai-insights') navigate('/owner/ai-insights')
     } else if (role === 'tenant') {
       if (id === 'dashboard') navigate('/tenant/dashboard')
+      else if (id === 'my-applications') navigate('/tenant/applications')
     }
   }
 

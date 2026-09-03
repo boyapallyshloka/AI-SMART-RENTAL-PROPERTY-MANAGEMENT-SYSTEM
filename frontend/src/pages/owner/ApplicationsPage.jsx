@@ -4,6 +4,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import {
   MOCK_APPLICATIONS,
   APPLICATION_STATUSES,
+  getStoredApplications,
 } from '../../utils/applicationMockData'
 import {
   Button,
@@ -32,9 +33,9 @@ export default function ApplicationsPage() {
   const [noticeMessage, setNoticeMessage] = useState('')
 
   useEffect(() => {
-    // Brief simulated loading to demonstrate Loader component
+    // Load from stored applications so newly submitted applications appear
     const timer = setTimeout(() => {
-      setApplications(MOCK_APPLICATIONS)
+      setApplications(getStoredApplications())
       setLoading(false)
     }, 250)
     return () => clearTimeout(timer)

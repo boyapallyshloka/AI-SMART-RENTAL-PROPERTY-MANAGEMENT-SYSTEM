@@ -1,6 +1,6 @@
 /**
- * Mock Rental Applications Data for HomeSphere Owner Portal
- * Includes localStorage persistence for Application Status changes
+ * Mock Rental Applications Data for HomeSphere
+ * Shared persistent data source across Owner and Tenant portals
  */
 
 const STORAGE_KEY = 'homesphere_applications'
@@ -15,18 +15,32 @@ export const APPLICATION_STATUSES = [
 export const MOCK_APPLICATIONS = [
   {
     id: 'app-1',
+    applicantName: 'Elena Rostova',
+    email: 'tenant@homesphere.com',
+    phone: '(415) 555-0182',
+    employmentStatus: 'Senior Product Designer at NovaTech Inc.',
+    propertyName: 'Sunset Palms Luxury Residences',
+    unit: 'Unit #302',
+    submittedDate: '2026-08-28',
+    preferredMoveInDate: '2026-10-01',
+    monthlyIncome: 8500,
+    status: 'Under Review',
+  },
+  {
+    id: 'app-2',
     applicantName: 'David Chen',
     email: 'david.chen@example.com',
     phone: '(415) 892-3401',
     employmentStatus: 'Employed (Full-Time)',
     propertyName: 'Sunset Palms Luxury Residences',
-    unit: 'Unit #302',
+    unit: 'Unit #104',
     submittedDate: '2026-08-28',
+    preferredMoveInDate: '2026-09-15',
     monthlyIncome: 12500,
     status: 'Pending',
   },
   {
-    id: 'app-2',
+    id: 'app-3',
     applicantName: 'Sophia Martinez',
     email: 'sophia.martinez@creativecorp.org',
     phone: '(512) 640-1928',
@@ -34,11 +48,12 @@ export const MOCK_APPLICATIONS = [
     propertyName: 'Highland Oaks Modern Townhomes',
     unit: 'Townhome #201',
     submittedDate: '2026-08-29',
+    preferredMoveInDate: '2026-09-20',
     monthlyIncome: 9800,
     status: 'Under Review',
   },
   {
-    id: 'app-3',
+    id: 'app-4',
     applicantName: 'Liam Patterson',
     email: 'liam.patterson@techscale.io',
     phone: '(206) 555-8910',
@@ -46,11 +61,12 @@ export const MOCK_APPLICATIONS = [
     propertyName: 'The Grandview Skyline Lofts',
     unit: 'Loft #502',
     submittedDate: '2026-08-25',
+    preferredMoveInDate: '2026-09-10',
     monthlyIncome: 11000,
     status: 'Approved',
   },
   {
-    id: 'app-4',
+    id: 'app-5',
     applicantName: 'Brandon Walsh',
     email: 'b.walsh@coldmail.com',
     phone: '(305) 912-4019',
@@ -58,11 +74,12 @@ export const MOCK_APPLICATIONS = [
     propertyName: 'Harborview Bayfront Condos',
     unit: 'Unit #704',
     submittedDate: '2026-08-20',
+    preferredMoveInDate: '2026-09-01',
     monthlyIncome: 6200,
     status: 'Rejected',
   },
   {
-    id: 'app-5',
+    id: 'app-6',
     applicantName: 'Rachel Green',
     email: 'rachel.green@fashionhouse.com',
     phone: '(312) 480-1123',
@@ -70,20 +87,9 @@ export const MOCK_APPLICATIONS = [
     propertyName: 'Metro Center Executive Suites',
     unit: 'Suite #1402',
     submittedDate: '2026-08-30',
+    preferredMoveInDate: '2026-10-01',
     monthlyIncome: 10400,
     status: 'Pending',
-  },
-  {
-    id: 'app-6',
-    applicantName: 'Marcus Vance',
-    email: 'marcus.vance@peakridge.net',
-    phone: '(303) 714-2290',
-    employmentStatus: 'Executive / Business Owner',
-    propertyName: 'Pinecrest Mountain Villa',
-    unit: 'Villa #1',
-    submittedDate: '2026-08-31',
-    monthlyIncome: 14200,
-    status: 'Under Review',
   },
 ]
 
@@ -111,16 +117,23 @@ export function getStoredApplications() {
 }
 
 /**
- * Sync initial in-memory mock data with localStorage if present
+ * Sync initial in-memory mock data with localStorage on module load
  */
 try {
   const stored = getStoredApplications()
-  stored.forEach((s) => {
-    const match = MOCK_APPLICATIONS.find((m) => String(m.id) === String(s.id))
-    if (match) {
-      match.status = s.status
-    }
-  })
+  if (Array.isArray(stored)) {
+    stored.forEach((s) => {
+      const exists = MOCK_APPLICATIONS.some((m) => String(m.id) === String(s.id))
+      if (!exists) {
+        MOCK_APPLICATIONS.unshift(s)
+      } else {
+        const match = MOCK_APPLICATIONS.find((m) => String(m.id) === String(s.id))
+        if (match) {
+          match.status = s.status
+        }
+      }
+    })
+  }
 } catch (e) {}
 
 /**
@@ -159,6 +172,35 @@ export function updateApplicationStatus(id, newStatus) {
   }
 
   return updatedApp
+}
+
+/**
+ * Add a new application to localStorage and in-memory list
+ */
+export function addApplication(newAppData) {
+  const currentList = getStoredApplications()
+  const newApp = {
+    id: `app-${Date.now()}`,
+    submittedDate: new Date().toISOString().split('T')[0],
+    status: 'Pending',
+    ...newAppData,
+  }
+
+  const updatedList = [newApp, ...currentList]
+
+  // Update in-memory mock applications
+  const alreadyInMem = MOCK_APPLICATIONS.some((m) => String(m.id) === String(newApp.id))
+  if (!alreadyInMem) {
+    MOCK_APPLICATIONS.unshift(newApp)
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList))
+  } catch (e) {
+    console.error('Failed to save new application to localStorage', e)
+  }
+
+  return newApp
 }
 
 /**

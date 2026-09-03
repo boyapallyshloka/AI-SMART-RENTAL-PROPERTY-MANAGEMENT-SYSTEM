@@ -25,6 +25,8 @@ import AIInsightsPage from '../pages/owner/AIInsightsPage'
 
 // Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
+import TenantApplicationsPage from '../pages/tenant/TenantApplicationsPage'
+import SubmitApplicationPage from '../pages/tenant/SubmitApplicationPage'
 
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
@@ -104,6 +106,8 @@ export default function AppRoutes() {
             <RoleRoute allowedRole="tenant">
               <Routes>
                 <Route path="dashboard" element={<TenantDashboardPage />} />
+                <Route path="applications" element={<TenantApplicationsPage />} />
+                <Route path="applications/new" element={<SubmitApplicationPage />} />
                 <Route path="*" element={<Navigate to="/tenant/dashboard" replace />} />
               </Routes>
             </RoleRoute>
