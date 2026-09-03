@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
   MOCK_INVOICES,
@@ -282,7 +283,12 @@ export default function PaymentsPage() {
                     >
                       {/* Invoice Number */}
                       <td className="py-4 pl-6 pr-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">
-                        {inv.invoiceNumber}
+                        <Link
+                          to={`/owner/payments/${inv.id}`}
+                          className="hover:underline flex items-center gap-1"
+                        >
+                          {inv.invoiceNumber}
+                        </Link>
                       </td>
 
                       {/* Tenant Name */}
