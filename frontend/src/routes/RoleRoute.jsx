@@ -33,7 +33,9 @@ export default function RoleRoute({ allowedRole, children }) {
   if (!isAllowed) {
     // Redirect unauthorized user to their respective valid dashboard
     const fallbackPath =
-      user.role === 'owner' || user.role === 'manager'
+      user.role === 'admin' || user.role === 'superadmin'
+        ? '/admin/dashboard'
+        : user.role === 'owner' || user.role === 'manager'
         ? '/owner/dashboard'
         : '/tenant/dashboard'
     return <Navigate to={fallbackPath} replace />

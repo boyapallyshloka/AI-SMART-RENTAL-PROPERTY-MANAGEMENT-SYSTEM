@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, Lock, LogIn, Sparkles, Building2, User, Briefcase } from 'lucide-react'
+import { Mail, Lock, LogIn, Sparkles, Building2, User, Briefcase, Shield } from 'lucide-react'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -50,7 +50,9 @@ export default function LoginPage() {
 
         // If no prior location or trying to go to login/root, route by role
         if (!destination || destination === '/login' || destination === '/') {
-          if (result.user.role === 'owner' || result.user.role === 'manager') {
+          if (result.user.role === 'admin' || result.user.role === 'superadmin') {
+            destination = '/admin/dashboard'
+          } else if (result.user.role === 'owner' || result.user.role === 'manager') {
             // manager goes to /owner/dashboard temporarily per requirements
             destination = '/owner/dashboard'
           } else {
@@ -147,7 +149,7 @@ export default function LoginPage() {
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-2.5">
             Quick Fill Demo Accounts
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => handleQuickFill('owner@homesphere.com', 'password123')}
@@ -187,6 +189,20 @@ export default function LoginPage() {
               </div>
               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
                 manager@...
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickFill('admin@homesphere.com', 'password123')}
+              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+            >
+              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
+                <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Admin</span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                admin@...
               </p>
             </button>
           </div>

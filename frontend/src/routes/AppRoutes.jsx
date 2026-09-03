@@ -34,6 +34,9 @@ import TenantPaymentsPage from '../pages/tenant/TenantPaymentsPage'
 import TenantMaintenancePage from '../pages/tenant/TenantMaintenancePage'
 import CreateMaintenanceRequestPage from '../pages/tenant/CreateMaintenanceRequestPage'
 
+// Admin Dashboard Pages
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
+
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
 
@@ -55,7 +58,9 @@ function RootRedirect() {
   }
 
   const destination =
-    user.role === 'owner' || user.role === 'manager'
+    user.role === 'admin' || user.role === 'superadmin'
+      ? '/admin/dashboard'
+      : user.role === 'owner' || user.role === 'manager'
       ? '/owner/dashboard'
       : '/tenant/dashboard'
 
@@ -121,6 +126,21 @@ export default function AppRoutes() {
                 <Route path="maintenance" element={<TenantMaintenancePage />} />
                 <Route path="maintenance/new" element={<CreateMaintenanceRequestPage />} />
                 <Route path="*" element={<Navigate to="/tenant/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Admin Routes */}
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRole="admin">
+              <Routes>
+                <Route path="dashboard" element={<AdminDashboardPage />} />
+                <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
               </Routes>
             </RoleRoute>
           </ProtectedRoute>

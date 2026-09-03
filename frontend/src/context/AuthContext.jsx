@@ -31,6 +31,15 @@ export const MOCK_USERS = [
     avatarText: 'SC',
     roleLabel: 'Property Manager',
   },
+  {
+    id: 'usr_admin_01',
+    email: 'admin@homesphere.com',
+    password: 'password123',
+    name: 'Shloka Reddy',
+    role: 'admin',
+    avatarText: 'SR',
+    roleLabel: 'Super Admin',
+  },
 ]
 
 const STORAGE_KEY = 'homesphere_mock_user'

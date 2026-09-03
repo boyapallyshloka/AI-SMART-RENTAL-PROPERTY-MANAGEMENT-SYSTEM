@@ -13,6 +13,11 @@ import {
   Search,
   X,
   ArrowLeftRight,
+  Users,
+  ShieldCheck,
+  History,
+  Activity,
+  Settings,
 } from 'lucide-react'
 import NavItem from './NavItem'
 import { getPendingApplicationsCount } from '../../utils/applicationMockData'
@@ -35,6 +40,16 @@ const TENANT_MENU = [
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-5 h-5" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-5 h-5" /> },
   { id: 'agreement', label: 'Agreement', icon: <FileText className="w-5 h-5" /> },
+]
+
+const ADMIN_MENU = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { id: 'users', label: 'Users', icon: <Users className="w-5 h-5" /> },
+  { id: 'owner-verification', label: 'Owner Verification', icon: <ShieldCheck className="w-5 h-5" />, badge: '3' },
+  { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'audit-logs', label: 'Audit Logs', icon: <History className="w-5 h-5" /> },
+  { id: 'ai-monitoring', label: 'AI Monitoring', icon: <Activity className="w-5 h-5 text-amber-500" /> },
+  { id: 'settings', label: 'System Settings', icon: <Settings className="w-5 h-5" /> },
 ]
 
 /**
@@ -65,13 +80,20 @@ export default function Sidebar({
     return item
   })
 
-  const menuItems = role === 'tenant' ? TENANT_MENU : dynamicOwnerMenu
+  const menuItems =
+    role === 'admin' || role === 'superadmin'
+      ? ADMIN_MENU
+      : role === 'tenant'
+      ? TENANT_MENU
+      : dynamicOwnerMenu
 
   const handleItemClick = (id) => {
     if (onSelect) onSelect(id)
     if (onClose) onClose()
 
-    if (role === 'owner' || role === 'manager') {
+    if (role === 'admin' || role === 'superadmin') {
+      if (id === 'dashboard') navigate('/admin/dashboard')
+    } else if (role === 'owner' || role === 'manager') {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
       else if (id === 'applications') navigate('/owner/applications')
