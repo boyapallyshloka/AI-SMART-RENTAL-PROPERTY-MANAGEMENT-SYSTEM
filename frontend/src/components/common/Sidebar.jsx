@@ -96,6 +96,7 @@ export default function Sidebar({
       else if (id === 'users') navigate('/admin/users')
       else if (id === 'owner-verification') navigate('/admin/owner-verification')
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
+      else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
     } else if (role === 'owner' || role === 'manager') {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')

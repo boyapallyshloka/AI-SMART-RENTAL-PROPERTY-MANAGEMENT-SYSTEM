@@ -86,6 +86,7 @@ export default function AdminDashboardPage() {
       subtext: 'Predictive anomalies flagged',
       icon: <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />,
       bg: 'bg-violet-50 dark:bg-violet-950/50 border-violet-200 dark:border-violet-800',
+      link: '/admin/ai-monitoring',
     },
   ]
 
