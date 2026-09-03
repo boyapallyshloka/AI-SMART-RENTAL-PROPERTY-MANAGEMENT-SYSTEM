@@ -400,18 +400,44 @@ export default function OwnerPropertyForm({
         </div>
 
         <div className="space-y-4">
-          <Input
-            label="Featured Image URL"
-            placeholder="https://images.unsplash.com/..."
-            value={formData.imageUrl}
-            onChange={(e) => handleChange('imageUrl', e.target.value)}
-            helperText="Provide a direct image URL or choose one of the sample presets below"
-          />
+          <div>
+            <Input
+              label="Featured Image URL or Upload"
+              placeholder="https://images.unsplash.com/..."
+              value={formData.imageUrl}
+              onChange={(e) => handleChange('imageUrl', e.target.value)}
+              helperText="Provide an image URL, choose a preset below, or upload a local image file"
+            />
+            <div className="mt-2 flex items-center gap-3">
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Upload Local Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          handleChange('imageUrl', event.target.result)
+                        }
+                      }
+                      reader.readAsDataURL(file)
+                    }
+                  }}
+                />
+              </label>
+              <span className="text-[11px] text-slate-400">PNG, JPG, WebP up to 5MB</span>
+            </div>
+          </div>
 
           {/* Quick presets */}
           <div>
             <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Select Sample Preset Photo
+              Or Select Sample Preset Photo
             </span>
             <div className="grid grid-cols-5 gap-2">
               {SAMPLE_IMAGE_PRESETS.map((url, idx) => (
