@@ -14,6 +14,7 @@ import PropertiesPage from '../pages/owner/PropertiesPage'
 import AddPropertyPage from '../pages/owner/AddPropertyPage'
 import PropertyDetailsPage from '../pages/owner/PropertyDetailsPage'
 import EditPropertyPage from '../pages/owner/EditPropertyPage'
+import ApplicationsPage from '../pages/owner/ApplicationsPage'
 
 // Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
@@ -73,6 +74,7 @@ export default function AppRoutes() {
                 <Route path="properties/add" element={<AddPropertyPage />} />
                 <Route path="properties/:id" element={<PropertyDetailsPage />} />
                 <Route path="properties/:id/edit" element={<EditPropertyPage />} />
+                <Route path="applications" element={<ApplicationsPage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
               </Routes>
             </RoleRoute>

@@ -19,6 +19,16 @@ const STATUS_CONFIG = {
     badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
     dot: 'bg-amber-500',
   },
+  'under review': {
+    label: 'Under Review',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+    dot: 'bg-blue-500',
+  },
+  'underreview': {
+    label: 'Under Review',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+    dot: 'bg-blue-500',
+  },
   approved: {
     label: 'Approved',
     badge: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800',

@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
 } from 'lucide-react'
 import NavItem from './NavItem'
+import { getPendingApplicationsCount } from '../../utils/applicationMockData'
 
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -55,7 +56,16 @@ export default function Sidebar({
   onRoleChange,
 }) {
   const navigate = useNavigate()
-  const menuItems = role === 'tenant' ? TENANT_MENU : OWNER_MENU
+  const pendingAppsCount = getPendingApplicationsCount()
+
+  const dynamicOwnerMenu = OWNER_MENU.map((item) => {
+    if (item.id === 'applications') {
+      return { ...item, badge: pendingAppsCount > 0 ? String(pendingAppsCount) : '0' }
+    }
+    return item
+  })
+
+  const menuItems = role === 'tenant' ? TENANT_MENU : dynamicOwnerMenu
 
   const handleItemClick = (id) => {
     if (onSelect) onSelect(id)
@@ -64,6 +74,7 @@ export default function Sidebar({
     if (role === 'owner' || role === 'manager') {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
+      else if (id === 'applications') navigate('/owner/applications')
     } else if (role === 'tenant') {
       if (id === 'dashboard') navigate('/tenant/dashboard')
     }
