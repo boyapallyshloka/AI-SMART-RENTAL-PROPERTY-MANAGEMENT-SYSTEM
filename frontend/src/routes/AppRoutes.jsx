@@ -41,6 +41,7 @@ import OwnerVerificationPage from '../pages/admin/OwnerVerificationPage'
 import AuditLogsPage from '../pages/admin/AuditLogsPage'
 import AIMonitoringPage from '../pages/admin/AIMonitoringPage'
 import SystemSettingsPage from '../pages/admin/SystemSettingsPage'
+import AdminReportsPage from '../pages/admin/AdminReportsPage'
 
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
@@ -147,6 +148,7 @@ export default function AppRoutes() {
                 <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="users" element={<UserManagementPage />} />
                 <Route path="owner-verification" element={<OwnerVerificationPage />} />
+                <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="ai-monitoring" element={<AIMonitoringPage />} />
                 <Route path="system-settings" element={<SystemSettingsPage />} />

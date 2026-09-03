@@ -95,6 +95,7 @@ export default function Sidebar({
       if (id === 'dashboard') navigate('/admin/dashboard')
       else if (id === 'users') navigate('/admin/users')
       else if (id === 'owner-verification') navigate('/admin/owner-verification')
+      else if (id === 'reports') navigate('/admin/reports')
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
       else if (id === 'settings' || id === 'system-settings') navigate('/admin/system-settings')

@@ -32,7 +32,7 @@ import {
   FileBarChart,
 } from 'lucide-react'
 
-export default function ReportsPage() {
+export default function ReportsPage({ role = 'owner' }) {
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
   const [incomeData, setIncomeData] = useState([])
@@ -54,9 +54,9 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout
-      defaultRole="owner"
+      defaultRole={role}
       activeItem="reports"
-      pageTitle="Reports & Analytics"
+      pageTitle={role === 'admin' ? 'Platform Reports & Analytics' : 'Reports & Analytics'}
     >
       <div className="space-y-6">
         {/* Page Header */}
