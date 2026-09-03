@@ -110,3 +110,113 @@ export function getPendingOwners() {
     (u) => u.role === 'Owner' && u.verificationStatus === 'Pending'
   )
 }
+
+export const AUDIT_MODULES = [
+  'All Modules',
+  'Authentication',
+  'Properties',
+  'Payments',
+  'Applications',
+  'Maintenance',
+  'Owner Verification',
+]
+
+export const AUDIT_RESULTS = [
+  'All Results',
+  'Success',
+  'Warning',
+  'Failed',
+]
+
+export const MOCK_AUDIT_LOGS = [
+  {
+    id: 'log-001',
+    timestamp: '2026-09-03 14:15:22',
+    userName: 'Elena Rostova',
+    role: 'Tenant',
+    action: 'Submitted rental application for Sunset Palms Unit #104',
+    module: 'Applications',
+    result: 'Success',
+  },
+  {
+    id: 'log-002',
+    timestamp: '2026-09-03 13:40:05',
+    userName: 'Marcus Vance',
+    role: 'Owner',
+    action: 'Created draft lease agreement AGR-2026-004',
+    module: 'Properties',
+    result: 'Success',
+  },
+  {
+    id: 'log-003',
+    timestamp: '2026-09-03 12:10:48',
+    userName: 'Robert Sterling',
+    role: 'Owner',
+    action: 'Uploaded deed & business registration for verification',
+    module: 'Owner Verification',
+    result: 'Success',
+  },
+  {
+    id: 'log-004',
+    timestamp: '2026-09-03 11:25:30',
+    userName: 'Alexandra Hayes',
+    role: 'Admin',
+    action: 'Approved identity verification for Apex Real Estate Holdings',
+    module: 'Owner Verification',
+    result: 'Success',
+  },
+  {
+    id: 'log-005',
+    timestamp: '2026-09-03 10:45:19',
+    userName: 'Elena Rostova',
+    role: 'Tenant',
+    action: 'Attempted card payment with expired billing token on INV-2026-003',
+    module: 'Payments',
+    result: 'Failed',
+  },
+  {
+    id: 'log-006',
+    timestamp: '2026-09-03 09:30:11',
+    userName: 'Elena Rostova',
+    role: 'Tenant',
+    action: 'Filed emergency maintenance repair ticket TKT-2026-101',
+    module: 'Maintenance',
+    result: 'Success',
+  },
+  {
+    id: 'log-007',
+    timestamp: '2026-09-03 08:12:04',
+    userName: 'Sarah Connor',
+    role: 'Manager',
+    action: 'Updated technician dispatch schedule for ticket TKT-2026-102',
+    module: 'Maintenance',
+    result: 'Success',
+  },
+  {
+    id: 'log-008',
+    timestamp: '2026-09-02 23:55:18',
+    userName: 'Unknown User (IP: 198.51.100.42)',
+    role: 'Tenant',
+    action: 'Consecutive failed login attempts (password mismatch threshold)',
+    module: 'Authentication',
+    result: 'Warning',
+  },
+  {
+    id: 'log-009',
+    timestamp: '2026-09-02 18:22:40',
+    userName: 'David Chen',
+    role: 'Tenant',
+    action: 'Completed two-factor authentication sign-in',
+    module: 'Authentication',
+    result: 'Success',
+  },
+  {
+    id: 'log-010',
+    timestamp: '2026-09-02 15:10:09',
+    userName: 'Marcus Vance',
+    role: 'Owner',
+    action: 'Published rental listing for Sunset Palms Unit #205',
+    module: 'Properties',
+    result: 'Success',
+  },
+]

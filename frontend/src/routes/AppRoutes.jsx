@@ -38,6 +38,7 @@ import CreateMaintenanceRequestPage from '../pages/tenant/CreateMaintenanceReque
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import UserManagementPage from '../pages/admin/UserManagementPage'
 import OwnerVerificationPage from '../pages/admin/OwnerVerificationPage'
+import AuditLogsPage from '../pages/admin/AuditLogsPage'
 
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
@@ -144,6 +145,7 @@ export default function AppRoutes() {
                 <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="users" element={<UserManagementPage />} />
                 <Route path="owner-verification" element={<OwnerVerificationPage />} />
+                <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
               </Routes>
             </RoleRoute>
