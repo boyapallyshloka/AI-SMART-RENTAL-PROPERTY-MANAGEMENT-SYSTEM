@@ -1,0 +1,92 @@
+/**
+ * Mock Rent Payments and Invoices Data for HomeSphere Owner Portal
+ */
+
+export const PAYMENT_STATUSES = [
+  'Paid',
+  'Pending',
+  'Overdue',
+]
+
+export const MOCK_INVOICES = [
+  {
+    id: 'inv-1',
+    invoiceNumber: 'INV-2026-001',
+    tenantName: 'Sarah Jenkins',
+    propertyName: 'Sunset Palms Luxury Residences',
+    unitNumber: 'Unit #302',
+    dueDate: '2026-09-01',
+    amount: 3400,
+    status: 'Paid',
+  },
+  {
+    id: 'inv-2',
+    invoiceNumber: 'INV-2026-002',
+    tenantName: 'Michael Chang',
+    propertyName: 'Highland Oaks Modern Townhomes',
+    unitNumber: 'Townhome #201',
+    dueDate: '2026-09-01',
+    amount: 2950,
+    status: 'Paid',
+  },
+  {
+    id: 'inv-3',
+    invoiceNumber: 'INV-2026-003',
+    tenantName: 'Emily Rodriguez',
+    propertyName: 'The Grandview Skyline Lofts',
+    unitNumber: 'Loft #502',
+    dueDate: '2026-09-01',
+    amount: 2450,
+    status: 'Paid',
+  },
+  {
+    id: 'inv-4',
+    invoiceNumber: 'INV-2026-004',
+    tenantName: 'Jason Miller',
+    propertyName: 'Harborview Bayfront Condos',
+    unitNumber: 'Unit #704',
+    dueDate: '2026-09-05',
+    amount: 3900,
+    status: 'Pending',
+  },
+  {
+    id: 'inv-5',
+    invoiceNumber: 'INV-2026-005',
+    tenantName: 'Jessica Taylor',
+    propertyName: 'Metro Center Executive Suites',
+    unitNumber: 'Suite #1402',
+    dueDate: '2026-09-05',
+    amount: 2850,
+    status: 'Pending',
+  },
+  {
+    id: 'inv-6',
+    invoiceNumber: 'INV-2026-006',
+    tenantName: 'Anthony Rossi',
+    propertyName: 'Pinecrest Mountain Villa',
+    unitNumber: 'Villa #1',
+    dueDate: '2026-08-25',
+    amount: 4600,
+    status: 'Overdue',
+  },
+  {
+    id: 'inv-7',
+    invoiceNumber: 'INV-2026-007',
+    tenantName: 'Olivia Bennett',
+    propertyName: 'Sunset Palms Luxury Residences',
+    unitNumber: 'Unit #104',
+    dueDate: '2026-08-28',
+    amount: 3200,
+    status: 'Overdue',
+  },
+  {
+    id: 'inv-8',
+    invoiceNumber: 'INV-2026-008',
+    tenantName: 'Ethan Walker',
+    propertyName: 'Highland Oaks Modern Townhomes',
+    unitNumber: 'Townhome #105',
+    dueDate: '2026-09-01',
+    amount: 2950,
+    status: 'Paid',
+  },
+]
