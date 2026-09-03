@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
   MOCK_APPLICATIONS,
@@ -239,16 +240,17 @@ export default function ApplicationsPage() {
                         <StatusBadge status={app.status} size="sm" />
                       </td>
 
-                      {/* Actions: View Details (Coming Soon) */}
+                      {/* Actions: View Details */}
                       <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          leftIcon={<Eye className="w-3.5 h-3.5" />}
-                          onClick={() => handleViewDetails(app.applicantName)}
-                        >
-                          View Details
-                        </Button>
+                        <Link to={`/owner/applications/${app.id}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                          >
+                            View Details
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   ))}
