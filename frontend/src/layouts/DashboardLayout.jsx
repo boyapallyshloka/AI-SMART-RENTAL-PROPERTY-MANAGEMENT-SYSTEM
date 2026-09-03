@@ -42,6 +42,12 @@ export default function DashboardLayout({
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(' ')
 
+  React.useEffect(() => {
+    if (displayTitle) {
+      document.title = `${displayTitle} | HomeSphere`
+    }
+  }, [displayTitle])
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
       {/* Sidebar Navigation */}

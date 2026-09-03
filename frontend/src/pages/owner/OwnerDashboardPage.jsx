@@ -29,6 +29,7 @@ export default function OwnerDashboardPage() {
       defaultRole={user?.role || 'owner'}
       activeItem={activeNav}
       onSelectNav={(item) => setActiveNav(item)}
+      pageTitle="Owner Dashboard"
       topbarActions={
         <div className="flex items-center gap-2">
           <Link to="/ui-showcase">
