@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Home,
   LayoutDashboard,
@@ -53,7 +54,20 @@ export default function Sidebar({
   onClose,
   onRoleChange,
 }) {
-  const menuItems = role === 'owner' ? OWNER_MENU : TENANT_MENU
+  const navigate = useNavigate()
+  const menuItems = role === 'tenant' ? TENANT_MENU : OWNER_MENU
+
+  const handleItemClick = (id) => {
+    if (onSelect) onSelect(id)
+    if (onClose) onClose()
+
+    if (role === 'owner' || role === 'manager') {
+      if (id === 'dashboard') navigate('/owner/dashboard')
+      else if (id === 'properties') navigate('/owner/properties')
+    } else if (role === 'tenant') {
+      if (id === 'dashboard') navigate('/tenant/dashboard')
+    }
+  }
 
   return (
     <>
@@ -136,10 +150,7 @@ export default function Sidebar({
               label={item.label}
               badge={item.badge}
               isActive={activeItem === item.id}
-              onClick={() => {
-                if (onSelect) onSelect(item.id)
-                if (onClose) onClose()
-              }}
+              onClick={() => handleItemClick(item.id)}
             />
           ))}
         </nav>

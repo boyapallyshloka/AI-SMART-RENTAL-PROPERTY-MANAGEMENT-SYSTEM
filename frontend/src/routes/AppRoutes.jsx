@@ -8,8 +8,14 @@ import RegisterPage from '../pages/auth/RegisterPage'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage'
 
-// Dashboard Pages
+// Owner & Manager Dashboard Pages
 import OwnerDashboardPage from '../pages/owner/OwnerDashboardPage'
+import PropertiesPage from '../pages/owner/PropertiesPage'
+import AddPropertyPage from '../pages/owner/AddPropertyPage'
+import PropertyDetailsPage from '../pages/owner/PropertyDetailsPage'
+import EditPropertyPage from '../pages/owner/EditPropertyPage'
+
+// Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
 
 // UI Showcase Page
@@ -63,6 +69,10 @@ export default function AppRoutes() {
             <RoleRoute allowedRole={['owner', 'manager']}>
               <Routes>
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
+                <Route path="properties" element={<PropertiesPage />} />
+                <Route path="properties/add" element={<AddPropertyPage />} />
+                <Route path="properties/:id" element={<PropertyDetailsPage />} />
+                <Route path="properties/:id/edit" element={<EditPropertyPage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
               </Routes>
             </RoleRoute>
