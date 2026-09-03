@@ -85,6 +85,7 @@ export default function Sidebar({
       else if (id === 'my-applications') navigate('/tenant/applications')
       else if (id === 'agreement') navigate('/tenant/agreement')
       else if (id === 'payments') navigate('/tenant/payments')
+      else if (id === 'maintenance') navigate('/tenant/maintenance')
     }
   }
 

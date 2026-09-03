@@ -31,6 +31,7 @@ import TenantApplicationsPage from '../pages/tenant/TenantApplicationsPage'
 import SubmitApplicationPage from '../pages/tenant/SubmitApplicationPage'
 import TenantAgreementPage from '../pages/tenant/TenantAgreementPage'
 import TenantPaymentsPage from '../pages/tenant/TenantPaymentsPage'
+import TenantMaintenancePage from '../pages/tenant/TenantMaintenancePage'
 
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
@@ -116,6 +117,7 @@ export default function AppRoutes() {
                 <Route path="applications/new" element={<SubmitApplicationPage />} />
                 <Route path="agreement" element={<TenantAgreementPage />} />
                 <Route path="payments" element={<TenantPaymentsPage />} />
+                <Route path="maintenance" element={<TenantMaintenancePage />} />
                 <Route path="*" element={<Navigate to="/tenant/dashboard" replace />} />
               </Routes>
             </RoleRoute>
