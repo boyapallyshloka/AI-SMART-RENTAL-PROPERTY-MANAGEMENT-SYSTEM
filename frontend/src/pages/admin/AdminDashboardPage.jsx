@@ -42,6 +42,7 @@ export default function AdminDashboardPage() {
       subtext: '+12% registered this month',
       icon: <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
       bg: 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800',
+      link: '/admin/users',
     },
     {
       id: 'property-owners',
@@ -50,6 +51,7 @@ export default function AdminDashboardPage() {
       subtext: 'Verified building owners',
       icon: <Building2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
       bg: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800',
+      link: '/admin/users',
     },
     {
       id: 'tenants',
@@ -58,6 +60,7 @@ export default function AdminDashboardPage() {
       subtext: 'Active resident accounts',
       icon: <UserCheck className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />,
       bg: 'bg-cyan-50 dark:bg-cyan-950/50 border-cyan-200 dark:border-cyan-800',
+      link: '/admin/users',
     },
     {
       id: 'pending-verifications',
@@ -66,6 +69,7 @@ export default function AdminDashboardPage() {
       subtext: 'Requires admin document review',
       icon: <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
       bg: 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800',
+      link: '/admin/owner-verification',
     },
     {
       id: 'open-maintenance',
@@ -225,27 +229,40 @@ export default function AdminDashboardPage() {
 
           {/* 6 Mock Summary Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {summaryMetrics.map((card) => (
-              <div
-                key={card.id}
-                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-start justify-between"
-              >
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    {card.label}
-                  </span>
-                  <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1.5">
-                    {card.value}
+            {summaryMetrics.map((card) => {
+              const cardContent = (
+                <div
+                  className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs transition-all flex items-start justify-between h-full ${
+                    card.link
+                      ? 'hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md cursor-pointer group'
+                      : 'hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {card.label}
+                    </span>
+                    <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1.5">
+                      {card.value}
+                    </div>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
+                      {card.subtext}
+                    </span>
                   </div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
-                    {card.subtext}
-                  </span>
+                  <div className={`p-3 rounded-xl border ${card.bg} shrink-0 ml-3`}>
+                    {card.icon}
+                  </div>
                 </div>
-                <div className={`p-3 rounded-xl border ${card.bg}`}>
-                  {card.icon}
-                </div>
-              </div>
-            ))}
+              )
+
+              return card.link ? (
+                <Link key={card.id} to={card.link} className="block">
+                  {cardContent}
+                </Link>
+              ) : (
+                <div key={card.id}>{cardContent}</div>
+              )
+            })}
           </div>
 
           {/* Recent Activity / Audit Log Table */}
