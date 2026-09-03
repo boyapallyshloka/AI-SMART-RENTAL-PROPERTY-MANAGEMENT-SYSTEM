@@ -1,346 +1,364 @@
 import React, { useState } from 'react'
+import DashboardLayout from './layouts/DashboardLayout'
+import UIShowcase from './components/common/UIShowcase'
 import {
   Button,
-  Input,
-  Select,
-  Textarea,
   StatusBadge,
-  Loader,
   EmptyState,
 } from './components/ui'
 import {
-  Plus,
-  Trash2,
-  Download,
-  Mail,
-  Search,
   Building2,
-  Wrench,
+  Users,
   DollarSign,
+  Wrench,
+  Plus,
   Sparkles,
-  Layers,
-  Home,
+  ArrowUpRight,
+  Clock,
+  ShieldCheck,
+  Search,
+  CheckCircle2,
+  FileText,
+  CreditCard,
 } from 'lucide-react'
 
 export default function App() {
-  const [btnLoading, setBtnLoading] = useState(false)
-  const [sampleText, setSampleText] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState('Available')
-
-  const allStatuses = [
-    'Available',
-    'Occupied',
-    'Pending',
-    'Approved',
-    'Rejected',
-    'Paid',
-    'Overdue',
-    'Open',
-    'Assigned',
-    'In Progress',
-    'Resolved',
-    'Closed',
-  ]
-
-  const propertyTypeOptions = [
-    { value: 'apartment', label: 'Apartment' },
-    { value: 'condo', label: 'Condominium' },
-    { value: 'single_family', label: 'Single Family Home' },
-    { value: 'townhouse', label: 'Townhouse' },
-  ]
+  const [role, setRole] = useState('owner')
+  const [activeNav, setActiveNav] = useState('dashboard')
+  const [viewMode, setViewMode] = useState('dashboard') // 'dashboard' | 'showcase'
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-12">
-        {/* Header */}
-        <header className="border-b border-slate-200 dark:border-slate-800 pb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
-                  <Home className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                    HomeSphere UI Showcase
-                  </h1>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    Testing reusable foundational design system components
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                Phase 1: UI Primitives
-              </span>
-            </div>
-          </div>
-        </header>
+    <DashboardLayout
+      defaultRole={role}
+      activeItem={activeNav}
+      onSelectNav={(item) => setActiveNav(item)}
+      topbarActions={
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={viewMode === 'showcase' ? 'primary' : 'outline'}
+            onClick={() => setViewMode(viewMode === 'dashboard' ? 'showcase' : 'dashboard')}
+          >
+            {viewMode === 'dashboard' ? 'Open UI Showcase' : 'Back to Dashboard'}
+          </Button>
+        </div>
+      }
+    >
+      {({ role: currentRole, activeNav: currentItem }) => {
+        if (viewMode === 'showcase') {
+          return <UIShowcase />
+        }
 
-        {/* 1. Buttons Showcase */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        return currentRole === 'owner' ? (
+          <OwnerDashboardContent activeNav={currentItem} />
+        ) : (
+          <TenantDashboardContent activeNav={currentItem} />
+        )
+      }}
+    </DashboardLayout>
+  )
+}
+
+/**
+ * Placeholder Content for Owner View
+ */
+function OwnerDashboardContent({ activeNav }) {
+  if (activeNav !== 'dashboard') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
+              {activeNav.replace('-', ' ')}
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Property owner management portal &bull; HomeSphere
+            </p>
+          </div>
+          <Button size="sm" variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            New {activeNav.slice(0, -1) || 'Entry'}
+          </Button>
+        </div>
+
+        <div className="p-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm text-center">
+          <EmptyState
+            icon={<Building2 className="w-7 h-7" />}
+            title={`${activeNav.charAt(0).toUpperCase() + activeNav.slice(1)} Module Loaded`}
+            message="This page content area is prepared for the upcoming feature rollout. Navigation and layout structure are fully wired."
+            action={{
+              label: 'Add First Record',
+              onClick: () => alert(`Action triggered for ${activeNav}`),
+              variant: 'primary',
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
+        <div className="relative z-10 max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/20">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>AI Smart Management Active</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Welcome to Owner Portal
+          </h1>
+          <p className="text-xs sm:text-sm text-indigo-100/80">
+            You currently manage 12 rental units across 3 properties with 92% active occupancy.
+          </p>
+        </div>
+        <div className="absolute right-0 top-0 bottom-0 w-80 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
+      </div>
+
+      {/* KPI Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <MetricCard
+          title="Total Properties"
+          value="12 Units"
+          subtitle="Across 3 buildings"
+          change="+2 this quarter"
+          icon={<Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
+        />
+        <MetricCard
+          title="Active Occupancy"
+          value="91.7%"
+          subtitle="11 of 12 occupied"
+          change="Optimal rate"
+          icon={<Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+        />
+        <MetricCard
+          title="Monthly Revenue"
+          value="$24,850"
+          subtitle="Collected for September"
+          change="+4.8% vs Aug"
+          icon={<DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
+        />
+        <MetricCard
+          title="Open Tickets"
+          value="2 Pending"
+          subtitle="1 urgent HVAC inspection"
+          change="Within SLA"
+          icon={<Wrench className="w-5 h-5 text-rose-600 dark:text-rose-400" />}
+        />
+      </div>
+
+      {/* Recent Properties & Applications Table Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Button Variants & Sizes
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                Property Portfolio Status
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Primary, secondary, danger, outline with sizes, icons, and loading states
-              </p>
+              <p className="text-xs text-slate-500">Live rental availability overview</p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setBtnLoading(!btnLoading)}
-            >
-              Toggle Loading ({btnLoading ? 'Active' : 'Off'})
+            <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+              Add Unit
             </Button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Variants
-              </h3>
-              <div className="flex flex-wrap gap-3 items-center">
-                <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-                  Primary Button
-                </Button>
-                <Button variant="secondary" leftIcon={<Download className="w-4 h-4" />}>
-                  Secondary Button
-                </Button>
-                <Button variant="danger" leftIcon={<Trash2 className="w-4 h-4" />}>
-                  Danger Button
-                </Button>
-                <Button variant="outline">
-                  Outline Button
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Sizes & States
-              </h3>
-              <div className="flex flex-wrap gap-3 items-center">
-                <Button size="sm" variant="primary">Small Size</Button>
-                <Button size="md" variant="primary">Medium Size</Button>
-                <Button size="lg" variant="primary">Large Size</Button>
-                <Button variant="primary" isLoading={btnLoading}>
-                  {btnLoading ? 'Saving...' : 'Dynamic Loading'}
-                </Button>
-                <Button variant="secondary" disabled>
-                  Disabled
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Status Badges Showcase */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              Status Badges (All 12 Required Labels)
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Color-coded status indicators for properties, tenancies, payments, and tickets
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {allStatuses.map((st) => (
-              <div
-                key={st}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 gap-2"
-              >
-                <StatusBadge status={st} size="md" />
-                <span className="text-[11px] text-slate-400 font-mono">{st}</span>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[
+              { unit: 'Sunset Palms #302', type: '2 Bed, 2 Bath', rent: '$2,400', status: 'Occupied' },
+              { unit: 'Sunset Palms #104', type: '1 Bed, 1 Bath', rent: '$1,850', status: 'Available' },
+              { unit: 'Highland Oaks #201', type: '3 Bed, 2 Bath', rent: '$3,100', status: 'Pending' },
+              { unit: 'Metro Lofts #512', type: 'Studio', rent: '$1,650', status: 'Occupied' },
+            ].map((prop, i) => (
+              <div key={i} className="py-3 flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{prop.unit}</p>
+                  <p className="text-xs text-slate-400">{prop.type} &bull; {prop.rent}/mo</p>
+                </div>
+                <StatusBadge status={prop.status} size="sm" />
               </div>
             ))}
           </div>
+        </div>
 
-          <div className="pt-2">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Compact Size Without Dot
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {allStatuses.slice(0, 6).map((st) => (
-                <StatusBadge key={st} status={st} size="sm" withDot={false} />
-              ))}
+        {/* Action Panel */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+            Quick Actions
+          </h2>
+          <div className="space-y-2.5">
+            <Button variant="primary" className="w-full justify-start" leftIcon={<Plus className="w-4 h-4" />}>
+              Create Lease Agreement
+            </Button>
+            <Button variant="secondary" className="w-full justify-start" leftIcon={<DollarSign className="w-4 h-4" />}>
+              Record Rent Payment
+            </Button>
+            <Button variant="secondary" className="w-full justify-start" leftIcon={<Wrench className="w-4 h-4" />}>
+              Dispatch Maintenance
+            </Button>
+            <Button variant="outline" className="w-full justify-start" leftIcon={<Sparkles className="w-4 h-4 text-amber-500" />}>
+              Generate AI Market Report
+            </Button>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 text-xs">
+              <p className="font-semibold text-indigo-900 dark:text-indigo-200">
+                AI Recommendation
+              </p>
+              <p className="text-indigo-700/80 dark:text-indigo-300/80 mt-1">
+                Sunset Palms #104 has had 4 inquiries. Consider scheduling an open inspection this Saturday.
+              </p>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-        {/* 3. Form Controls Showcase */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Form Controls (Input, Select, Textarea)
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Labels, error messages, icons, helper text, and validation states
+/**
+ * Placeholder Content for Tenant View
+ */
+function TenantDashboardContent({ activeNav }) {
+  if (activeNav !== 'dashboard') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
+              {activeNav.replace('-', ' ')}
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Verified Tenant Portal &bull; HomeSphere
             </p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Standard Input */}
-            <Input
-              label="Property Name"
-              placeholder="e.g. Sunset Heights #402"
-              value={sampleText}
-              onChange={(e) => setSampleText(e.target.value)}
-              helperText="Enter a descriptive label for unit identification"
-              required
-            />
+        <div className="p-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm text-center">
+          <EmptyState
+            icon={<FileText className="w-7 h-7" />}
+            title={`${activeNav.charAt(0).toUpperCase() + activeNav.slice(1)}`}
+            message="Your tenant data for this section is connected. Full forms and interactive records will be available in the next release."
+          />
+        </div>
+      </div>
+    )
+  }
 
-            {/* Input with Icons */}
-            <Input
-              label="Monthly Rent Amount"
-              placeholder="2,400"
-              leftIcon={<DollarSign className="w-4 h-4" />}
-              rightIcon={<span className="text-xs font-medium text-slate-400">USD</span>}
-              helperText="Set base lease price"
-            />
-
-            {/* Input with Error State */}
-            <Input
-              label="Tenant Email"
-              defaultValue="invalid-email-format"
-              leftIcon={<Mail className="w-4 h-4" />}
-              error="Please provide a valid email address (e.g. tenant@example.com)"
-              required
-            />
-
-            {/* Select Component */}
-            <Select
-              label="Property Type"
-              options={propertyTypeOptions}
-              defaultValue="apartment"
-              helperText="Select the structural category"
-            />
-
-            {/* Select with Error */}
-            <Select
-              label="Initial Status Assignment"
-              options={allStatuses.map((s) => ({ value: s, label: s }))}
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              helperText={`Current preview: ${selectedStatus}`}
-            />
-
-            {/* Disabled Input */}
-            <Input
-              label="System Property ID (Read Only)"
-              defaultValue="PROP-9482-X"
-              disabled
-              helperText="Generated automatically by HomeSphere platform"
-            />
+  return (
+    <div className="space-y-8">
+      {/* Tenant Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
+        <div className="relative z-10 max-w-xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Lease Active &bull; Unit #302</span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Hi Elena, Welcome Home!
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-300">
+            Your next rent payment of $2,400 is scheduled for October 1st, 2026.
+          </p>
+        </div>
+      </div>
 
-          {/* Textarea */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <Textarea
-              label="Property Description"
-              rows={3}
-              placeholder="Spacious two-bedroom condo with updated appliances and balcony..."
-              helperText="Maximum 500 characters recommended"
-            />
+      {/* Tenant Status Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <MetricCard
+          title="Current Lease"
+          value="Unit #302"
+          subtitle="Sunset Palms Condos"
+          change="Expires July 2027"
+          icon={<Building2 className="w-5 h-5 text-indigo-600" />}
+        />
+        <MetricCard
+          title="Rent Payment"
+          value="Up to Date"
+          subtitle="Last paid: Sep 1, 2026"
+          change="Paid via AutoPay"
+          icon={<CreditCard className="w-5 h-5 text-emerald-600" />}
+        />
+        <MetricCard
+          title="Maintenance"
+          value="0 Open"
+          subtitle="All requests resolved"
+          change="Standard SLA"
+          icon={<Wrench className="w-5 h-5 text-blue-600" />}
+        />
+      </div>
 
-            <Textarea
-              label="Maintenance Notes (Error state preview)"
-              rows={3}
-              defaultValue="Issue: Pipe leakage"
-              error="Inspection report notes must specify room location and severity"
-              required
-            />
-          </div>
-        </section>
-
-        {/* 4. Loader Showcase */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Loader Spinner Sizes & Text
+      {/* Tenant Recent Records */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+              Recent Payment History
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Reusable loading spinners for async actions and content loading
-            </p>
+            <StatusBadge status="Paid" size="sm" />
           </div>
 
-          <div className="flex flex-wrap items-center gap-8 py-2">
-            <div className="flex items-center gap-2">
-              <Loader size="xs" className="text-indigo-600" />
-              <span className="text-xs text-slate-500">xs</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Loader size="sm" className="text-indigo-600" />
-              <span className="text-xs text-slate-500">sm</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Loader size="md" className="text-indigo-600" />
-              <span className="text-xs text-slate-500">md</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Loader size="lg" className="text-indigo-600" />
-              <span className="text-xs text-slate-500">lg</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Loader size="xl" className="text-indigo-600" />
-              <span className="text-xs text-slate-500">xl</span>
-            </div>
-            <div className="pl-4 border-l border-slate-200 dark:border-slate-800">
-              <Loader
-                size="md"
-                text="Syncing HomeSphere rental data..."
-                className="text-indigo-600"
-              />
-            </div>
+          <div className="space-y-3">
+            {[
+              { id: 'INV-2026-09', date: 'Sep 01, 2026', amount: '$2,400.00', status: 'Paid' },
+              { id: 'INV-2026-08', date: 'Aug 01, 2026', amount: '$2,400.00', status: 'Paid' },
+              { id: 'INV-2026-07', date: 'Jul 01, 2026', amount: '$2,400.00', status: 'Paid' },
+            ].map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-xs">
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{inv.id}</p>
+                  <p className="text-slate-400">{inv.date}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{inv.amount}</p>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Settled</span>
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
 
-        {/* 5. Empty State Showcase */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              EmptyState Component
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+              Quick Tenant Requests
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Empty view with title, message, custom icon, and action button
-            </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <EmptyState
-              icon={<Building2 className="w-7 h-7" />}
-              title="No properties listed yet"
-              message="Get started by listing your first rental unit to track tenants, leases, and payments."
-              action={
-                <Button
-                  variant="primary"
-                  leftIcon={<Plus className="w-4 h-4" />}
-                  onClick={() => alert('Add Property clicked!')}
-                >
-                  Add Property
-                </Button>
-              }
-            />
-
-            <EmptyState
-              icon={<Wrench className="w-7 h-7" />}
-              title="No open maintenance tickets"
-              message="All property service requests are resolved. New tenant requests will appear here."
-              action={{
-                label: 'Create Work Order',
-                onClick: () => alert('Create Work Order clicked!'),
-                variant: 'outline',
-              }}
-            />
+          <p className="text-xs text-slate-500">
+            Need assistance or maintenance in your rental unit? Submit an instant ticket.
+          </p>
+          <div className="space-y-2.5">
+            <Button variant="primary" className="w-full justify-start" leftIcon={<Wrench className="w-4 h-4" />}>
+              Report Maintenance Issue
+            </Button>
+            <Button variant="secondary" className="w-full justify-start" leftIcon={<FileText className="w-4 h-4" />}>
+              Download Lease Agreement PDF
+            </Button>
+            <Button variant="outline" className="w-full justify-start" leftIcon={<Search className="w-4 h-4" />}>
+              Browse Available Storage / Parking
+            </Button>
           </div>
-        </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricCard({ title, value, subtitle, change, icon }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</span>
+        <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">{icon}</div>
+      </div>
+      <div>
+        <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{value}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+      </div>
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+        <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
+          {change}
+        </span>
       </div>
     </div>
   )
