@@ -1,0 +1,86 @@
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+
+// Auth Pages
+import LoginPage from '../pages/auth/LoginPage'
+import RegisterPage from '../pages/auth/RegisterPage'
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '../pages/auth/ResetPasswordPage'
+
+// Dashboard Pages
+import OwnerDashboardPage from '../pages/owner/OwnerDashboardPage'
+import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
+
+// UI Showcase Page
+import UIShowcasePage from '../pages/UIShowcasePage'
+
+// Route Guards
+import ProtectedRoute from './ProtectedRoute'
+import RoleRoute from './RoleRoute'
+
+/**
+ * Root Redirector: Sends authenticated user to their role dashboard or /login
+ */
+function RootRedirect() {
+  const { user, loading } = useAuth()
+
+  if (loading) return null
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <Navigate to={user.role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard'} replace />
+}
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* Root entry */}
+      <Route path="/" element={<RootRedirect />} />
+
+      {/* Public Auth Routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/* Standalone UI Component Showcase */}
+      <Route path="/ui-showcase" element={<UIShowcasePage />} />
+
+      {/* Protected Owner Routes */}
+      <Route
+        path="/owner/*"
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRole="owner">
+              <Routes>
+                <Route path="dashboard" element={<OwnerDashboardPage />} />
+                <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Tenant Routes */}
+      <Route
+        path="/tenant/*"
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRole="tenant">
+              <Routes>
+                <Route path="dashboard" element={<TenantDashboardPage />} />
+                <Route path="*" element={<Navigate to="/tenant/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Fallback route */}
+      <Route path="*" element={<RootRedirect />} />
+    </Routes>
+  )
+}

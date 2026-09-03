@@ -1,21 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 /**
  * UserMenu Component for Topbar
  * @param {Object} props
- * @param {'owner' | 'tenant'} [props.role='owner']
+ * @param {'owner' | 'tenant'} [props.role]
  * @param {() => void} [props.onLogout]
  */
-export default function UserMenu({ role = 'owner', onLogout }) {
+export default function UserMenu({ role, onLogout }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef(null)
 
+  let auth = null
+  try {
+    auth = useAuth()
+  } catch (e) {
+    // Graceful fallback if used outside AuthProvider
+  }
+
+  const effectiveRole = role || auth?.user?.role || 'owner'
   const userInfo = {
-    name: role === 'owner' ? 'Marcus Vance' : 'Elena Rostova',
-    email: role === 'owner' ? 'marcus@homesphere.dev' : 'elena.r@homesphere.dev',
-    roleLabel: role === 'owner' ? 'Property Owner' : 'Verified Tenant',
-    avatarText: role === 'owner' ? 'MV' : 'ER',
+    name: auth?.user?.name || (effectiveRole === 'owner' ? 'Marcus Vance' : 'Elena Rostova'),
+    email: auth?.user?.email || (effectiveRole === 'owner' ? 'owner@homesphere.com' : 'tenant@homesphere.com'),
+    roleLabel: auth?.user?.roleLabel || (effectiveRole === 'owner' ? 'Property Owner' : 'Verified Tenant'),
+    avatarText: auth?.user?.avatarText || (effectiveRole === 'owner' ? 'MV' : 'ER'),
   }
 
   useEffect(() => {
@@ -31,6 +40,15 @@ export default function UserMenu({ role = 'owner', onLogout }) {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen])
+
+  const handleLogoutClick = () => {
+    setIsOpen(false)
+    if (onLogout) {
+      onLogout()
+    } else if (auth?.logout) {
+      auth.logout()
+    }
+  }
 
   return (
     <div className="relative" ref={menuRef}>
@@ -91,11 +109,7 @@ export default function UserMenu({ role = 'owner', onLogout }) {
           <div className="p-1.5 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => {
-                setIsOpen(false)
-                if (onLogout) onLogout()
-                else alert('Logout clicked (Placeholder)')
-              }}
+              onClick={handleLogoutClick}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors font-medium text-xs"
             >
               <LogOut className="w-4 h-4" />
