@@ -78,6 +78,7 @@ export default function Sidebar({
       else if (id === 'payments') navigate('/owner/payments')
       else if (id === 'maintenance') navigate('/owner/maintenance')
       else if (id === 'reports') navigate('/owner/reports')
+      else if (id === 'ai-insights') navigate('/owner/ai-insights')
     } else if (role === 'tenant') {
       if (id === 'dashboard') navigate('/tenant/dashboard')
     }
