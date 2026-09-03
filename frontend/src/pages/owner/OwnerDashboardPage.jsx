@@ -26,7 +26,7 @@ export default function OwnerDashboardPage() {
 
   return (
     <DashboardLayout
-      defaultRole="owner"
+      defaultRole={user?.role || 'owner'}
       activeItem={activeNav}
       onSelectNav={(item) => setActiveNav(item)}
       topbarActions={

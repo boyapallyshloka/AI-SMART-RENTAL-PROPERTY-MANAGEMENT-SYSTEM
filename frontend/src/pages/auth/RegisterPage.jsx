@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
-import { Button, Input, Select } from '../../components/ui'
-import { Mail, Lock, User, UserPlus, Building2 } from 'lucide-react'
+import { Button, Input } from '../../components/ui'
+import { Mail, Lock, User, UserPlus, Building2, Briefcase } from 'lucide-react'
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -55,9 +55,11 @@ export default function RegisterPage() {
     try {
       const result = await register({ name, email, password, role })
       if (result.success) {
-        navigate(role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard', {
-          replace: true,
-        })
+        const destination =
+          role === 'owner' || role === 'manager'
+            ? '/owner/dashboard'
+            : '/tenant/dashboard'
+        navigate(destination, { replace: true })
       }
     } finally {
       setIsLoading(false)
@@ -67,7 +69,7 @@ export default function RegisterPage() {
   return (
     <AuthLayout
       title="Create an account"
-      subtitle="Join HomeSphere as a property owner or tenant"
+      subtitle="Join HomeSphere as a tenant, owner, or manager"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {/* Role Selector Tabs */}
@@ -75,11 +77,11 @@ export default function RegisterPage() {
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             I am joining as a
           </label>
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <button
               type="button"
               onClick={() => setRole('tenant')}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
                 role === 'tenant'
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -91,14 +93,26 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setRole('owner')}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
                 role === 'owner'
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>Property Owner</span>
+              <span>Owner</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole('manager')}
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                role === 'manager'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Manager</span>
             </button>
           </div>
         </div>

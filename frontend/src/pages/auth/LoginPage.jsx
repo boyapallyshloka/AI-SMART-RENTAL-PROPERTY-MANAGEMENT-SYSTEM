@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, Lock, LogIn, Sparkles, Building2, User } from 'lucide-react'
+import { Mail, Lock, LogIn, Sparkles, Building2, User, Briefcase } from 'lucide-react'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -23,7 +23,7 @@ export default function LoginPage() {
     if (!email.trim()) {
       errs.email = 'Email address is required'
     } else if (!emailRegex.test(email.trim())) {
-      errs.email = 'Please enter a valid email address'
+      errs.email = 'Please enter a valid email address (e.g. name@example.com)'
     }
 
     if (!password) {
@@ -46,9 +46,18 @@ export default function LoginPage() {
     try {
       const result = await login(email, password)
       if (result.success) {
-        const destination =
-          location.state?.from?.pathname ||
-          (result.user.role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard')
+        let destination = location.state?.from?.pathname
+
+        // If no prior location or trying to go to login/root, route by role
+        if (!destination || destination === '/login' || destination === '/') {
+          if (result.user.role === 'owner' || result.user.role === 'manager') {
+            // manager goes to /owner/dashboard temporarily per requirements
+            destination = '/owner/dashboard'
+          } else {
+            destination = '/tenant/dashboard'
+          }
+        }
+
         navigate(destination, { replace: true })
       } else {
         setAuthError(result.error || 'Authentication failed')
@@ -138,18 +147,18 @@ export default function LoginPage() {
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-2.5">
             Quick Fill Demo Accounts
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => handleQuickFill('owner@homesphere.com', 'password123')}
               className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
             >
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
+              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Owner</span>
               </div>
               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
-                owner@homesphere.com
+                owner@...
               </p>
             </button>
 
@@ -158,12 +167,26 @@ export default function LoginPage() {
               onClick={() => handleQuickFill('tenant@homesphere.com', 'password123')}
               className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
             >
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
+              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
                 <User className="w-3.5 h-3.5" />
                 <span>Tenant</span>
               </div>
               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
-                tenant@homesphere.com
+                tenant@...
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickFill('manager@homesphere.com', 'password123')}
+              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+            >
+              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Manager</span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                manager@...
               </p>
             </button>
           </div>

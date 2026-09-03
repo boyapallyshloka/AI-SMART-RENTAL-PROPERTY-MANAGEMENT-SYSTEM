@@ -5,8 +5,9 @@ import Loader from '../components/ui/Loader'
 
 /**
  * Route wrapper that enforces role-based access
+ * Allows managers to access owner routes temporarily per requirements
  * @param {Object} props
- * @param {'owner' | 'tenant' | string[]} props.allowedRole
+ * @param {'owner' | 'tenant' | 'manager' | string[]} props.allowedRole
  * @param {React.ReactNode} [props.children]
  */
 export default function RoleRoute({ allowedRole, children }) {
@@ -24,13 +25,17 @@ export default function RoleRoute({ allowedRole, children }) {
     return <Navigate to="/login" replace />
   }
 
+  // Manager is permitted on owner routes temporarily
   const isAllowed = Array.isArray(allowedRole)
-    ? allowedRole.includes(user.role)
-    : user.role === allowedRole
+    ? allowedRole.includes(user.role) || (allowedRole.includes('owner') && user.role === 'manager')
+    : user.role === allowedRole || (allowedRole === 'owner' && user.role === 'manager')
 
   if (!isAllowed) {
     // Redirect unauthorized user to their respective valid dashboard
-    const fallbackPath = user.role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard'
+    const fallbackPath =
+      user.role === 'owner' || user.role === 'manager'
+        ? '/owner/dashboard'
+        : '/tenant/dashboard'
     return <Navigate to={fallbackPath} replace />
   }
 

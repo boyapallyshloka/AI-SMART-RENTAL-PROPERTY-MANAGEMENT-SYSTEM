@@ -21,6 +21,7 @@ import RoleRoute from './RoleRoute'
 
 /**
  * Root Redirector: Sends authenticated user to their role dashboard or /login
+ * Note: Manager goes to /owner/dashboard temporarily per requirements
  */
 function RootRedirect() {
   const { user, loading } = useAuth()
@@ -31,7 +32,12 @@ function RootRedirect() {
     return <Navigate to="/login" replace />
   }
 
-  return <Navigate to={user.role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard'} replace />
+  const destination =
+    user.role === 'owner' || user.role === 'manager'
+      ? '/owner/dashboard'
+      : '/tenant/dashboard'
+
+  return <Navigate to={destination} replace />
 }
 
 export default function AppRoutes() {
@@ -49,12 +55,12 @@ export default function AppRoutes() {
       {/* Standalone UI Component Showcase */}
       <Route path="/ui-showcase" element={<UIShowcasePage />} />
 
-      {/* Protected Owner Routes */}
+      {/* Protected Owner & Manager Routes */}
       <Route
         path="/owner/*"
         element={
           <ProtectedRoute>
-            <RoleRoute allowedRole="owner">
+            <RoleRoute allowedRole={['owner', 'manager']}>
               <Routes>
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />

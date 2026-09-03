@@ -22,6 +22,15 @@ export const MOCK_USERS = [
     avatarText: 'ER',
     roleLabel: 'Verified Tenant',
   },
+  {
+    id: 'usr_manager_01',
+    email: 'manager@homesphere.com',
+    password: 'password123',
+    name: 'Sarah Connor',
+    role: 'manager',
+    avatarText: 'SC',
+    roleLabel: 'Property Manager',
+  },
 ]
 
 const STORAGE_KEY = 'homesphere_mock_user'
@@ -65,7 +74,8 @@ export function AuthProvider({ children }) {
     )
 
     if (!matchedUser) {
-      const errMsg = 'Invalid email or password. Use owner@homesphere.com or tenant@homesphere.com with password123.'
+      const errMsg =
+        'Invalid email or password. Use owner@homesphere.com, tenant@homesphere.com, or manager@homesphere.com with password123.'
       setError(errMsg)
       return { success: false, error: errMsg }
     }
@@ -97,13 +107,19 @@ export function AuthProvider({ children }) {
     await new Promise((resolve) => setTimeout(resolve, 300))
 
     const normalizedEmail = (email || '').trim().toLowerCase()
+    const roleLabels = {
+      owner: 'Property Owner',
+      manager: 'Property Manager',
+      tenant: 'Verified Tenant',
+    }
+
     const sessionUser = {
       id: `usr_${Date.now()}`,
       email: normalizedEmail,
-      name: name.trim() || (role === 'owner' ? 'New Property Owner' : 'New Tenant'),
+      name: name.trim() || `New ${roleLabels[role] || 'User'}`,
       role,
       avatarText: (name.trim() || 'User').slice(0, 2).toUpperCase(),
-      roleLabel: role === 'owner' ? 'Property Owner' : 'Verified Tenant',
+      roleLabel: roleLabels[role] || 'User',
     }
 
     setUser(sessionUser)
