@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
   MOCK_MAINTENANCE_REQUESTS,
@@ -243,7 +244,12 @@ export default function MaintenancePage() {
                     >
                       {/* Ticket Number */}
                       <td className="py-4 pl-6 pr-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">
-                        {req.ticketNumber}
+                        <Link
+                          to={`/owner/maintenance/${req.id}`}
+                          className="hover:underline flex items-center gap-1"
+                        >
+                          {req.ticketNumber}
+                        </Link>
                       </td>
 
                       {/* Category */}
@@ -293,16 +299,17 @@ export default function MaintenancePage() {
                         <StatusBadge status={req.status} size="sm" />
                       </td>
 
-                      {/* Actions: View Details (Coming Soon) */}
+                      {/* Actions: View Details */}
                       <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          leftIcon={<Eye className="w-3.5 h-3.5" />}
-                          onClick={() => handleViewDetails(req.ticketNumber)}
-                        >
-                          View Details
-                        </Button>
+                        <Link to={`/owner/maintenance/${req.id}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                          >
+                            View Details
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   ))}

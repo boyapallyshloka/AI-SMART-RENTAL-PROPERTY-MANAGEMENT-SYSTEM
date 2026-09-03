@@ -19,6 +19,7 @@ import ApplicationDetailsPage from '../pages/owner/ApplicationDetailsPage'
 import PaymentsPage from '../pages/owner/PaymentsPage'
 import PaymentDetailsPage from '../pages/owner/PaymentDetailsPage'
 import MaintenancePage from '../pages/owner/MaintenancePage'
+import MaintenanceDetailsPage from '../pages/owner/MaintenanceDetailsPage'
 
 // Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
@@ -83,6 +84,7 @@ export default function AppRoutes() {
                 <Route path="payments" element={<PaymentsPage />} />
                 <Route path="payments/:id" element={<PaymentDetailsPage />} />
                 <Route path="maintenance" element={<MaintenancePage />} />
+                <Route path="maintenance/:id" element={<MaintenanceDetailsPage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
               </Routes>
             </RoleRoute>
