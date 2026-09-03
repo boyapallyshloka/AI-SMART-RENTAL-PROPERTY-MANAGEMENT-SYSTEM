@@ -367,14 +367,15 @@ export default function PropertyDetailsPage() {
                     Edit Listing Details
                   </Button>
                 </Link>
-                <Button
-                  variant="secondary"
-                  className="w-full justify-start"
-                  leftIcon={<FileText className="w-4 h-4" />}
-                  onClick={() => alert('New lease generation form placeholder')}
-                >
-                  Generate Tenant Agreement
-                </Button>
+                <Link to="/owner/agreements/new" className="block">
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-start"
+                    leftIcon={<FileText className="w-4 h-4" />}
+                  >
+                    Generate Tenant Agreement
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   className="w-full justify-start"

@@ -162,9 +162,11 @@ export default function OwnerDashboardPage() {
                 Owner Quick Actions
               </h2>
               <div className="space-y-2.5">
-                <Button variant="primary" className="w-full justify-start" leftIcon={<Plus className="w-4 h-4" />}>
-                  Create Lease Agreement
-                </Button>
+                <Link to="/owner/agreements/new" className="block">
+                  <Button variant="primary" className="w-full justify-start" leftIcon={<Plus className="w-4 h-4" />}>
+                    Create Lease Agreement
+                  </Button>
+                </Link>
                 <Button variant="secondary" className="w-full justify-start" leftIcon={<DollarSign className="w-4 h-4" />}>
                   Record Rent Payment
                 </Button>

@@ -79,6 +79,21 @@ const STATUS_CONFIG = {
     badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
     dot: 'bg-slate-400',
   },
+  active: {
+    label: 'Active',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+    dot: 'bg-emerald-500',
+  },
+  draft: {
+    label: 'Draft',
+    badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    dot: 'bg-slate-400',
+  },
+  'pending signature': {
+    label: 'Pending Signature',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    dot: 'bg-amber-500',
+  },
 }
 
 /**

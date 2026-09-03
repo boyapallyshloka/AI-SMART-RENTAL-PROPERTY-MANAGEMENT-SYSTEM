@@ -22,6 +22,8 @@ import MaintenancePage from '../pages/owner/MaintenancePage'
 import MaintenanceDetailsPage from '../pages/owner/MaintenanceDetailsPage'
 import ReportsPage from '../pages/owner/ReportsPage'
 import AIInsightsPage from '../pages/owner/AIInsightsPage'
+import AgreementsPage from '../pages/owner/AgreementsPage'
+import CreateAgreementPage from '../pages/owner/CreateAgreementPage'
 
 // Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
@@ -91,6 +93,8 @@ export default function AppRoutes() {
                 <Route path="maintenance/:id" element={<MaintenanceDetailsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="ai-insights" element={<AIInsightsPage />} />
+                <Route path="agreements" element={<AgreementsPage />} />
+                <Route path="agreements/new" element={<CreateAgreementPage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
               </Routes>
             </RoleRoute>
