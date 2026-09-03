@@ -6,6 +6,7 @@ import {
   MAINTENANCE_CATEGORIES,
   MAINTENANCE_PRIORITIES,
   MAINTENANCE_STATUSES,
+  getStoredMaintenanceRequests,
 } from '../../utils/maintenanceMockData'
 import {
   Button,
@@ -39,7 +40,7 @@ export default function MaintenancePage() {
   useEffect(() => {
     // Brief simulated loading to showcase Loader component
     const timer = setTimeout(() => {
-      setRequests(MOCK_MAINTENANCE_REQUESTS)
+      setRequests(getStoredMaintenanceRequests())
       setLoading(false)
     }, 250)
     return () => clearTimeout(timer)

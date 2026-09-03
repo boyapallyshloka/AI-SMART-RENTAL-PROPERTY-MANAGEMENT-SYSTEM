@@ -190,13 +190,56 @@ try {
   const stored = getStoredMaintenanceRequests()
   if (Array.isArray(stored)) {
     stored.forEach((s) => {
-      const match = MOCK_MAINTENANCE_REQUESTS.find((m) => String(m.id) === String(s.id))
-      if (match) {
-        match.status = s.status
+      const exists = MOCK_MAINTENANCE_REQUESTS.some((m) => String(m.id) === String(s.id))
+      if (!exists) {
+        MOCK_MAINTENANCE_REQUESTS.unshift(s)
+      } else {
+        const match = MOCK_MAINTENANCE_REQUESTS.find((m) => String(m.id) === String(s.id))
+        if (match) {
+          match.status = s.status
+        }
       }
     })
   }
 } catch (e) {}
+
+/**
+ * Add a new maintenance request to localStorage and in-memory list
+ */
+export function addMaintenanceRequest(requestData) {
+  const currentList = getStoredMaintenanceRequests()
+  const randomNum = Math.floor(100 + Math.random() * 900)
+  const newRequest = {
+    id: `maint-${Date.now()}`,
+    ticketNumber: `TKT-2026-${randomNum}`,
+    status: 'Open',
+    submittedDate: new Date().toISOString().split('T')[0],
+    assignedWorker: {
+      name: 'Unassigned',
+      phone: 'Pending dispatch',
+      trade: requestData.category || 'General Repair',
+      company: 'Property Care Dispatch',
+      status: 'Awaiting technician assignment',
+    },
+    ...requestData,
+  }
+
+  const updatedList = [newRequest, ...currentList]
+
+  // Update in-memory mock requests
+  const alreadyInMem = MOCK_MAINTENANCE_REQUESTS.some((m) => String(m.id) === String(newRequest.id))
+  if (!alreadyInMem) {
+    MOCK_MAINTENANCE_REQUESTS.unshift(newRequest)
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList))
+  } catch (e) {
+    console.error('Failed to save new maintenance request to localStorage', e)
+  }
+
+  return newRequest
+}
 
 /**
  * Retrieve single maintenance request by ID

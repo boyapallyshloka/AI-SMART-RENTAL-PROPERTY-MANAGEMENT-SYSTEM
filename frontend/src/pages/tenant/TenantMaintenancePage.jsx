@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
@@ -28,11 +29,15 @@ import {
 
 export default function TenantMaintenancePage() {
   const { user } = useAuth()
+  const location = useLocation()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [noticeMessage, setNoticeMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState(
+    location.state?.successMessage || ''
+  )
 
   const tenantEmail = (user?.email || 'tenant@homesphere.com').toLowerCase().trim()
   const tenantName = (user?.name || 'Elena Rostova').toLowerCase().trim()
@@ -111,6 +116,23 @@ export default function TenantMaintenancePage() {
       pageTitle="Maintenance"
     >
       <div className="space-y-6">
+        {/* Success Message Banner */}
+        {successMessage && (
+          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{successMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage('')}
+              className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-100 font-bold px-1"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {/* Notice Message Banner */}
         {noticeMessage && (
           <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
@@ -139,13 +161,11 @@ export default function TenantMaintenancePage() {
             </p>
           </div>
 
-          <Button
-            variant="primary"
-            onClick={handleCreateRequest}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Create Maintenance Request
-          </Button>
+          <Link to="/tenant/maintenance/new">
+            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+              Create Maintenance Request
+            </Button>
+          </Link>
         </div>
 
         {/* Search & Status Filter Bar */}
@@ -216,13 +236,14 @@ export default function TenantMaintenancePage() {
                   : 'You do not have any open or previous maintenance repair requests on record.'
               }
               action={
-                <Button
-                  variant="primary"
-                  onClick={handleCreateRequest}
-                  leftIcon={<Plus className="w-4 h-4" />}
-                >
-                  Create Maintenance Request
-                </Button>
+                <Link to="/tenant/maintenance/new">
+                  <Button
+                    variant="primary"
+                    leftIcon={<Plus className="w-4 h-4" />}
+                  >
+                    Create Maintenance Request
+                  </Button>
+                </Link>
               }
             />
           </div>
