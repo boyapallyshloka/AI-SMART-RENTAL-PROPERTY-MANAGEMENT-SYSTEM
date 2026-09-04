@@ -141,42 +141,42 @@ export default function SubmitApplicationPage() {
     >
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
             to="/tenant/dashboard"
-            className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Dashboard</span>
           </Link>
           <span>/</span>
-          <span className="text-slate-900 dark:text-white font-medium">
+          <span className="text-[#243447] font-medium">
             Rental Application
           </span>
         </div>
 
         {/* Success Notification */}
         {successMessage && (
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-xs animate-in fade-in slide-in-from-top-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="p-4 rounded-lg bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs">
+            <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
 
         {/* Page Header */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+        <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+            <div className="p-2.5 rounded-md bg-[#315A7D] text-white">
               <FileCheck className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
                   Apply for a Rental Unit
                 </h1>
                 <StatusBadge status="Available" size="sm" />
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 Complete and submit your tenant profile for property manager review
               </p>
             </div>
@@ -186,9 +186,9 @@ export default function SubmitApplicationPage() {
         {/* Application Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Section 1: Property & Unit Selection */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Building2 className="w-4 h-4 text-[#315A7D]" />
               1. Desired Property & Unit
             </h2>
 
@@ -217,16 +217,16 @@ export default function SubmitApplicationPage() {
             </div>
 
             {selectedProperty && (
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
+              <div className="p-3 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
                 <div>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="font-semibold text-[#243447]">
                     {selectedProperty.name}
                   </span>
-                  <span className="text-slate-400 block">
+                  <span className="text-[#5B6875] block">
                     {selectedProperty.address}, {selectedProperty.city}, {selectedProperty.state} {selectedProperty.zipCode}
                   </span>
                 </div>
-                <span className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+                <span className="font-bold text-[#315A7D] text-sm">
                   ${selectedProperty.rent?.toLocaleString()}/mo
                 </span>
               </div>
@@ -234,9 +234,9 @@ export default function SubmitApplicationPage() {
           </div>
 
           {/* Section 2: Personal & Contact Information */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <User className="w-4 h-4 text-[#315A7D]" />
               2. Applicant Information
             </h2>
 
@@ -248,7 +248,7 @@ export default function SubmitApplicationPage() {
                   value={applicantName}
                   onChange={(e) => setApplicantName(e.target.value)}
                   error={errors.applicantName}
-                  leftIcon={<User className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<User className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -261,7 +261,7 @@ export default function SubmitApplicationPage() {
                   value={applicantEmail}
                   onChange={(e) => setApplicantEmail(e.target.value)}
                   error={errors.applicantEmail}
-                  leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Mail className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -274,7 +274,7 @@ export default function SubmitApplicationPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   error={errors.phone}
-                  leftIcon={<Phone className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Phone className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -286,7 +286,7 @@ export default function SubmitApplicationPage() {
                   value={moveInDate}
                   onChange={(e) => setMoveInDate(e.target.value)}
                   error={errors.moveInDate}
-                  leftIcon={<Calendar className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Calendar className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -294,9 +294,9 @@ export default function SubmitApplicationPage() {
           </div>
 
           {/* Section 3: Financial & Employment Information */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <DollarSign className="w-4 h-4 text-[#3F7D58]" />
               3. Employment & Monthly Income
             </h2>
 
@@ -309,7 +309,7 @@ export default function SubmitApplicationPage() {
                   value={monthlyIncome}
                   onChange={(e) => setMonthlyIncome(e.target.value)}
                   error={errors.monthlyIncome}
-                  leftIcon={<DollarSign className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<DollarSign className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Required for rent-to-income verification"
                   required
                 />
@@ -322,7 +322,7 @@ export default function SubmitApplicationPage() {
                   value={employer}
                   onChange={(e) => setEmployer(e.target.value)}
                   error={errors.employer}
-                  leftIcon={<Briefcase className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Briefcase className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -340,16 +340,16 @@ export default function SubmitApplicationPage() {
           </div>
 
           {/* Section 4: Document Uploads (Filename Placeholder) */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
+              <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#315A7D]" />
                 4. Supporting Documents (Filenames)
               </h2>
-              <span className="text-[11px] text-slate-400">Mock Filename Mode</span>
+              <span className="text-[11px] text-[#5B6875]">Mock Filename Mode</span>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[#5B6875]">
               Provide filenames for your verification files. Real document uploads will connect to secure cloud storage in a future release.
             </p>
 
@@ -360,7 +360,7 @@ export default function SubmitApplicationPage() {
                   placeholder="e.g. passport_scan.pdf"
                   value={idFileName}
                   onChange={(e) => setIdFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Driver's License, State ID, or Passport"
                 />
               </div>
@@ -371,7 +371,7 @@ export default function SubmitApplicationPage() {
                   placeholder="e.g. paystubs_recent.pdf"
                   value={incomeProofFileName}
                   onChange={(e) => setIncomeProofFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Recent paystubs, W-2, or offer letter"
                 />
               </div>
@@ -382,7 +382,7 @@ export default function SubmitApplicationPage() {
                   placeholder="e.g. landlord_recommendation.pdf"
                   value={rentalHistoryFileName}
                   onChange={(e) => setRentalHistoryFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Prior landlord reference letter or ledger"
                 />
               </div>

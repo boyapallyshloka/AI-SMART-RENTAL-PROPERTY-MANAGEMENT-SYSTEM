@@ -85,7 +85,7 @@ export default function LoginPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {authError && (
-          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-600 dark:text-rose-400">
+          <div className="p-3 rounded-md bg-[#FBF0F0] border border-[#EFC8C7] text-xs font-medium text-[#B94A48]">
             {authError}
           </div>
         )}
@@ -108,12 +108,12 @@ export default function LoginPage() {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
               Password
             </span>
             <Link
               to="/forgot-password"
-              className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="text-xs font-medium text-[#315A7D] hover:underline"
             >
               Forgot password?
             </Link>
@@ -145,21 +145,21 @@ export default function LoginPage() {
         </Button>
 
         {/* Quick Mock Credentials */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-2.5">
+        <div className="pt-4 border-t border-[#D9E0E6]">
+          <p className="text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider text-center mb-2.5">
             Quick Fill Demo Accounts
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => handleQuickFill('owner@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
-                <Building2 className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
+                <Building2 className="w-3.5 h-3.5 text-[#5B6875]" />
                 <span>Owner</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
                 owner@...
               </p>
             </button>
@@ -167,13 +167,13 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickFill('tenant@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
-                <User className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
+                <User className="w-3.5 h-3.5 text-[#5B6875]" />
                 <span>Tenant</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
                 tenant@...
               </p>
             </button>
@@ -181,13 +181,13 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickFill('manager@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
-                <Briefcase className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
+                <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" />
                 <span>Manager</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
                 manager@...
               </p>
             </button>
@@ -195,24 +195,24 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickFill('admin@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all text-xs group"
+              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600">
-                <Shield className="w-3.5 h-3.5 text-indigo-500" />
+              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
+                <Shield className="w-3.5 h-3.5 text-[#315A7D]" />
                 <span>Admin</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
                 admin@...
               </p>
             </button>
           </div>
         </div>
 
-        <div className="pt-2 text-center text-xs text-slate-500">
+        <div className="pt-2 text-center text-xs text-[#5B6875]">
           Don't have an account?{' '}
           <Link
             to="/register"
-            className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="font-semibold text-[#315A7D] hover:underline"
           >
             Create an account
           </Link>
@@ -221,9 +221,9 @@ export default function LoginPage() {
         <div className="pt-1 text-center">
           <Link
             to="/ui-showcase"
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-[#5B6875] hover:text-[#243447] hover:underline"
           >
-            <Sparkles className="w-3 h-3 text-amber-500" />
+            <Sparkles className="w-3 h-3 text-[#B7791F]" />
             <span>View Reusable UI Components Showcase</span>
           </Link>
         </div>

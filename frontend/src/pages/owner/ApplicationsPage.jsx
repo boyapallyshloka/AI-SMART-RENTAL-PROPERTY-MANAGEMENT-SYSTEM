@@ -83,15 +83,15 @@ export default function ApplicationsPage() {
       <div className="space-y-6">
         {/* Coming Soon Notice Banner */}
         {noticeMessage && (
-          <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-3.5 rounded-xl bg-[#EAF2F7] border border-[#D9E0E6] text-[#315A7D] text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <Info className="w-4 h-4 text-[#315A7D] shrink-0" />
               <span>{noticeMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setNoticeMessage('')}
-              className="text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-200 font-bold px-1"
+              className="text-[#315A7D] hover:text-[#274B68] font-bold px-1"
             >
               &times;
             </button>
@@ -101,24 +101,24 @@ export default function ApplicationsPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
               Rental Applications
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
               Review prospective tenants, submission details, and application status
             </p>
           </div>
         </div>
 
         {/* Search & Status Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-4 sm:p-5 shadow-xs space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="sm:col-span-2">
               <Input
                 placeholder="Search by applicant name, property name, or unit..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
               />
             </div>
 
@@ -137,7 +137,7 @@ export default function ApplicationsPage() {
                   onClick={resetFilters}
                   title="Reset filters"
                   aria-label="Reset filters"
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  className="p-2.5 rounded-lg border border-[#D9E0E6] text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -145,16 +145,16 @@ export default function ApplicationsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs text-[#5B6875] pt-1 border-t border-[#D9E0E6]">
             <span>
               Showing{' '}
-              <strong className="text-slate-900 dark:text-white">
+              <strong className="text-[#243447]">
                 {filteredApplications.length}
               </strong>{' '}
               of {applications.length} applications
             </span>
             {hasActiveFilters && (
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+              <span className="text-[#315A7D] font-medium">
                 Filters active
               </span>
             )}
@@ -163,14 +163,14 @@ export default function ApplicationsPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
             <Loader text="Loading rental applications..." size="md" center />
           </div>
         ) : filteredApplications.length === 0 ? (
           /* Empty State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-8 shadow-xs">
             <EmptyState
-              icon={<FileCheck className="w-8 h-8" />}
+              icon={<FileCheck className="w-8 h-8 text-[#315A7D]" />}
               title="No applications found"
               message="No rental application records match your current search query or status filter."
               action={{
@@ -182,11 +182,11 @@ export default function ApplicationsPage() {
           </div>
         ) : (
           /* Responsive Table */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
                     <th className="py-3.5 pl-6 pr-4">Applicant</th>
                     <th className="py-3.5 px-4">Property Name</th>
                     <th className="py-3.5 px-4">Unit</th>
@@ -196,44 +196,44 @@ export default function ApplicationsPage() {
                     <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                <tbody className="divide-y divide-[#D9E0E6] text-sm">
                   {filteredApplications.map((app) => (
                     <tr
                       key={app.id}
-                      className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                      className="hover:bg-[#F7F8FA] transition-colors"
                     >
                       {/* Applicant Name */}
-                      <td className="py-4 pl-6 pr-4 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                      <td className="py-4 pl-6 pr-4 font-semibold text-[#243447] whitespace-nowrap">
                         {app.applicantName}
                       </td>
 
                       {/* Property Name */}
-                      <td className="py-4 px-4 text-slate-700 dark:text-slate-300 min-w-[200px]">
+                      <td className="py-4 px-4 text-[#243447] min-w-[200px]">
                         <div className="flex items-center gap-1.5 truncate">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <Building2 className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <span className="truncate">{app.propertyName}</span>
                         </div>
                       </td>
 
                       {/* Unit */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
                           {app.unit}
                         </span>
                       </td>
 
                       {/* Submitted Date */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
                         <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <span>{app.submittedDate}</span>
                         </div>
                       </td>
 
                       {/* Monthly Income */}
-                      <td className="py-4 px-4 whitespace-nowrap font-medium text-slate-900 dark:text-white">
+                      <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
                         ${Number(app.monthlyIncome || 0).toLocaleString()}
-                        <span className="text-xs text-slate-400 font-normal"> / mo</span>
+                        <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
                       </td>
 
                       {/* Status */}

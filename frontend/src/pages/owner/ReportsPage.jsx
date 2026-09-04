@@ -7,7 +7,6 @@ import {
   PROPERTY_PERFORMANCE_DATA,
 } from '../../utils/reportMockData'
 import {
-  StatusBadge,
   EmptyState,
   Loader,
 } from '../../components/ui'
@@ -40,7 +39,6 @@ export default function ReportsPage({ role = 'owner' }) {
   const [performanceData, setPerformanceData] = useState([])
 
   useEffect(() => {
-    // Brief simulated loading to demonstrate Loader component
     const timer = setTimeout(() => {
       setSummary(REPORT_SUMMARY)
       setIncomeData(MONTHLY_INCOME_DATA)
@@ -62,23 +60,23 @@ export default function ReportsPage({ role = 'owner' }) {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
               Financial Reports & Analytics
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Portfolio revenue performance, occupancy trends, and property profitability
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
+              Portfolio revenue performance, occupancy trends, and asset profitability metrics
             </p>
           </div>
         </div>
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
             <Loader text="Generating financial reports and charts..." size="md" center />
           </div>
         ) : !summary ? (
           /* Empty State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
             <EmptyState
               icon={<FileBarChart className="w-8 h-8" />}
               title="No report data available"
@@ -88,82 +86,82 @@ export default function ReportsPage({ role = 'owner' }) {
         ) : (
           <>
             {/* Four Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Monthly Income */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-3">
+              <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                     Monthly Income
                   </span>
-                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
-                    <DollarSign className="w-5 h-5" />
+                  <div className="p-2 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
+                    <DollarSign className="w-4 h-4" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <p className="text-2xl font-bold text-[#243447] tracking-tight">
                     ${summary.monthlyIncome.toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#5B6875] mt-0.5">
                     Gross rental receivables
                   </p>
                 </div>
               </div>
 
               {/* Occupancy Rate */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-3">
+              <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                     Occupancy Rate
                   </span>
-                  <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
-                    <Users className="w-5 h-5" />
+                  <div className="p-2 rounded-md bg-[#EDF7EE] text-[#3F7D58] border border-[#C6DEC8]">
+                    <Users className="w-4 h-4" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <p className="text-2xl font-bold text-[#243447] tracking-tight">
                     {summary.occupancyRate}%
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#5B6875] mt-0.5">
                     Portfolio units leased
                   </p>
                 </div>
               </div>
 
               {/* Maintenance Cost */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-3">
+              <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                     Maintenance Cost
                   </span>
-                  <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                    <Wrench className="w-5 h-5" />
+                  <div className="p-2 rounded-md bg-[#FEF7EC] text-[#B7791F] border border-[#F4E2B6]">
+                    <Wrench className="w-4 h-4" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <p className="text-2xl font-bold text-[#243447] tracking-tight">
                     ${summary.maintenanceCost.toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#5B6875] mt-0.5">
                     Repairs & service dispatches
                   </p>
                 </div>
               </div>
 
               {/* Outstanding Rent */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-3">
+              <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                     Outstanding Rent
                   </span>
-                  <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400">
-                    <AlertCircle className="w-5 h-5" />
+                  <div className="p-2 rounded-md bg-[#FDF2F2] text-[#B94A48] border border-[#EFC8C7]">
+                    <AlertCircle className="w-4 h-4" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-rose-600 dark:text-rose-400 tracking-tight">
+                  <p className="text-2xl font-bold text-[#B94A48] tracking-tight">
                     ${summary.outstandingRent.toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#5B6875] mt-0.5">
                     Pending tenant payments
                   </p>
                 </div>
@@ -172,18 +170,18 @@ export default function ReportsPage({ role = 'owner' }) {
 
             {/* Two Analytical Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Chart 1: Monthly Rental Income (Last 6 Months) */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              {/* Chart 1: Monthly Rental Income */}
+              <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                    <h2 className="text-base font-semibold text-[#243447]">
                       Monthly Rental Income
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-[#5B6875] mt-0.5">
                       Last 6 months revenue performance
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#2A583B] bg-[#EDF7EE] border border-[#C6DEC8] px-2 py-0.5 rounded-md">
                     <TrendingUp className="w-3.5 h-3.5" /> +12.4%
                   </span>
                 </div>
@@ -194,15 +192,15 @@ export default function ReportsPage({ role = 'owner' }) {
                       data={incomeData}
                       margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#D9E0E6" vertical={false} />
                       <XAxis
                         dataKey="month"
-                        stroke="#94a3b8"
+                        stroke="#5B6875"
                         fontSize={12}
                         tickLine={false}
                       />
                       <YAxis
-                        stroke="#94a3b8"
+                        stroke="#5B6875"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
@@ -210,9 +208,9 @@ export default function ReportsPage({ role = 'owner' }) {
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: '#1e293b',
-                          borderColor: '#334155',
-                          borderRadius: '0.75rem',
+                          backgroundColor: '#315A7D',
+                          borderColor: '#274B68',
+                          borderRadius: '4px',
                           color: '#ffffff',
                           fontSize: '12px',
                         }}
@@ -220,27 +218,27 @@ export default function ReportsPage({ role = 'owner' }) {
                       />
                       <Bar
                         dataKey="income"
-                        fill="#6366f1"
-                        radius={[6, 6, 0, 0]}
-                        maxBarSize={45}
+                        fill="#315A7D"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
                       />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Chart 2: Occupancy Rate (Last 6 Months) */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              {/* Chart 2: Occupancy Rate */}
+              <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                    <h2 className="text-base font-semibold text-[#243447]">
                       Occupancy Rate Trend
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-[#5B6875] mt-0.5">
                       Last 6 months unit occupancy percentage
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#2A583B] bg-[#EDF7EE] border border-[#C6DEC8] px-2 py-0.5 rounded-md">
                     <TrendingUp className="w-3.5 h-3.5" /> +6%
                   </span>
                 </div>
@@ -251,15 +249,15 @@ export default function ReportsPage({ role = 'owner' }) {
                       data={occupancyData}
                       margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#D9E0E6" vertical={false} />
                       <XAxis
                         dataKey="month"
-                        stroke="#94a3b8"
+                        stroke="#5B6875"
                         fontSize={12}
                         tickLine={false}
                       />
                       <YAxis
-                        stroke="#94a3b8"
+                        stroke="#5B6875"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
@@ -268,9 +266,9 @@ export default function ReportsPage({ role = 'owner' }) {
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: '#1e293b',
-                          borderColor: '#334155',
-                          borderRadius: '0.75rem',
+                          backgroundColor: '#315A7D',
+                          borderColor: '#274B68',
+                          borderRadius: '4px',
                           color: '#ffffff',
                           fontSize: '12px',
                         }}
@@ -279,9 +277,9 @@ export default function ReportsPage({ role = 'owner' }) {
                       <Area
                         type="monotone"
                         dataKey="rate"
-                        stroke="#0ea5e9"
-                        strokeWidth={2.5}
-                        fill="#0ea5e9"
+                        stroke="#315A7D"
+                        strokeWidth={2}
+                        fill="#315A7D"
                         fillOpacity={0.15}
                       />
                     </AreaChart>
@@ -291,13 +289,13 @@ export default function ReportsPage({ role = 'owner' }) {
             </div>
 
             {/* Property Performance Table */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  Property Performance
+            <div className="bg-white rounded-lg border border-[#D9E0E6] shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-[#D9E0E6]">
+                <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#315A7D]" />
+                  Property Asset Performance
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-[#5B6875] mt-0.5">
                   Financial breakdown of income, maintenance expenses, and net profit per asset
                 </p>
               </div>
@@ -305,39 +303,39 @@ export default function ReportsPage({ role = 'owner' }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      <th className="py-3.5 pl-6 pr-4">Property Name</th>
-                      <th className="py-3.5 px-4">Income</th>
-                      <th className="py-3.5 px-4">Expenses</th>
-                      <th className="py-3.5 pl-4 pr-6 text-right">Net Profit</th>
+                    <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-semibold uppercase tracking-wider text-[#5B6875]">
+                      <th className="py-2.5 pl-4 pr-3">Property Name</th>
+                      <th className="py-2.5 px-3">Income</th>
+                      <th className="py-2.5 px-3">Expenses</th>
+                      <th className="py-2.5 pl-3 pr-4 text-right">Net Profit</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                  <tbody className="divide-y divide-[#D9E0E6] text-xs">
                     {performanceData.map((item) => (
                       <tr
                         key={item.id}
-                        className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                        className="hover:bg-[#F7F8FA] transition-colors"
                       >
                         {/* Property Name */}
-                        <td className="py-4 pl-6 pr-4 font-semibold text-slate-900 dark:text-white">
+                        <td className="py-3 pl-4 pr-3 font-semibold text-[#243447]">
                           <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                             <span>{item.propertyName}</span>
                           </div>
                         </td>
 
                         {/* Income */}
-                        <td className="py-4 px-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
                           ${Number(item.income).toLocaleString()}
                         </td>
 
                         {/* Expenses */}
-                        <td className="py-4 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        <td className="py-3 px-3 text-[#5B6875] whitespace-nowrap">
                           ${Number(item.expenses).toLocaleString()}
                         </td>
 
                         {/* Profit */}
-                        <td className="py-4 pl-4 pr-6 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        <td className="py-3 pl-3 pr-4 text-right font-semibold text-[#3F7D58] whitespace-nowrap">
                           +${Number(item.profit).toLocaleString()}
                         </td>
                       </tr>

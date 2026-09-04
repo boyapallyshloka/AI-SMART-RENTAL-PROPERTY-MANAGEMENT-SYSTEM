@@ -54,14 +54,14 @@ export default function ResetPasswordPage() {
     >
       {isSuccess ? (
         <div className="text-center space-y-4 py-2">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-[#EDF7EE] text-[#3F7D58] mx-auto flex items-center justify-center">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-[#243447]">
               Password updated!
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-[#5B6875] mt-1">
               Your password has been successfully reset. You can now sign in with your new credentials.
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
           <div className="pt-2 text-center text-xs">
             <Link
               to="/login"
-              className="font-medium text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+              className="font-medium text-[#5B6875] hover:text-[#315A7D]"
             >
               Cancel and return to Sign In
             </Link>

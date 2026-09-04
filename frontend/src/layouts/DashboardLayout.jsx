@@ -4,9 +4,11 @@ import Topbar from '../components/common/Topbar'
 
 /**
  * DashboardLayout Component for HomeSphere
+ * Canvas background: #F7F8FA, Main Text: #243447
+ *
  * @param {Object} props
  * @param {React.ReactNode} props.children
- * @param {'owner' | 'tenant'} [props.defaultRole='owner']
+ * @param {'owner' | 'tenant' | 'admin'} [props.defaultRole='owner']
  * @param {string} [props.activeItem='dashboard']
  * @param {(item: string) => void} [props.onSelectNav]
  * @param {string} [props.pageTitle]
@@ -49,7 +51,7 @@ export default function DashboardLayout({
   }, [displayTitle])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
+    <div className="flex h-screen overflow-hidden bg-[#F7F8FA] text-[#243447] font-sans antialiased">
       {/* Sidebar Navigation */}
       <Sidebar
         role={currentRole}
@@ -60,24 +62,20 @@ export default function DashboardLayout({
         onRoleChange={handleRoleChange}
       />
 
-      {/* Main Content Column */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Topbar */}
+      {/* Main Content Area */}
+      <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F8FA]">
+        {/* Top Header Bar */}
         <Topbar
           role={currentRole}
-          onRoleChange={handleRoleChange}
-          onMenuClick={() => setMobileSidebarOpen(true)}
           title={displayTitle}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+          onRoleChange={handleRoleChange}
           actions={topbarActions}
         />
 
-        {/* Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {typeof children === 'function'
-              ? children({ role: currentRole, activeNav: currentNav, setRole: handleRoleChange })
-              : children}
-          </div>
+        {/* Dynamic Route Content */}
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+          {children}
         </main>
       </div>
     </div>

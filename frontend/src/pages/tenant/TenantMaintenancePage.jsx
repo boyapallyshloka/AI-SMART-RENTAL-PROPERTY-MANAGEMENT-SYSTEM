@@ -98,14 +98,14 @@ export default function TenantMaintenancePage() {
   const getPriorityBadgeClass = (priority) => {
     switch (priority?.toLowerCase()) {
       case 'emergency':
-        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 font-semibold'
+        return 'bg-[#FDF2F2] text-[#8A2E2C] border-[#F4B4B4] font-semibold'
       case 'high':
-        return 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800'
+        return 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
       case 'medium':
-        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+        return 'bg-[#EAF2F7] text-[#315A7D] border-[#C2D8E8]'
       case 'low':
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+        return 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
     }
   }
 
@@ -118,15 +118,15 @@ export default function TenantMaintenancePage() {
       <div className="space-y-6">
         {/* Success Message Banner */}
         {successMessage && (
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 rounded-lg bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
               <span>{successMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setSuccessMessage('')}
-              className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-100 font-bold px-1"
+              className="text-[#2A583B] hover:text-[#1D3E2A] font-bold px-1"
             >
               &times;
             </button>
@@ -135,15 +135,15 @@ export default function TenantMaintenancePage() {
 
         {/* Notice Message Banner */}
         {noticeMessage && (
-          <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 rounded-lg bg-[#EAF2F7] border border-[#C2D8E8] text-[#315A7D] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <Info className="w-5 h-5 text-[#315A7D] shrink-0" />
               <span>{noticeMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setNoticeMessage('')}
-              className="text-indigo-600 hover:text-indigo-800 dark:hover:text-indigo-100 font-bold px-1"
+              className="text-[#315A7D] hover:text-[#274B68] font-bold px-1"
             >
               &times;
             </button>
@@ -153,10 +153,10 @@ export default function TenantMaintenancePage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
               Maintenance Requests
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
               Track repairs, schedule service dispatches, and review technician resolution status
             </p>
           </div>
@@ -169,14 +169,14 @@ export default function TenantMaintenancePage() {
         </div>
 
         {/* Search & Status Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="bg-white rounded-lg border border-[#D9E0E6] p-4 sm:p-5 shadow-2xs space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="sm:col-span-2">
               <Input
                 placeholder="Search by ticket #, category, title, or property..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
               />
             </div>
 
@@ -195,7 +195,7 @@ export default function TenantMaintenancePage() {
                   onClick={resetFilters}
                   title="Reset filters"
                   aria-label="Reset filters"
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  className="p-2.5 rounded-lg border border-[#D9E0E6] text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -203,16 +203,16 @@ export default function TenantMaintenancePage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs text-[#5B6875] pt-1 border-t border-[#D9E0E6]">
             <span>
               Showing{' '}
-              <strong className="text-slate-900 dark:text-white">
+              <strong className="text-[#243447]">
                 {filteredRequests.length}
               </strong>{' '}
               of {requests.length} maintenance tickets
             </span>
             {hasActiveFilters && (
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+              <span className="text-[#315A7D] font-medium">
                 Filters active
               </span>
             )}
@@ -221,12 +221,12 @@ export default function TenantMaintenancePage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
             <Loader text="Loading your maintenance requests..." size="md" center />
           </div>
         ) : filteredRequests.length === 0 ? (
           /* Empty State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
             <EmptyState
               icon={<Wrench className="w-8 h-8" />}
               title="No maintenance requests found"
@@ -249,11 +249,11 @@ export default function TenantMaintenancePage() {
           </div>
         ) : (
           /* Maintenance Requests Table */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
                     <th className="py-3.5 pl-6 pr-4">Ticket #</th>
                     <th className="py-3.5 px-4">Property & Unit</th>
                     <th className="py-3.5 px-4">Category</th>
@@ -262,18 +262,18 @@ export default function TenantMaintenancePage() {
                     <th className="py-3.5 pl-4 pr-6 text-right">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                <tbody className="divide-y divide-[#D9E0E6] text-sm">
                   {filteredRequests.map((req) => (
                     <tr
                       key={req.id}
-                      className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                      className="hover:bg-[#F7F8FA] transition-colors"
                     >
                       {/* Ticket Number */}
-                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">
+                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
                         <div>
                           <span>{req.ticketNumber}</span>
                           {req.title && (
-                            <p className="font-sans font-normal text-slate-500 dark:text-slate-400 text-xs truncate max-w-xs mt-0.5">
+                            <p className="font-sans font-normal text-[#5B6875] text-xs truncate max-w-xs mt-0.5">
                               {req.title}
                             </p>
                           )}
@@ -283,12 +283,12 @@ export default function TenantMaintenancePage() {
                       {/* Property & Unit */}
                       <td className="py-4 px-4 min-w-[200px]">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                          <Building2 className="w-4 h-4 text-[#5B6875] shrink-0" />
                           <div>
-                            <p className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                            <p className="font-semibold text-[#243447] text-xs">
                               {req.propertyName}
                             </p>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-[#5B6875]">
                               {req.unitNumber}
                             </span>
                           </div>
@@ -297,7 +297,7 @@ export default function TenantMaintenancePage() {
 
                       {/* Category */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
                           {req.category}
                         </span>
                       </td>
@@ -305,7 +305,7 @@ export default function TenantMaintenancePage() {
                       {/* Priority */}
                       <td className="py-4 px-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border ${getPriorityBadgeClass(
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs border ${getPriorityBadgeClass(
                             req.priority
                           )}`}
                         >
@@ -314,9 +314,9 @@ export default function TenantMaintenancePage() {
                       </td>
 
                       {/* Submitted Date */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
                         <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <span>{req.submittedDate}</span>
                         </div>
                       </td>

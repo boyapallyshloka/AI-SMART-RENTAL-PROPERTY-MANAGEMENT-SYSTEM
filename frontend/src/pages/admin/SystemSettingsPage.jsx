@@ -7,17 +7,12 @@ import {
   StatusBadge,
 } from '../../components/ui'
 import {
-  Settings,
   Shield,
   Bell,
   Globe,
   Mail,
-  DollarSign,
-  Clock,
-  Lock,
   RotateCcw,
   CheckCircle2,
-  Info,
 } from 'lucide-react'
 
 const DEFAULT_SETTINGS = {
@@ -86,15 +81,15 @@ export default function SystemSettingsPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Success Message Banner */}
         {successMessage && (
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-3.5 rounded-md bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-medium flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#3F7D58] shrink-0" />
               <span>{successMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setSuccessMessage('')}
-              className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-100 font-bold px-1"
+              className="text-[#2A583B] hover:text-[#243447] font-bold px-1"
             >
               &times;
             </button>
@@ -102,15 +97,15 @@ export default function SystemSettingsPage() {
         )}
 
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 Global System Settings
               </h1>
               <StatusBadge status="Active" size="sm" />
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
               Configure platform parameters, notification triggers, and security compliance policies
             </p>
           </div>
@@ -118,16 +113,16 @@ export default function SystemSettingsPage() {
 
         <form onSubmit={handleSave} className="space-y-6">
           {/* Section 1: Platform Settings */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                <Globe className="w-5 h-5" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-[#D9E0E6] pb-3">
+              <div className="w-8 h-8 rounded-md bg-[#EAF2F7] text-[#315A7D] flex items-center justify-center">
+                <Globe className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                <h2 className="text-sm font-semibold text-[#243447]">
                   1. Platform Settings
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[#5B6875]">
                   Core branding, primary correspondence channels, and base transaction currency
                 </p>
               </div>
@@ -150,7 +145,7 @@ export default function SystemSettingsPage() {
                   type="email"
                   value={settings.supportEmail}
                   onChange={(e) => handleChange('supportEmail', e.target.value)}
-                  leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Mail className="w-4 h-4 text-[#5B6875]" />}
                   placeholder="support@example.com"
                   required
                 />
@@ -169,29 +164,29 @@ export default function SystemSettingsPage() {
           </div>
 
           {/* Section 2: Notification Settings */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-                <Bell className="w-5 h-5" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-[#D9E0E6] pb-3">
+              <div className="w-8 h-8 rounded-md bg-[#EAF2F7] text-[#315A7D] flex items-center justify-center">
+                <Bell className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                <h2 className="text-sm font-semibold text-[#243447]">
                   2. Notification Settings
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[#5B6875]">
                   Automated dispatch policies for tenant billing and lease milestones
                 </p>
               </div>
             </div>
 
-            <div className="space-y-3 pt-1">
+            <div className="space-y-2.5 pt-1">
               {/* Rent Reminders Toggle */}
-              <label className="flex items-start justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer bg-slate-50/50 dark:bg-slate-800/30">
+              <label className="flex items-start justify-between p-3 rounded-md border border-[#D9E0E6] hover:border-[#315A7D]/40 transition-colors cursor-pointer bg-[#F7F8FA]">
                 <div className="space-y-0.5 pr-4">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white block">
+                  <span className="text-xs font-semibold text-[#243447] block">
                     Upcoming Rent Reminders
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                  <span className="text-xs text-[#5B6875] block">
                     Automatically send friendly payment reminders 3 days before rent due dates
                   </span>
                 </div>
@@ -201,17 +196,17 @@ export default function SystemSettingsPage() {
                   onChange={(e) =>
                     handleChange('rentRemindersEnabled', e.target.checked)
                   }
-                  className="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                  className="w-4 h-4 mt-0.5 rounded text-[#315A7D] focus:ring-[#315A7D] border-[#D9E0E6] cursor-pointer"
                 />
               </label>
 
               {/* Overdue Alerts Toggle */}
-              <label className="flex items-start justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer bg-slate-50/50 dark:bg-slate-800/30">
+              <label className="flex items-start justify-between p-3 rounded-md border border-[#D9E0E6] hover:border-[#315A7D]/40 transition-colors cursor-pointer bg-[#F7F8FA]">
                 <div className="space-y-0.5 pr-4">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white block">
+                  <span className="text-xs font-semibold text-[#243447] block">
                     Overdue Invoice Alerts
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                  <span className="text-xs text-[#5B6875] block">
                     Alert both tenant and property manager when an invoice remains unpaid past due date
                   </span>
                 </div>
@@ -221,17 +216,17 @@ export default function SystemSettingsPage() {
                   onChange={(e) =>
                     handleChange('overdueAlertsEnabled', e.target.checked)
                   }
-                  className="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                  className="w-4 h-4 mt-0.5 rounded text-[#315A7D] focus:ring-[#315A7D] border-[#D9E0E6] cursor-pointer"
                 />
               </label>
 
               {/* Agreement-Expiry Reminders Toggle */}
-              <label className="flex items-start justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer bg-slate-50/50 dark:bg-slate-800/30">
+              <label className="flex items-start justify-between p-3 rounded-md border border-[#D9E0E6] hover:border-[#315A7D]/40 transition-colors cursor-pointer bg-[#F7F8FA]">
                 <div className="space-y-0.5 pr-4">
-                  <span className="text-sm font-medium text-slate-900 dark:text-white block">
+                  <span className="text-xs font-semibold text-[#243447] block">
                     Agreement-Expiry Reminders
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                  <span className="text-xs text-[#5B6875] block">
                     Notify owners and tenants 60 days and 30 days prior to lease agreement termination
                   </span>
                 </div>
@@ -241,24 +236,24 @@ export default function SystemSettingsPage() {
                   onChange={(e) =>
                     handleChange('agreementExpiryRemindersEnabled', e.target.checked)
                   }
-                  className="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                  className="w-4 h-4 mt-0.5 rounded text-[#315A7D] focus:ring-[#315A7D] border-[#D9E0E6] cursor-pointer"
                 />
               </label>
             </div>
           </div>
 
           {/* Section 3: Security Settings */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-                <Shield className="w-5 h-5" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-[#D9E0E6] pb-3">
+              <div className="w-8 h-8 rounded-md bg-[#EAF2F7] text-[#315A7D] flex items-center justify-center">
+                <Shield className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                <h2 className="text-sm font-semibold text-[#243447]">
                   3. Security & Access Control
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Authentication session parameters and brute-force lockout safeguards
+                <p className="text-xs text-[#5B6875]">
+                  Authentication session parameters and lockout thresholds
                 </p>
               </div>
             </div>
@@ -292,7 +287,7 @@ export default function SystemSettingsPage() {
               variant="outline"
               type="button"
               onClick={handleReset}
-              leftIcon={<RotateCcw className="w-4 h-4" />}
+              leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             >
               Reset Changes
             </Button>
@@ -301,7 +296,7 @@ export default function SystemSettingsPage() {
               variant="primary"
               type="submit"
               isLoading={isSaving}
-              leftIcon={<CheckCircle2 className="w-4 h-4" />}
+              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
             >
               Save Settings
             </Button>

@@ -33,103 +33,103 @@ export default function PropertySummaryCard({ properties = [] }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
       {/* Total Properties */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+      <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
             Portfolio Size
           </span>
-          <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
+          <div className="p-2.5 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
             <Building2 className="w-5 h-5" />
           </div>
         </div>
         <div>
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
             {totalProperties}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Active managed real estate
           </p>
         </div>
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Multi & Single family</span>
-          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">100% Listed</span>
+          <span className="text-[#315A7D] font-semibold">100% Listed</span>
         </div>
       </div>
 
       {/* Total Units */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+      <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
             Total Units
           </span>
-          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
+          <div className="p-2.5 rounded-md bg-[#EDF7EE] text-[#3F7D58] border border-[#C6DEC8]">
             <Home className="w-5 h-5" />
           </div>
         </div>
         <div>
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
             {totalUnits}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             {occupiedUnits} occupied &bull; {availableUnits} available
           </p>
         </div>
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Vacant units</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+          <span className="text-[#3F7D58] font-semibold">
             {availableUnits} Ready
           </span>
         </div>
       </div>
 
       {/* Occupancy Rate */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+      <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
             Occupancy Rate
           </span>
-          <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40">
+          <div className="p-2.5 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
             <Users className="w-5 h-5" />
           </div>
         </div>
         <div>
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
             {occupancyRate}%
           </p>
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div className="w-full bg-[#F7F8FA] border border-[#D9E0E6] h-2 rounded-full mt-2 overflow-hidden">
             <div
-              className="bg-sky-500 h-full rounded-full transition-all duration-300"
+              className="bg-[#315A7D] h-full rounded-full transition-all duration-300"
               style={{ width: `${occupancyRate}%` }}
             />
           </div>
         </div>
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Target: &gt;90%</span>
-          <span className="text-sky-600 dark:text-sky-400 font-semibold">Healthy</span>
+          <span className="text-[#315A7D] font-semibold">Healthy</span>
         </div>
       </div>
 
       {/* Estimated Monthly Revenue */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+      <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
             Est. Monthly Revenue
           </span>
-          <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
+          <div className="p-2.5 rounded-md bg-[#FEF7EC] text-[#B7791F] border border-[#F4E2B6]">
             <DollarSign className="w-5 h-5" />
           </div>
         </div>
         <div>
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
             ${monthlyRevenue.toLocaleString()}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Gross lease receivables
           </p>
         </div>
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
-          <span>AutoPay collection</span>
-          <span className="text-amber-600 dark:text-amber-400 font-semibold">Active</span>
+        <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
+          <span>Collection rate</span>
+          <span className="text-[#B7791F] font-semibold">98.4%</span>
         </div>
       </div>
     </div>

@@ -83,15 +83,15 @@ export default function AgreementsPage() {
       <div className="space-y-6">
         {/* Success Banner (e.g. from CreateAgreementPage redirect) */}
         {successMessage && (
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
               <span>{successMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setSuccessMessage('')}
-              className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-100 font-bold px-1"
+              className="text-[#2A583B] hover:text-[#1d3d29] font-bold px-1"
             >
               &times;
             </button>
@@ -101,10 +101,10 @@ export default function AgreementsPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
               Lease Agreements
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
               Manage residential contracts, lease terms, rent schedules, and tenant signatures
             </p>
           </div>
@@ -117,14 +117,14 @@ export default function AgreementsPage() {
         </div>
 
         {/* Search & Status Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-4 sm:p-5 shadow-xs space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="sm:col-span-2">
               <Input
                 placeholder="Search by agreement #, tenant, property, or unit..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
               />
             </div>
 
@@ -143,7 +143,7 @@ export default function AgreementsPage() {
                   onClick={resetFilters}
                   title="Reset filters"
                   aria-label="Reset filters"
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  className="p-2.5 rounded-lg border border-[#D9E0E6] text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -151,16 +151,16 @@ export default function AgreementsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs text-[#5B6875] pt-1 border-t border-[#D9E0E6]">
             <span>
               Showing{' '}
-              <strong className="text-slate-900 dark:text-white">
+              <strong className="text-[#243447]">
                 {filteredAgreements.length}
               </strong>{' '}
               of {agreements.length} lease agreements
             </span>
             {hasActiveFilters && (
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+              <span className="text-[#315A7D] font-medium">
                 Filters active
               </span>
             )}
@@ -169,14 +169,14 @@ export default function AgreementsPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
             <Loader text="Loading lease agreements..." size="md" center />
           </div>
         ) : filteredAgreements.length === 0 ? (
           /* Empty State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-8 shadow-xs">
             <EmptyState
-              icon={<FileText className="w-8 h-8" />}
+              icon={<FileText className="w-8 h-8 text-[#315A7D]" />}
               title="No lease agreements found"
               message="No agreements match your search or filter criteria. Create a new lease agreement to get started."
               action={
@@ -190,11 +190,11 @@ export default function AgreementsPage() {
           </div>
         ) : (
           /* Table */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
                     <th className="py-3.5 pl-6 pr-4">Agreement #</th>
                     <th className="py-3.5 px-4">Tenant</th>
                     <th className="py-3.5 px-4">Property & Unit</th>
@@ -204,39 +204,39 @@ export default function AgreementsPage() {
                     <th className="py-3.5 pl-4 pr-6 text-right">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                <tbody className="divide-y divide-[#D9E0E6] text-sm">
                   {filteredAgreements.map((agr) => (
                     <tr
                       key={agr.id}
-                      className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                      className="hover:bg-[#F7F8FA] transition-colors"
                     >
                       {/* Agreement Number */}
-                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">
+                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
                         {agr.agreementNumber}
                       </td>
 
                       {/* Tenant */}
-                      <td className="py-4 px-4 whitespace-nowrap font-medium text-slate-900 dark:text-white">
+                      <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
                         <div className="flex items-center gap-2">
-                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <User className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <span>{agr.tenantName}</span>
                         </div>
                       </td>
 
                       {/* Property & Unit */}
                       <td className="py-4 px-4 min-w-[200px]">
-                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-xs truncate">
+                        <p className="font-semibold text-[#243447] text-xs truncate">
                           {agr.propertyName}
                         </p>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                        <span className="text-xs text-[#5B6875]">
                           {agr.unit}
                         </span>
                       </td>
 
                       {/* Term Dates */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
                         <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <span>
                             {agr.startDate} &rarr; {agr.endDate}
                           </span>
@@ -244,12 +244,12 @@ export default function AgreementsPage() {
                       </td>
 
                       {/* Monthly Rent */}
-                      <td className="py-4 px-4 whitespace-nowrap font-bold text-slate-900 dark:text-white">
+                      <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
                         ${Number(agr.monthlyRent || 0).toLocaleString()}/mo
                       </td>
 
                       {/* Security Deposit */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-600 dark:text-slate-400">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
                         ${Number(agr.securityDeposit || 0).toLocaleString()}
                       </td>
 

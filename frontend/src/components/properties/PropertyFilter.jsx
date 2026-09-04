@@ -12,12 +12,11 @@ import {
   Car,
   Sparkles,
   ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 import { filterOptions } from '../../utils/propertyMockData'
 
 /**
- * PropertyFilter Component
+ * Enterprise PropertyFilter Component for HomeSphere
  * Provides comprehensive filtering controls for tenants browsing properties.
  *
  * @param {Object} props
@@ -62,23 +61,23 @@ export default function PropertyFilter({
   return (
     <div className="space-y-4">
       {/* Primary Search & Quick Filter Bar */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+      <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* Search Query Input */}
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B6875]" />
             <input
               type="text"
               value={filters.searchQuery || ''}
               onChange={handleTextChange}
-              placeholder="Search by neighborhood, city, building name, or keyword..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              placeholder="Search by neighborhood, city, or property name..."
+              className="w-full pl-9 pr-9 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] text-sm placeholder:text-[#5B6875]/70 focus:outline-none focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] transition-colors"
             />
             {filters.searchQuery && (
               <button
                 type="button"
                 onClick={clearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#5B6875] hover:text-[#243447]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -86,37 +85,37 @@ export default function PropertyFilter({
           </div>
 
           {/* Quick Dropdown: Location */}
-          <div className="relative min-w-[170px]">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 pointer-events-none" />
+          <div className="relative min-w-[160px]">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B6875] pointer-events-none" />
             <select
               value={filters.city || 'All Locations'}
               onChange={(e) => handleFieldChange('city', e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+              className="w-full pl-8 pr-8 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] text-sm focus:outline-none focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] appearance-none cursor-pointer"
             >
               {filterOptions.cities.map((city) => (
-                <option key={city} value={city} className="dark:bg-slate-900">
+                <option key={city} value={city}>
                   {city}
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B6875] pointer-events-none" />
           </div>
 
           {/* Quick Dropdown: Property Type */}
-          <div className="relative min-w-[160px]">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 pointer-events-none" />
+          <div className="relative min-w-[150px]">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B6875] pointer-events-none" />
             <select
               value={filters.propertyType || 'All Types'}
               onChange={(e) => handleFieldChange('propertyType', e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+              className="w-full pl-8 pr-8 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] text-sm focus:outline-none focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] appearance-none cursor-pointer"
             >
               {filterOptions.propertyTypes.map((type) => (
-                <option key={type} value={type} className="dark:bg-slate-900">
+                <option key={type} value={type}>
                   {type}
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B6875] pointer-events-none" />
           </div>
 
           {/* Toggle Advanced Filters Button */}
@@ -127,16 +126,16 @@ export default function PropertyFilter({
                 setIsMobileOpen(!isMobileOpen)
                 setShowAdvanced(!showAdvanced)
               }}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors ${
                 activeCount > 0 || showAdvanced
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400'
-                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'border-[#315A7D] bg-[#EAF2F7] text-[#315A7D]'
+                  : 'border-[#D9E0E6] bg-[#F7F8FA] text-[#5B6875] hover:bg-[#EAF2F7]'
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Filters</span>
               {activeCount > 0 && (
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold">
+                <span className="flex items-center justify-center w-4.5 h-4.5 rounded bg-[#315A7D] text-white text-[10px] font-bold">
                   {activeCount}
                 </span>
               )}
@@ -147,7 +146,7 @@ export default function PropertyFilter({
                 type="button"
                 onClick={onResetFilters}
                 title="Reset all filters"
-                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-md border border-[#D9E0E6] text-[#5B6875] hover:text-[#315A7D] hover:bg-[#EAF2F7] transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -155,22 +154,22 @@ export default function PropertyFilter({
           </div>
         </div>
 
-        {/* Expandable Advanced Filters Drawer / Section */}
+        {/* Expandable Advanced Filters Section */}
         <div
           className={`${
             showAdvanced || isMobileOpen ? 'block' : 'hidden'
-          } pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 transition-all`}
+          } pt-4 mt-4 border-t border-[#D9E0E6] transition-all`}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Budget / Rent Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-[#3F7D58]" />
                 Monthly Rent
               </label>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[#5B6875]">
                     $
                   </span>
                   <input
@@ -180,12 +179,12 @@ export default function PropertyFilter({
                     placeholder="Min"
                     value={filters.minRent || ''}
                     onChange={(e) => handleFieldChange('minRent', e.target.value)}
-                    className="w-full pl-6 pr-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-6 pr-2 py-1.5 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-xs text-[#243447] focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D]"
                   />
                 </div>
-                <span className="text-slate-400 text-xs">-</span>
+                <span className="text-[#5B6875] text-xs">-</span>
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[#5B6875]">
                     $
                   </span>
                   <input
@@ -195,16 +194,16 @@ export default function PropertyFilter({
                     placeholder="Max"
                     value={filters.maxRent || ''}
                     onChange={(e) => handleFieldChange('maxRent', e.target.value)}
-                    className="w-full pl-6 pr-2 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-6 pr-2 py-1.5 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-xs text-[#243447] focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D]"
                   />
                 </div>
               </div>
             </div>
 
             {/* 2. Bedrooms Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Bed className="w-3.5 h-3.5 text-indigo-500" />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] flex items-center gap-1.5">
+                <Bed className="w-3.5 h-3.5 text-[#5B6875]" />
                 Bedrooms
               </label>
               <div className="grid grid-cols-3 gap-1">
@@ -215,10 +214,10 @@ export default function PropertyFilter({
                       key={bed.value}
                       type="button"
                       onClick={() => handleFieldChange('bedrooms', bed.value)}
-                      className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         isSelected
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          ? 'bg-[#315A7D] text-white font-semibold'
+                          : 'bg-[#F7F8FA] border border-[#D9E0E6] text-[#5B6875] hover:bg-[#EAF2F7]'
                       }`}
                     >
                       {bed.label}
@@ -229,18 +228,18 @@ export default function PropertyFilter({
             </div>
 
             {/* 3. Furnishing Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Sofa className="w-3.5 h-3.5 text-indigo-500" />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] flex items-center gap-1.5">
+                <Sofa className="w-3.5 h-3.5 text-[#5B6875]" />
                 Furnishing
               </label>
               <select
                 value={filters.furnishing || 'All Furnishing'}
                 onChange={(e) => handleFieldChange('furnishing', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-2.5 py-1.5 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-xs text-[#243447] focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D]"
               >
                 {filterOptions.furnishing.map((f) => (
-                  <option key={f} value={f} className="dark:bg-slate-900">
+                  <option key={f} value={f}>
                     {f}
                   </option>
                 ))}
@@ -248,18 +247,18 @@ export default function PropertyFilter({
             </div>
 
             {/* 4. Parking Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5 text-indigo-500" />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5 text-[#5B6875]" />
                 Parking
               </label>
               <select
                 value={filters.parking || 'All Parking'}
                 onChange={(e) => handleFieldChange('parking', e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-2.5 py-1.5 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-xs text-[#243447] focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D]"
               >
                 {filterOptions.parking.map((p) => (
-                  <option key={p} value={p} className="dark:bg-slate-900">
+                  <option key={p} value={p}>
                     {p}
                   </option>
                 ))}
@@ -267,14 +266,14 @@ export default function PropertyFilter({
             </div>
           </div>
 
-          {/* Bonus: AI Match Score Minimum Pill Row */}
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* AI Match Score Minimum Option (Clean, Restrained) */}
+          <div className="mt-4 pt-3 border-t border-[#D9E0E6] flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
+              <Sparkles className="w-3.5 h-3.5 text-[#315A7D]" />
+              <span className="font-semibold text-[#5B6875]">
                 AI Match Score Minimum:
               </span>
-              <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5">
+              <div className="inline-flex rounded-md bg-[#F7F8FA] border border-[#D9E0E6] p-0.5">
                 {[
                   { label: 'All Matches', value: 0 },
                   { label: '80%+', value: 80 },
@@ -286,10 +285,10 @@ export default function PropertyFilter({
                       key={tier.value}
                       type="button"
                       onClick={() => handleFieldChange('minAiScore', tier.value)}
-                      className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
                         isCurrent
-                          ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          ? 'bg-white text-[#315A7D] font-semibold shadow-2xs border border-[#D9E0E6]'
+                          : 'text-[#5B6875] hover:text-[#243447]'
                       }`}
                     >
                       {tier.label}
@@ -304,7 +303,7 @@ export default function PropertyFilter({
               <button
                 type="button"
                 onClick={onResetFilters}
-                className="text-xs text-rose-500 hover:text-rose-600 font-medium flex items-center gap-1"
+                className="text-xs text-[#B94A48] hover:text-[#8A2E2C] font-medium flex items-center gap-1"
               >
                 <X className="w-3.5 h-3.5" />
                 Clear all filters ({activeCount})

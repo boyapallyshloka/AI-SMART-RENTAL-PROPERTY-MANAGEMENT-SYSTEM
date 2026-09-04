@@ -1,7 +1,7 @@
 import React, { useId } from 'react'
 
 /**
- * Select Component for HomeSphere
+ * Enterprise Select Component for HomeSphere
  * @param {Object} props
  * @param {string} [props.label]
  * @param {string} [props.error]
@@ -34,24 +34,24 @@ export default function Select({
       {label && (
         <label
           htmlFor={selectId}
-          className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300"
+          className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]"
         >
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[#B94A48] ml-1" aria-hidden="true">*</span>}
         </label>
       )}
 
-      <div className="relative rounded-lg shadow-sm">
+      <div className="relative rounded-md shadow-2xs">
         <select
           id={selectId}
           disabled={disabled}
           required={required}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
-          className={`appearance-none block w-full rounded-lg text-sm transition-all duration-150 border bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 pl-3.5 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 disabled:opacity-60 disabled:bg-slate-100 dark:disabled:bg-slate-800/60 disabled:cursor-not-allowed cursor-pointer ${
+          className={`appearance-none block w-full rounded-md text-sm transition-colors border bg-white text-[#243447] pl-3 pr-8 py-2 focus:outline-none focus:ring-1 disabled:opacity-60 disabled:bg-[#F7F8FA] disabled:text-[#5B6875] disabled:cursor-not-allowed cursor-pointer ${
             error
-              ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
-              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+              ? 'border-[#B94A48] focus:border-[#B94A48] focus:ring-[#B94A48]'
+              : 'border-[#D9E0E6] hover:border-[#5B6875] focus:border-[#315A7D] focus:ring-[#315A7D]'
           } ${className}`}
           {...props}
         >
@@ -61,14 +61,15 @@ export default function Select({
             </option>
           )}
 
-          {options && options.length > 0
-            ? options.map((opt) => {
+          {options.length > 0
+            ? options.map((opt, idx) => {
                 const isObj = typeof opt === 'object' && opt !== null
                 const value = isObj ? opt.value : opt
                 const optLabel = isObj ? opt.label : opt
                 const isDisabled = isObj ? opt.disabled : false
+
                 return (
-                  <option key={String(value)} value={value} disabled={isDisabled}>
+                  <option key={idx} value={value} disabled={isDisabled}>
                     {optLabel}
                   </option>
                 )
@@ -76,7 +77,7 @@ export default function Select({
             : children}
         </select>
 
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[#5B6875]">
           <svg
             className="w-4 h-4"
             fill="none"
@@ -84,17 +85,22 @@ export default function Select({
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </div>
       </div>
 
       {error ? (
-        <p id={errorId} className="mt-1.5 text-xs font-medium text-rose-500">
+        <p id={errorId} className="mt-1 text-xs font-medium text-[#B94A48]">
           {error}
         </p>
       ) : helperText ? (
-        <p id={helperId} className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <p id={helperId} className="mt-1 text-xs text-[#5B6875]">
           {helperText}
         </p>
       ) : null}

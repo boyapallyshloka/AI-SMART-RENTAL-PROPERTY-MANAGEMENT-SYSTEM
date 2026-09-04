@@ -87,11 +87,11 @@ export default function PropertiesPage() {
       <div className="space-y-8">
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="p-3.5 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2">
             <span>{toastMessage}</span>
             <button
               onClick={() => setToastMessage('')}
-              className="text-emerald-500 hover:text-emerald-700"
+              className="text-[#2A583B] hover:text-[#1d3d29]"
             >
               &times;
             </button>
@@ -101,10 +101,10 @@ export default function PropertiesPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
               Properties
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
               Manage real estate listings, occupancy rates, and rental units
             </p>
           </div>
@@ -119,14 +119,14 @@ export default function PropertiesPage() {
         <PropertySummaryCard properties={properties} />
 
         {/* Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-4 sm:p-5 shadow-sm space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div className="lg:col-span-2">
               <Input
                 placeholder="Search by property name, address, or city..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
               />
             </div>
 
@@ -153,7 +153,7 @@ export default function PropertiesPage() {
                   onClick={resetFilters}
                   title="Reset all filters"
                   aria-label="Reset all filters"
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  className="p-2.5 rounded-lg border border-[#D9E0E6] text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -161,16 +161,16 @@ export default function PropertiesPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs text-[#5B6875] pt-1 border-t border-[#D9E0E6]">
             <span>
               Showing{' '}
-              <strong className="text-slate-900 dark:text-white">
+              <strong className="text-[#243447]">
                 {filteredProperties.length}
               </strong>{' '}
               of {properties.length} properties
             </span>
             {hasActiveFilters && (
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+              <span className="text-[#315A7D] font-medium">
                 Filters active
               </span>
             )}

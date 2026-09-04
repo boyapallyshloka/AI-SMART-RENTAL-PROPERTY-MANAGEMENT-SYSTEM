@@ -9,17 +9,17 @@ export default function UIShowcasePage() {
   const { user } = useAuth()
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F7F8FA] text-[#243447] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-[#D9E0E6] shadow-xs">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-sm">
+            <div className="p-2 rounded-xl bg-[#315A7D] text-white shadow-xs">
               <Home className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 dark:text-white">HomeSphere</span>
-              <span className="text-xs text-slate-400 ml-2 font-mono">/ui-showcase</span>
+              <span className="font-bold text-[#243447]">HomeSphere</span>
+              <span className="text-xs text-[#5B6875] ml-2 font-mono">/ui-showcase</span>
             </div>
           </div>
 
