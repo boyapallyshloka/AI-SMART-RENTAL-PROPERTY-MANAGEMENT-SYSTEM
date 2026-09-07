@@ -46,6 +46,11 @@ import AdminReportsPage from '../pages/admin/AdminReportsPage'
 // UI Showcase Page
 import UIShowcasePage from '../pages/UIShowcasePage'
 
+// Legal & Informational Pages
+import PrivacyPolicyPage from '../pages/legal/PrivacyPolicyPage'
+import TermsAndConditionsPage from '../pages/legal/TermsAndConditionsPage'
+import ContactPage from '../pages/ContactPage'
+
 // Route Guards
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
@@ -87,6 +92,14 @@ export default function AppRoutes() {
 
       {/* Standalone UI Component Showcase */}
       <Route path="/ui-showcase" element={<UIShowcasePage />} />
+
+      {/* Public Legal & Informational Routes */}
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
+      <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
+      <Route path="/terms" element={<Navigate to="/terms-and-conditions" replace />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/support" element={<Navigate to="/contact" replace />} />
 
       {/* Protected Owner & Manager Routes */}
       <Route

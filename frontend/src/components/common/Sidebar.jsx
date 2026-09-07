@@ -18,9 +18,11 @@ import {
   History,
   Activity,
   Settings,
+  Bot,
 } from 'lucide-react'
 import NavItem from './NavItem'
 import { getPendingApplicationsCount } from '../../utils/applicationMockData'
+import { useScout } from '../../context/ScoutContext'
 
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -71,7 +73,13 @@ export default function Sidebar({
   onRoleChange,
 }) {
   const navigate = useNavigate()
+  const { openScout } = useScout()
   const pendingAppsCount = getPendingApplicationsCount()
+
+  const handleOpenScout = () => {
+    if (onClose) onClose()
+    openScout()
+  }
 
   const dynamicOwnerMenu = OWNER_MENU.map((item) => {
     if (item.id === 'applications') {
@@ -187,7 +195,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto min-h-0">
           <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#5B6875]">
             Navigation
           </p>
@@ -202,6 +210,38 @@ export default function Sidebar({
             />
           ))}
         </nav>
+
+        {/* SCOUT Assistant Sidebar Section */}
+        <div className="px-3 py-2.5 border-t border-[#D9E0E6] shrink-0 bg-[#F7F8FA]/60">
+          <div className="p-3 rounded-xl bg-white border border-[#D9E0E6] shadow-2xs">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-6 h-6 rounded-md bg-[#EAF2F7] border border-[#D9E0E6] flex items-center justify-center text-[#315A7D] shrink-0">
+                <Bot className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-[#243447] leading-tight">
+                    SCOUT
+                  </span>
+                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
+                    AI
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-[#5B6875] leading-snug mb-2.5">
+              Your HomeSphere assistant
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenScout}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Open SCOUT</span>
+            </button>
+          </div>
+        </div>
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-[#D9E0E6] shrink-0 bg-white">
