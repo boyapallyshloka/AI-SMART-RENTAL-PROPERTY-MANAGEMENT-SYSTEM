@@ -63,35 +63,35 @@ export default function EditPropertyPage() {
     >
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Navigation Breadcrumbs */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
             to="/owner/properties"
-            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="hover:text-[#315A7D] transition-colors"
           >
             Properties
           </Link>
           <span>/</span>
           <Link
             to={`/owner/properties/${property.id}`}
-            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[200px]"
+            className="hover:text-[#315A7D] transition-colors truncate max-w-[200px]"
           >
             {property.name}
           </Link>
           <span>/</span>
-          <span className="text-slate-900 dark:text-white font-medium">Edit</span>
+          <span className="text-[#243447] font-semibold">Edit</span>
         </div>
 
         {/* Header */}
-        <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="border-b border-[#D9E0E6] pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/20">
+            <div className="p-2.5 rounded-xl bg-[#315A7D] text-white shadow-sm">
               <Edit className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 Edit Property Details
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 Update specifications, rent pricing, amenities, and media assets
               </p>
             </div>

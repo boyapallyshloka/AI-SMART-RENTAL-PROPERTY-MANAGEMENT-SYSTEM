@@ -65,15 +65,15 @@ export default function TenantAgreementPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Notice Banner */}
         {downloadNotice && (
-          <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 rounded-lg bg-[#EAF2F7] border border-[#C2D8E8] text-[#315A7D] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <Info className="w-5 h-5 text-[#315A7D] shrink-0" />
               <span>{downloadNotice}</span>
             </div>
             <button
               type="button"
               onClick={() => setDownloadNotice('')}
-              className="text-indigo-600 hover:text-indigo-800 dark:hover:text-indigo-100 font-bold px-1"
+              className="text-[#315A7D] hover:text-[#274B68] font-bold px-1"
             >
               &times;
             </button>
@@ -83,10 +83,10 @@ export default function TenantAgreementPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
               My Lease Agreement
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
               Review your official residential lease terms, payment schedules, and tenure conditions
             </p>
           </div>
@@ -104,12 +104,12 @@ export default function TenantAgreementPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
             <Loader text="Loading your lease agreement..." size="md" center />
           </div>
         ) : !agreement ? (
           /* Empty State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
             <EmptyState
               icon={<FileText className="w-8 h-8" />}
               title="No Lease Agreement Found"
@@ -127,20 +127,20 @@ export default function TenantAgreementPage() {
           /* Agreement Details View */
           <div className="space-y-6">
             {/* Agreement Summary Header Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-5">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                  <div className="p-3 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2.5">
-                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      <h2 className="text-xl font-bold text-[#243447]">
                         {agreement.agreementNumber}
                       </h2>
                       <StatusBadge status={agreement.status} size="sm" />
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-[#5B6875] mt-0.5">
                       Primary Tenant: {agreement.tenantName} ({agreement.tenantEmail || tenantEmail})
                     </p>
                   </div>
@@ -160,50 +160,50 @@ export default function TenantAgreementPage() {
 
               {/* Quick Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5">
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Monthly Rent
                   </span>
-                  <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  <span className="text-xl font-bold text-[#315A7D]">
                     ${Number(agreement.monthlyRent || 0).toLocaleString()}
                   </span>
-                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                  <span className="text-[11px] text-[#5B6875] block mt-0.5">
                     Due {agreement.rentDueDay || '1st of the month'}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Security Deposit
                   </span>
-                  <span className="text-xl font-bold text-slate-900 dark:text-white">
+                  <span className="text-xl font-bold text-[#243447]">
                     ${Number(agreement.securityDeposit || 0).toLocaleString()}
                   </span>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">
+                  <span className="text-[11px] text-[#3F7D58] font-medium block mt-0.5">
                     Refundable Escrow
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Lease Term
                   </span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white block mt-1">
+                  <span className="text-sm font-bold text-[#243447] block mt-1">
                     {agreement.startDate}
                   </span>
-                  <span className="text-[11px] text-slate-500 block">
+                  <span className="text-[11px] text-[#5B6875] block">
                     to {agreement.endDate}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Notice Period
                   </span>
-                  <span className="text-xl font-bold text-slate-900 dark:text-white">
+                  <span className="text-xl font-bold text-[#243447]">
                     {agreement.noticePeriod || '30 days'}
                   </span>
-                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                  <span className="text-[11px] text-[#5B6875] block mt-0.5">
                     Prior to Renewal
                   </span>
                 </div>
@@ -211,23 +211,23 @@ export default function TenantAgreementPage() {
             </div>
 
             {/* Property & Leased Unit Specifications */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+              <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                <Building2 className="w-4 h-4 text-[#315A7D]" />
                 Leased Property & Unit
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/60">
-                  <span className="text-xs text-slate-400 block mb-1">Property Name</span>
-                  <p className="font-semibold text-slate-900 dark:text-white text-base">
+                <div className="p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-xs text-[#5B6875] block mb-1">Property Name</span>
+                  <p className="font-semibold text-[#243447] text-base">
                     {agreement.propertyName}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/60">
-                  <span className="text-xs text-slate-400 block mb-1">Designated Unit</span>
-                  <p className="font-semibold text-slate-900 dark:text-white text-base">
+                <div className="p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-xs text-[#5B6875] block mb-1">Designated Unit</span>
+                  <p className="font-semibold text-[#243447] text-base">
                     {agreement.unit}
                   </p>
                 </div>
@@ -235,29 +235,29 @@ export default function TenantAgreementPage() {
             </div>
 
             {/* Financial Schedule & Term Details */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+              <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                <DollarSign className="w-4 h-4 text-[#3F7D58]" />
                 Contract Terms & Rent Schedule
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <span className="text-xs text-slate-400 block mb-1">Monthly Rent Due Date</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                  <span className="text-xs text-[#5B6875] block mb-1">Monthly Rent Due Date</span>
+                  <p className="font-semibold text-[#243447] text-sm">
                     {agreement.rentDueDay || '1st of the month'}
                   </p>
                 </div>
 
                 <div>
-                  <span className="text-xs text-slate-400 block mb-1">Notice Period For Move-Out</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                  <span className="text-xs text-[#5B6875] block mb-1">Notice Period For Move-Out</span>
+                  <p className="font-semibold text-[#243447] text-sm">
                     {agreement.noticePeriod || '30 days'}
                   </p>
                 </div>
 
                 <div>
-                  <span className="text-xs text-slate-400 block mb-1">Agreement Status</span>
+                  <span className="text-xs text-[#5B6875] block mb-1">Agreement Status</span>
                   <div className="mt-1">
                     <StatusBadge status={agreement.status} size="sm" />
                   </div>
@@ -265,11 +265,11 @@ export default function TenantAgreementPage() {
               </div>
 
               {agreement.notes && (
-                <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <div className="mt-4 p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-xs font-semibold text-[#243447] block mb-1">
                     Notes & Special Provisions
                   </span>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
                     {agreement.notes}
                   </p>
                 </div>

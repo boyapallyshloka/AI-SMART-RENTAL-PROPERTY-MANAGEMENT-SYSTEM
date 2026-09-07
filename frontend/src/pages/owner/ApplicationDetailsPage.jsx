@@ -124,14 +124,14 @@ export default function ApplicationDetailsPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 shadow-xs flex justify-center">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
             <Loader text="Loading application details..." size="md" center />
           </div>
         ) : !application ? (
           /* Empty / Not Found State */
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-8 shadow-xs">
             <EmptyState
-              icon={<FileCheck className="w-8 h-8" />}
+              icon={<FileCheck className="w-8 h-8 text-[#315A7D]" />}
               title="Application Not Found"
               message={`No rental application matching reference ID "${id}" could be located.`}
               action={
@@ -147,15 +147,15 @@ export default function ApplicationDetailsPage() {
           <>
             {/* Success Message Banner */}
             {successMessage && (
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
                   <span>{successMessage}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSuccessMessage('')}
-                  className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-100 font-bold px-1"
+                  className="text-[#2A583B] hover:text-[#1d3d29] font-bold px-1"
                 >
                   &times;
                 </button>
@@ -164,12 +164,12 @@ export default function ApplicationDetailsPage() {
 
             {/* Confirmation Panel for Approve */}
             {confirmAction === 'approve' && (
-              <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/90 dark:bg-emerald-950/50 space-y-3 shadow-xs animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-100 font-semibold text-sm">
-                  <AlertCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="p-5 rounded-2xl border border-[#C6DEC8] bg-[#EDF7EE] space-y-3 shadow-xs animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2.5 text-[#2A583B] font-semibold text-sm">
+                  <AlertCircle className="w-5 h-5 text-[#3F7D58] shrink-0" />
                   <span>Confirm Approval</span>
                 </div>
-                <p className="text-xs sm:text-sm text-emerald-800/90 dark:text-emerald-200/90">
+                <p className="text-xs sm:text-sm text-[#2A583B]">
                   Are you sure you want to approve the rental application for <strong>{application.applicantName}</strong> for <strong>{application.propertyName} ({application.unit})</strong>? This status change will be saved.
                 </p>
                 <div className="flex items-center gap-2.5 pt-1">
@@ -194,12 +194,12 @@ export default function ApplicationDetailsPage() {
 
             {/* Confirmation Panel for Reject */}
             {confirmAction === 'reject' && (
-              <div className="p-5 rounded-2xl border border-rose-200 dark:border-rose-800/80 bg-rose-50/90 dark:bg-rose-950/50 space-y-3 shadow-xs animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center gap-2.5 text-rose-900 dark:text-rose-100 font-semibold text-sm">
-                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <div className="p-5 rounded-2xl border border-[#F4B4B4] bg-[#FDF2F2] space-y-3 shadow-xs animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2.5 text-[#8A2E2C] font-semibold text-sm">
+                  <AlertCircle className="w-5 h-5 text-[#B94A48] shrink-0" />
                   <span>Confirm Rejection</span>
                 </div>
-                <p className="text-xs sm:text-sm text-rose-800/90 dark:text-rose-200/90">
+                <p className="text-xs sm:text-sm text-[#8A2E2C]">
                   Are you sure you want to reject the rental application for <strong>{application.applicantName}</strong>? This decision will be permanently recorded.
                 </p>
                 <div className="flex items-center gap-2.5 pt-1">
@@ -223,17 +223,17 @@ export default function ApplicationDetailsPage() {
             )}
 
             {/* Header Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                       {application.applicantName}
                     </h1>
                     <StatusBadge status={currentStatus} size="md" />
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Application ID: <span className="font-mono text-slate-700 dark:text-slate-300">{application.id}</span> &bull; Submitted on {application.submittedDate}
+                  <p className="text-xs text-[#5B6875] mt-1">
+                    Application ID: <span className="font-mono text-[#243447]">{application.id}</span> &bull; Submitted on {application.submittedDate}
                   </p>
                 </div>
 
@@ -258,7 +258,7 @@ export default function ApplicationDetailsPage() {
                     Approve
                   </Button>
                   {isDecided && (
-                    <span className="text-xs text-slate-400 font-medium ml-1">
+                    <span className="text-xs text-[#5B6875] font-medium ml-1">
                       Final decision recorded
                     </span>
                   )}
@@ -269,52 +269,52 @@ export default function ApplicationDetailsPage() {
             {/* Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Applicant Information Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+                <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                  <User className="w-4 h-4 text-[#315A7D]" />
                   Applicant Information
                 </h2>
 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Full Name</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="text-xs text-[#5B6875]">Full Name</span>
+                    <span className="font-medium text-[#243447]">
                       {application.applicantName}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" /> Email Address
+                    <span className="text-xs text-[#5B6875] flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-[#5B6875]" /> Email Address
                     </span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="font-medium text-[#243447]">
                       {application.email || 'N/A'}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone Number
+                    <span className="text-xs text-[#5B6875] flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-[#5B6875]" /> Phone Number
                     </span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="font-medium text-[#243447]">
                       {application.phone || 'N/A'}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5 text-slate-400" /> Monthly Income
+                    <span className="text-xs text-[#5B6875] flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5 text-[#5B6875]" /> Monthly Income
                     </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
+                    <span className="font-semibold text-[#243447]">
                       ${Number(application.monthlyIncome || 0).toLocaleString()} / month
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Briefcase className="w-3.5 h-3.5 text-slate-400" /> Employment Status
+                    <span className="text-xs text-[#5B6875] flex items-center gap-1">
+                      <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" /> Employment Status
                     </span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="font-medium text-[#243447]">
                       {application.employmentStatus || 'Employed'}
                     </span>
                   </div>
@@ -322,38 +322,38 @@ export default function ApplicationDetailsPage() {
               </div>
 
               {/* Property & Application Details Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+                <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                  <Building2 className="w-4 h-4 text-[#315A7D]" />
                   Property & Application Details
                 </h2>
 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Applied Property</span>
-                    <span className="font-medium text-slate-900 dark:text-white text-right">
+                    <span className="text-xs text-[#5B6875]">Applied Property</span>
+                    <span className="font-medium text-[#243447] text-right">
                       {application.propertyName}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Unit Number</span>
-                    <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                    <span className="text-xs text-[#5B6875]">Unit Number</span>
+                    <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
                       {application.unit}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" /> Submission Date
+                    <span className="text-xs text-[#5B6875] flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-[#5B6875]" /> Submission Date
                     </span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="font-medium text-[#243447]">
                       {application.submittedDate}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Current Status</span>
+                    <span className="text-xs text-[#5B6875]">Current Status</span>
                     <StatusBadge status={currentStatus} size="sm" />
                   </div>
                 </div>
@@ -361,9 +361,9 @@ export default function ApplicationDetailsPage() {
             </div>
 
             {/* Uploaded Documents List */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+              <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                <FileText className="w-4 h-4 text-[#315A7D]" />
                 Uploaded Documents
               </h2>
 
@@ -371,23 +371,23 @@ export default function ApplicationDetailsPage() {
                 {sampleDocuments.map((doc) => (
                   <div
                     key={doc.id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-start gap-3"
+                    className="p-4 rounded-xl border border-[#D9E0E6] bg-[#F7F8FA] flex items-start gap-3"
                   >
-                    <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <div className="p-2.5 rounded-lg bg-[#EAF2F7] text-[#315A7D] shrink-0">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                      <p className="text-sm font-semibold text-[#243447] truncate">
                         {doc.title}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                      <p className="text-xs text-[#5B6875] mt-0.5 line-clamp-2">
                         {doc.subtitle}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                          <ShieldCheck className="w-3 h-3" /> Verified
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2A583B]">
+                          <ShieldCheck className="w-3 h-3 text-[#3F7D58]" /> Verified
                         </span>
-                        <span className="text-[11px] text-slate-400">&bull; {doc.size}</span>
+                        <span className="text-[11px] text-[#5B6875]">&bull; {doc.size}</span>
                       </div>
                     </div>
                   </div>

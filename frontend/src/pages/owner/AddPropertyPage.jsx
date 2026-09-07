@@ -27,31 +27,31 @@ export default function AddPropertyPage() {
     >
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
             to="/owner/properties"
-            className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Properties</span>
           </Link>
           <span>/</span>
-          <span className="text-slate-900 dark:text-white font-medium">
+          <span className="text-[#243447] font-semibold">
             Add New Property
           </span>
         </div>
 
         {/* Header */}
-        <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="border-b border-[#D9E0E6] pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+            <div className="p-2.5 rounded-xl bg-[#315A7D] text-white shadow-sm">
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 Add New Property
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 Register a new rental building, condo, or single-family residence
               </p>
             </div>

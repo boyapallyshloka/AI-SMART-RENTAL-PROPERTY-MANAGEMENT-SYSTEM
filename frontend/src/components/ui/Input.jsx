@@ -1,7 +1,7 @@
 import React, { useId } from 'react'
 
 /**
- * Input Component for HomeSphere
+ * Enterprise Input Component for HomeSphere
  * @param {Object} props
  * @param {string} [props.label]
  * @param {string} [props.error]
@@ -33,16 +33,16 @@ export default function Input({
       {label && (
         <label
           htmlFor={inputId}
-          className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300"
+          className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]"
         >
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[#B94A48] ml-1" aria-hidden="true">*</span>}
         </label>
       )}
 
-      <div className="relative rounded-lg shadow-sm">
+      <div className="relative rounded-md shadow-2xs">
         {leftIcon && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[#5B6875]">
             {leftIcon}
           </div>
         )}
@@ -53,32 +53,34 @@ export default function Input({
           required={required}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
-          className={`block w-full rounded-lg text-sm transition-all duration-150 border bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 disabled:opacity-60 disabled:bg-slate-100 dark:disabled:bg-slate-800/60 disabled:cursor-not-allowed ${
-            leftIcon ? 'pl-10' : 'pl-3.5'
-          } ${rightIcon ? 'pr-10' : 'pr-3.5'} py-2.5 ${
+          className={`block w-full rounded-md text-sm transition-colors border bg-white text-[#243447] placeholder:text-[#98A2B3] focus:outline-none focus:ring-1 disabled:opacity-60 disabled:bg-[#F7F8FA] disabled:text-[#5B6875] disabled:cursor-not-allowed ${
+            leftIcon ? 'pl-9' : 'pl-3'
+          } ${rightIcon ? 'pr-9' : 'pr-3'} py-2 ${
             error
-              ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
-              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+              ? 'border-[#B94A48] focus:border-[#B94A48] focus:ring-[#B94A48]'
+              : 'border-[#D9E0E6] hover:border-[#5B6875] focus:border-[#315A7D] focus:ring-[#315A7D]'
           } ${className}`}
           {...props}
         />
 
         {rightIcon && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#5B6875]">
             {rightIcon}
           </div>
         )}
       </div>
 
-      {error ? (
-        <p id={errorId} className="mt-1.5 text-xs font-medium text-rose-500">
+      {error && (
+        <p id={errorId} className="mt-1.5 text-xs font-medium text-[#B94A48]" role="alert">
           {error}
         </p>
-      ) : helperText ? (
-        <p id={helperId} className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+      )}
+
+      {helperText && !error && (
+        <p id={helperId} className="mt-1.5 text-xs text-[#5B6875]">
           {helperText}
         </p>
-      ) : null}
+      )}
     </div>
   )
 }

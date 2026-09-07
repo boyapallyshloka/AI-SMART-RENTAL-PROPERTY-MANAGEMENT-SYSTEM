@@ -1,7 +1,9 @@
 import React from 'react'
 
 /**
- * NavItem component for Sidebar navigation
+ * Enterprise NavItem component for Sidebar navigation
+ * Styled with Primary Blue #315A7D and Light Blue #EAF2F7
+ *
  * @param {Object} props
  * @param {React.ReactNode} props.icon
  * @param {string} props.label
@@ -20,18 +22,18 @@ export default function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`group w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 select-none ${
+      className={`group w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors duration-150 select-none text-left ${
         isActive
-          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+          ? 'bg-[#EAF2F7] text-[#315A7D] font-semibold border-l-3 border-[#315A7D]'
+          : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#EAF2F7]/60 font-medium'
       }`}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         <span
-          className={`shrink-0 transition-transform duration-150 ${
+          className={`shrink-0 transition-colors ${
             isActive
-              ? 'text-white'
-              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+              ? 'text-[#315A7D]'
+              : 'text-[#5B6875] group-hover:text-[#243447]'
           }`}
         >
           {icon}
@@ -41,10 +43,10 @@ export default function NavItem({
 
       {badge !== undefined && (
         <span
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 transition-colors ${
+          className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 transition-colors ${
             isActive
-              ? 'bg-white/20 text-white'
-              : 'bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              ? 'bg-[#315A7D] text-white'
+              : 'bg-[#EAF2F7] text-[#5B6875]'
           }`}
         >
           {badge}

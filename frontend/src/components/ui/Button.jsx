@@ -2,7 +2,9 @@ import React from 'react'
 import Loader from './Loader'
 
 /**
- * Button Component for HomeSphere
+ * Enterprise Button Component for HomeSphere
+ * Standardized to the new Primary Blue #315A7D color system
+ *
  * @param {Object} props
  * @param {'primary' | 'secondary' | 'danger' | 'outline'} [props.variant='primary']
  * @param {'sm' | 'md' | 'lg'} [props.size='md']
@@ -26,17 +28,17 @@ export default function Button({
   ...props
 }) {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none active:scale-[0.98]'
+    'inline-flex items-center justify-center font-medium rounded-md transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-60 disabled:bg-[#EAF2F7] disabled:text-[#5B6875] disabled:border-[#D9E0E6] disabled:cursor-not-allowed disabled:pointer-events-none select-none'
 
   const variantStyles = {
     primary:
-      'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow focus-visible:ring-indigo-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900',
+      'bg-[#315A7D] hover:bg-[#274B68] text-white shadow-xs focus-visible:ring-[#315A7D]',
     secondary:
-      'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 shadow-sm focus-visible:ring-slate-400 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900',
+      'bg-[#EAF2F7] hover:bg-[#D9E6F0] text-[#243447] border border-[#D9E0E6] shadow-xs focus-visible:ring-[#315A7D]',
     danger:
-      'bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow focus-visible:ring-rose-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900',
+      'border border-[#B94A48] text-[#B94A48] bg-white hover:bg-[#FDF2F2] hover:border-[#9B3B39] hover:text-[#9B3B39] shadow-xs focus-visible:ring-[#B94A48]',
     outline:
-      'border border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 focus-visible:ring-indigo-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900',
+      'border border-[#315A7D] text-[#315A7D] hover:bg-[#EAF2F7] bg-white shadow-xs focus-visible:ring-[#315A7D]',
   }
 
   const sizeStyles = {
@@ -55,7 +57,9 @@ export default function Button({
     <button
       type={type}
       disabled={disabled || isLoading}
-      className={`${baseStyles} ${variantStyles[variant] || variantStyles.primary} ${sizeStyles[size] || sizeStyles.md} ${className}`}
+      className={`${baseStyles} ${variantStyles[variant] || variantStyles.primary} ${
+        sizeStyles[size] || sizeStyles.md
+      } ${className}`}
       {...props}
     >
       {isLoading ? (

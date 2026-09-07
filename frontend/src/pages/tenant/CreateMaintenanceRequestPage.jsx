@@ -125,34 +125,34 @@ export default function CreateMaintenanceRequestPage() {
     >
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
             to="/tenant/maintenance"
-            className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Maintenance</span>
           </Link>
           <span>/</span>
-          <span className="text-slate-900 dark:text-white font-medium">
+          <span className="text-[#243447] font-medium">
             New Maintenance Request
           </span>
         </div>
 
         {/* Page Header */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+        <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+            <div className="p-2.5 rounded-md bg-[#315A7D] text-white">
               <Wrench className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
                   Request Maintenance
                 </h1>
                 <StatusBadge status="Open" size="sm" />
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 Report an issue or request a facility repair for your rental unit
               </p>
             </div>
@@ -162,38 +162,38 @@ export default function CreateMaintenanceRequestPage() {
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Section 1: Pre-filled Tenant & Property Information */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Building2 className="w-4 h-4 text-[#315A7D]" />
               1. Location & Tenant Details
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                   Tenant
                 </label>
-                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                  <User className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="p-2.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-sm font-medium text-[#243447] flex items-center gap-2">
+                  <User className="w-4 h-4 text-[#5B6875] shrink-0" />
                   <span className="truncate">{tenantName}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                   Leased Property
                 </label>
-                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="p-2.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-sm font-medium text-[#243447] flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#5B6875] shrink-0" />
                   <span className="truncate">{propertyName}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
                   Unit Number
                 </label>
-                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white">
+                <div className="p-2.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-sm font-medium text-[#243447]">
                   {unitNumber}
                 </div>
               </div>
@@ -201,9 +201,9 @@ export default function CreateMaintenanceRequestPage() {
           </div>
 
           {/* Section 2: Issue Details */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Wrench className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Wrench className="w-4 h-4 text-[#315A7D]" />
               2. Repair Information
             </h2>
 
@@ -256,9 +256,9 @@ export default function CreateMaintenanceRequestPage() {
           </div>
 
           {/* Section 3: Scheduling & Attachments */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Calendar className="w-4 h-4 text-[#315A7D]" />
               3. Scheduling & Photos
             </h2>
 
@@ -270,7 +270,7 @@ export default function CreateMaintenanceRequestPage() {
                   value={preferredVisitDate}
                   onChange={(e) => setPreferredVisitDate(e.target.value)}
                   error={errors.preferredVisitDate}
-                  leftIcon={<Calendar className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Calendar className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Date when maintenance technician may inspect"
                   required
                 />
@@ -282,7 +282,7 @@ export default function CreateMaintenanceRequestPage() {
                   placeholder="e.g. broken_latch_photo.jpg"
                   value={attachmentFileName}
                   onChange={(e) => setAttachmentFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Filename placeholder (mock mode)"
                 />
               </div>

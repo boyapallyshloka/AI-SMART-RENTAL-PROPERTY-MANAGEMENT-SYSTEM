@@ -153,13 +153,13 @@ export default function OwnerPropertyForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
       {/* 1. Basic Information */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#315A7D]" />
             General Property Information
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Basic identity and location details for your real estate listing
           </p>
         </div>
@@ -230,12 +230,12 @@ export default function OwnerPropertyForm({
       </div>
 
       {/* 2. Specifications & Layout */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h2 className="text-base font-semibold text-[#243447]">
             Unit Specifications & Features
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Dimensions, furnishing level, and parking accommodations
           </p>
         </div>
@@ -310,13 +310,13 @@ export default function OwnerPropertyForm({
       </div>
 
       {/* 3. Pricing & Financials */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-[#3F7D58]" />
             Pricing & Deposits
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Base lease rate and required security deposit
           </p>
         </div>
@@ -350,13 +350,13 @@ export default function OwnerPropertyForm({
       </div>
 
       {/* 4. Amenities */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-5">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500" />
+      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-5">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-[#B7791F]" />
             Property Amenities
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Select all convenience features and building facilities included
           </p>
         </div>
@@ -371,14 +371,14 @@ export default function OwnerPropertyForm({
                 onClick={() => toggleAmenity(amenity)}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
                   isSelected
-                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 shadow-2xs'
-                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-[#EAF2F7] text-[#315A7D] border-[#315A7D] shadow-xs'
+                    : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6] hover:bg-[#EAF2F7] hover:text-[#243447]'
                 }`}
               >
                 {isSelected ? (
-                  <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <Check className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
                 ) : (
-                  <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <Plus className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                 )}
                 <span>{amenity}</span>
               </button>
@@ -388,13 +388,13 @@ export default function OwnerPropertyForm({
       </div>
 
       {/* 5. Image & Description */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-[#315A7D]" />
             Media & Description
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#5B6875] mt-0.5">
             Add high-resolution photography and detailed leasing description
           </p>
         </div>
@@ -409,8 +409,8 @@ export default function OwnerPropertyForm({
               helperText="Provide an image URL, choose a preset below, or upload a local image file"
             />
             <div className="mt-2 flex items-center gap-3">
-              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#D9E0E6] hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] transition-colors">
+                <ImageIcon className="w-3.5 h-3.5 text-[#315A7D]" />
                 <span>Upload Local Photo</span>
                 <input
                   type="file"
@@ -430,13 +430,13 @@ export default function OwnerPropertyForm({
                   }}
                 />
               </label>
-              <span className="text-[11px] text-slate-400">PNG, JPG, WebP up to 5MB</span>
+              <span className="text-[11px] text-[#5B6875]">PNG, JPG, WebP up to 5MB</span>
             </div>
           </div>
 
           {/* Quick presets */}
           <div>
-            <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <span className="block text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider mb-2">
               Or Select Sample Preset Photo
             </span>
             <div className="grid grid-cols-5 gap-2">
@@ -447,8 +447,8 @@ export default function OwnerPropertyForm({
                   onClick={() => handleChange('imageUrl', url)}
                   className={`relative rounded-xl overflow-hidden aspect-video border-2 transition-all ${
                     formData.imageUrl === url
-                      ? 'border-indigo-600 ring-2 ring-indigo-500/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 opacity-70 hover:opacity-100'
+                      ? 'border-[#315A7D] ring-2 ring-[#315A7D]/20'
+                      : 'border-[#D9E0E6] hover:border-[#315A7D] opacity-80 hover:opacity-100'
                   }`}
                 >
                   <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
@@ -459,11 +459,11 @@ export default function OwnerPropertyForm({
 
           {/* Live Preview Box */}
           {formData.imageUrl && (
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
-              <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="p-4 rounded-xl border border-[#D9E0E6] bg-[#F7F8FA]">
+              <span className="block text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider mb-2">
                 Live Image Preview
               </span>
-              <div className="relative rounded-xl overflow-hidden aspect-video max-w-md border border-slate-200 dark:border-slate-700 bg-slate-200 dark:bg-slate-800">
+              <div className="relative rounded-xl overflow-hidden aspect-video max-w-md border border-[#D9E0E6] bg-[#D9E0E6]">
                 <img
                   src={formData.imageUrl}
                   alt="Preview"

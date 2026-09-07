@@ -186,34 +186,34 @@ export default function CreateAgreementPage() {
     >
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
             to="/owner/agreements"
-            className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Agreements</span>
           </Link>
           <span>/</span>
-          <span className="text-slate-900 dark:text-white font-medium">
+          <span className="text-[#243447] font-semibold">
             New Lease Agreement
           </span>
         </div>
 
         {/* Page Header */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+            <div className="p-2.5 rounded-xl bg-[#315A7D] text-white shadow-sm">
               <FileText className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                   Create Lease Agreement
                 </h1>
                 <StatusBadge status="Draft" size="sm" />
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 Draft a legally binding residential lease agreement with custom financial terms
               </p>
             </div>
@@ -223,9 +223,9 @@ export default function CreateAgreementPage() {
         {/* Agreement Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Section 1: Tenant & Application Selection */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <User className="w-4 h-4 text-[#315A7D]" />
               1. Tenant Details
             </h2>
 
@@ -246,7 +246,7 @@ export default function CreateAgreementPage() {
                   value={tenantName}
                   onChange={(e) => setTenantName(e.target.value)}
                   error={errors.tenantName}
-                  leftIcon={<User className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<User className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -258,7 +258,7 @@ export default function CreateAgreementPage() {
                   placeholder="tenant@example.com"
                   value={tenantEmail}
                   onChange={(e) => setTenantEmail(e.target.value)}
-                  leftIcon={<FileCheck className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<FileCheck className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Used for sending digital signature notifications"
                 />
               </div>
@@ -266,9 +266,9 @@ export default function CreateAgreementPage() {
           </div>
 
           {/* Section 2: Property & Unit Assignment */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Building2 className="w-4 h-4 text-[#315A7D]" />
               2. Property & Leased Unit
             </h2>
 
@@ -298,9 +298,9 @@ export default function CreateAgreementPage() {
           </div>
 
           {/* Section 3: Financial Terms & Rent Schedule */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <DollarSign className="w-4 h-4 text-[#3F7D58]" />
               3. Financial Terms
             </h2>
 
@@ -313,7 +313,7 @@ export default function CreateAgreementPage() {
                   value={monthlyRent}
                   onChange={(e) => setMonthlyRent(e.target.value)}
                   error={errors.monthlyRent}
-                  leftIcon={<DollarSign className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<DollarSign className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -326,7 +326,7 @@ export default function CreateAgreementPage() {
                   value={securityDeposit}
                   onChange={(e) => setSecurityDeposit(e.target.value)}
                   error={errors.securityDeposit}
-                  leftIcon={<Shield className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Shield className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
@@ -352,9 +352,9 @@ export default function CreateAgreementPage() {
           </div>
 
           {/* Section 4: Lease Duration Dates & Notes */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+              <Calendar className="w-4 h-4 text-[#315A7D]" />
               4. Lease Term Dates & Special Provisions
             </h2>
 
@@ -366,7 +366,7 @@ export default function CreateAgreementPage() {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   error={errors.startDate}
-                  leftIcon={<Calendar className="w-4 h-4 text-slate-400" />}
+                  leftIcon={<Calendar className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>

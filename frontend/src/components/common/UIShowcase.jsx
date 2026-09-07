@@ -49,24 +49,24 @@ export default function UIShowcase() {
 
   return (
     <div className="space-y-10">
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+      <div className="border-b border-[#D9E0E6] pb-4">
+        <h2 className="text-xl font-bold text-[#243447]">
           HomeSphere UI Component Showcase
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-[#5B6875] mt-1">
           Reusable UI library primitives including buttons, inputs, badges, loaders, and empty states.
         </p>
       </div>
 
       {/* 1. Buttons Showcase */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+      <section className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs space-y-6">
+        <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-4">
           <div>
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[#315A7D]" />
               Button Variants & Sizes
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[#5B6875]">
               Primary, secondary, danger, outline with sizes, icons, and loading states
             </p>
           </div>
@@ -81,7 +81,7 @@ export default function UIShowcase() {
 
         <div className="space-y-4">
           <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-semibold text-[#5B6875] uppercase tracking-wider mb-3">
               Variants
             </h4>
             <div className="flex flex-wrap gap-3 items-center">
@@ -101,7 +101,7 @@ export default function UIShowcase() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-semibold text-[#5B6875] uppercase tracking-wider mb-3">
               Sizes & States
             </h4>
             <div className="flex flex-wrap gap-3 items-center">
@@ -120,13 +120,13 @@ export default function UIShowcase() {
       </section>
 
       {/* 2. Status Badges Showcase */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+      <section className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-[#315A7D]" />
             Status Badges (All 12 Required Labels)
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-[#5B6875]">
             Color-coded status indicators for properties, tenancies, payments, and tickets
           </p>
         </div>
@@ -135,77 +135,64 @@ export default function UIShowcase() {
           {allStatuses.map((st) => (
             <div
               key={st}
-              className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 gap-2"
+              className="flex flex-col items-center justify-center p-3 rounded-xl border border-[#D9E0E6] bg-[#F7F8FA] gap-2"
             >
               <StatusBadge status={st} size="md" />
-              <span className="text-[11px] text-slate-400 font-mono">{st}</span>
+              <span className="text-[10px] text-[#5B6875] font-mono">{st}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* 3. Form Controls Showcase */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-            Form Controls (Input, Select, Textarea)
+      {/* 3. Form Inputs Showcase */}
+      <section className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs space-y-6">
+        <div className="border-b border-[#D9E0E6] pb-4">
+          <h3 className="text-base font-semibold text-[#243447]">
+            Form Controls & Validation States
           </h3>
+          <p className="text-xs text-[#5B6875]">
+            Standard input, error input, select dropdown, and textarea
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Property Name"
-            placeholder="e.g. Sunset Heights #402"
+            placeholder="e.g. Sunset Heights Unit 4B"
             value={sampleText}
             onChange={(e) => setSampleText(e.target.value)}
-            helperText="Enter a descriptive label for unit identification"
+            helperText="Enter a recognizable identification name"
+            leftIcon={<Building2 className="w-4 h-4" />}
             required
           />
 
           <Input
-            label="Monthly Rent Amount"
-            placeholder="2,400"
+            label="Monthly Rent (Error state)"
+            placeholder="e.g. 1850"
+            defaultValue="invalid_amount"
+            error="Please enter a valid positive numeric amount"
             leftIcon={<DollarSign className="w-4 h-4" />}
-            rightIcon={<span className="text-xs font-medium text-slate-400">USD</span>}
-            helperText="Set base lease price"
-          />
-
-          <Input
-            label="Tenant Email"
-            defaultValue="invalid-email-format"
-            leftIcon={<Mail className="w-4 h-4" />}
-            error="Please provide a valid email address (e.g. tenant@example.com)"
             required
           />
 
           <Select
             label="Property Type"
             options={propertyTypeOptions}
-            defaultValue="apartment"
-            helperText="Select structural category"
+            helperText="Categorize for tenancy agreements"
           />
 
           <Select
-            label="Current Status Demo"
-            options={allStatuses.map((s) => ({ value: s, label: s }))}
-            value={selectedStatus}
+            label="Filter Status"
+            options={allStatuses.map((s) => ({ value: s.toLowerCase(), label: s }))}
+            value={selectedStatus.toLowerCase()}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            helperText={`Selected: ${selectedStatus}`}
           />
 
-          <Input
-            label="System Property ID"
-            defaultValue="PROP-9482-X"
-            disabled
-            helperText="Generated automatically"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           <Textarea
-            label="Property Description"
+            label="Special Instructions"
+            placeholder="Provide any gate codes or entry instructions..."
             rows={3}
-            placeholder="Spacious two-bedroom condo with updated appliances..."
+            helperText="Maximum 250 characters"
           />
 
           <Textarea
@@ -219,23 +206,23 @@ export default function UIShowcase() {
       </section>
 
       {/* 4. Loader Showcase */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+      <section className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+        <h3 className="text-base font-semibold text-[#243447]">
           Loader Spinners
         </h3>
         <div className="flex flex-wrap items-center gap-8 py-2">
-          <Loader size="xs" className="text-indigo-600" />
-          <Loader size="sm" className="text-indigo-600" />
-          <Loader size="md" className="text-indigo-600" />
-          <Loader size="lg" className="text-indigo-600" />
-          <Loader size="xl" className="text-indigo-600" />
-          <Loader size="md" text="Syncing HomeSphere data..." className="text-indigo-600" />
+          <Loader size="xs" className="text-[#315A7D]" />
+          <Loader size="sm" className="text-[#315A7D]" />
+          <Loader size="md" className="text-[#315A7D]" />
+          <Loader size="lg" className="text-[#315A7D]" />
+          <Loader size="xl" className="text-[#315A7D]" />
+          <Loader size="md" text="Syncing HomeSphere data..." className="text-[#315A7D]" />
         </div>
       </section>
 
       {/* 5. Empty State Showcase */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+      <section className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+        <h3 className="text-base font-semibold text-[#243447]">
           EmptyState Component
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
