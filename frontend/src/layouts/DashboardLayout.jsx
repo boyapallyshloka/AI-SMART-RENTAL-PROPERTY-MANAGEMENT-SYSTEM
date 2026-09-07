@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import Sidebar from '../components/common/Sidebar'
 import Topbar from '../components/common/Topbar'
+import Footer from '../components/common/Footer'
+import ScoutAssistant from '../components/scout/ScoutAssistant'
 
 /**
  * DashboardLayout Component for HomeSphere
@@ -63,7 +65,7 @@ export default function DashboardLayout({
       />
 
       {/* Main Content Area */}
-      <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F8FA]">
+      <div className="relative flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden bg-[#F7F8FA]">
         {/* Top Header Bar */}
         <Topbar
           role={currentRole}
@@ -74,10 +76,16 @@ export default function DashboardLayout({
         />
 
         {/* Dynamic Route Content */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pb-8 max-w-7xl w-full mx-auto">
           {children}
         </main>
+
+        {/* Reusable Application Footer */}
+        <Footer variant="dashboard" />
       </div>
+
+      {/* SCOUT Assistant Interface */}
+      <ScoutAssistant />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Home, ShieldCheck, CheckCircle2, Building2 } from 'lucide-react'
 
 /**
@@ -75,7 +76,19 @@ export default function AuthLayout({
         {/* Footer */}
         <div className="flex items-center justify-between text-xs text-[#EAF2F7]/80">
           <span>&copy; {new Date().getFullYear()} HomeSphere SaaS Platform</span>
-          <span>Security & Compliance Standards</span>
+          <div className="flex items-center gap-3">
+            <Link to="/privacy-policy" className="hover:text-white hover:underline transition-colors">
+              Privacy Policy
+            </Link>
+            <span>&bull;</span>
+            <Link to="/terms-and-conditions" className="hover:text-white hover:underline transition-colors">
+              Terms &amp; Conditions
+            </Link>
+            <span>&bull;</span>
+            <Link to="/contact" className="hover:text-white hover:underline transition-colors">
+              Contact Support
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -110,6 +123,21 @@ export default function AuthLayout({
           {/* Form Container */}
           <div className="bg-white p-6 sm:p-8 rounded-lg border border-[#D9E0E6] shadow-xs">
             {children}
+          </div>
+
+          {/* Mobile Footer Links */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-[#5B6875] lg:hidden">
+            <Link to="/privacy-policy" className="hover:text-[#243447] hover:underline">
+              Privacy Policy
+            </Link>
+            <span>&bull;</span>
+            <Link to="/terms-and-conditions" className="hover:text-[#243447] hover:underline">
+              Terms &amp; Conditions
+            </Link>
+            <span>&bull;</span>
+            <Link to="/contact" className="hover:text-[#243447] hover:underline">
+              Contact Support
+            </Link>
           </div>
         </div>
       </div>
