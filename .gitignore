@@ -1,0 +1,27 @@
+# Python virtual environment
+ai-service/venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Secrets / environment files
+.env
+.env.*
+
+# Model artifacts
+*.pkl
+*.joblib
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+# Avenue360 shared datasets
+ai-service/data/ml/
+ai-service/data/processed/
