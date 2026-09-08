@@ -20,6 +20,11 @@ import ScoutInput from './ScoutInput'
 import ScoutTypingIndicator from './ScoutTypingIndicator'
 import { useScout } from '../../context/ScoutContext'
 import { useAuth } from '../../context/AuthContext'
+import {
+  isSuperAdmin,
+  isPropertyManager,
+  isTenant as isTenantRole,
+} from '../../utils/roles'
 
 /**
  * Role-aware quick-action suggestions
@@ -162,15 +167,13 @@ export default function ScoutAssistant({
   const messagesEndRef = useRef(null)
 
   // Determine role-based quick actions
-  const userRole = (user?.role || 'owner').toLowerCase()
-  const quickActions =
-    userRole === 'admin' || userRole === 'superadmin'
-      ? ROLE_QUICK_ACTIONS.admin
-      : userRole === 'manager'
+  const quickActions = isSuperAdmin(user?.role)
+    ? ROLE_QUICK_ACTIONS.admin
+    : isPropertyManager(user?.role)
       ? ROLE_QUICK_ACTIONS.manager
-      : userRole === 'tenant'
-      ? ROLE_QUICK_ACTIONS.tenant
-      : ROLE_QUICK_ACTIONS.owner
+      : isTenantRole(user?.role)
+        ? ROLE_QUICK_ACTIONS.tenant
+        : ROLE_QUICK_ACTIONS.owner
 
   // Auto-scroll to bottom on message change or typing indicator
   useEffect(() => {
@@ -191,11 +194,10 @@ export default function ScoutAssistant({
   // Container sizing based on expanded/embedded modes
   const containerClasses = isEmbedded
     ? `w-full h-full min-h-[480px] bg-white border border-[#D9E0E6] rounded-xl flex flex-col overflow-hidden shadow-xs ${className}`
-    : `fixed bottom-5 right-5 z-50 ${
-        isExpanded
-          ? 'w-[94vw] sm:w-[540px] h-[85vh] max-h-[740px]'
-          : 'w-[94vw] sm:w-[380px] md:w-[420px] h-[540px] max-h-[85vh]'
-      } bg-white border border-[#D9E0E6] rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${className}`
+    : `fixed bottom-5 right-5 z-50 ${isExpanded
+      ? 'w-[94vw] sm:w-[540px] h-[85vh] max-h-[740px]'
+      : 'w-[94vw] sm:w-[380px] md:w-[420px] h-[540px] max-h-[85vh]'
+    } bg-white border border-[#D9E0E6] rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${className}`
 
   return (
     <div className={containerClasses} role="dialog" aria-label="SCOUT Assistant Dialog">

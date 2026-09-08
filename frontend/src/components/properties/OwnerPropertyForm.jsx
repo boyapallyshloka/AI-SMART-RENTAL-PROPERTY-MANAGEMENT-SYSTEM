@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Button,
   Input,
@@ -6,7 +6,6 @@ import {
   Textarea,
 } from '../ui'
 import {
-  PROPERTY_TYPES,
   FURNISHING_OPTIONS,
   PARKING_OPTIONS,
   STATUS_OPTIONS,
@@ -21,6 +20,53 @@ import {
   X,
   Sparkles,
 } from 'lucide-react'
+
+const PROPERTY_TYPE_OPTIONS = [
+  'Apartment',
+  'House',
+  'Villa',
+  'Condominium',
+  'Townhouse',
+  'Single Family',
+  'Loft',
+  'Commercial',
+  'PG',
+  'Hostel',
+]
+
+const toTitleCaseType = (t) => {
+  if (!t) return 'Apartment'
+  const upper = String(t).toUpperCase().replace(/\s+/g, '_')
+  switch (upper) {
+    case 'APARTMENT': return 'Apartment'
+    case 'HOUSE': return 'House'
+    case 'VILLA': return 'Villa'
+    case 'PG': return 'PG'
+    case 'HOSTEL': return 'Hostel'
+    case 'COMMERCIAL': return 'Commercial'
+    case 'CONDOMINIUM': return 'Condominium'
+    case 'TOWNHOUSE': return 'Townhouse'
+    case 'SINGLE_FAMILY': return 'Single Family'
+    case 'LOFT': return 'Loft'
+    default: return String(t)
+  }
+}
+
+const toTitleCaseFurnishing = (f) => {
+  if (!f) return 'Furnished'
+  const upper = String(f).toUpperCase().replace(/-/g, '_')
+  switch (upper) {
+    case 'FULLY_FURNISHED':
+    case 'FURNISHED':
+      return 'Furnished'
+    case 'SEMI_FURNISHED':
+      return 'Semi-Furnished'
+    case 'UNFURNISHED':
+      return 'Unfurnished'
+    default:
+      return String(f)
+  }
+}
 
 const SAMPLE_IMAGE_PRESETS = [
   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80',
@@ -48,19 +94,27 @@ export default function OwnerPropertyForm({
   submitLabel = 'Save Property',
 }) {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    type: initialData?.type || 'Apartment',
+    name: initialData?.name || initialData?.propertyName || '',
+    type: toTitleCaseType(initialData?.type || initialData?.propertyType),
     address: initialData?.address || '',
     city: initialData?.city || '',
     state: initialData?.state || 'CA',
     zipCode: initialData?.zipCode || '',
     bedrooms: initialData?.bedrooms !== undefined ? initialData.bedrooms : 2,
     bathrooms: initialData?.bathrooms !== undefined ? initialData.bathrooms : 2,
-    area: initialData?.area || 1100,
-    furnishing: initialData?.furnishing || 'Furnished',
-    parking: initialData?.parking || 'Garage',
+    area: initialData?.area || initialData?.totalArea || 1100,
+    furnishing: toTitleCaseFurnishing(
+      initialData?.furnishing || initialData?.furnishingStatus
+    ),
+    parking:
+      initialData?.parking ||
+      (initialData?.parkingAvailable != null
+        ? initialData.parkingAvailable
+          ? 'Garage'
+          : 'None'
+        : 'Garage'),
     monthlyRent: initialData?.monthlyRent || 2500,
-    deposit: initialData?.deposit || 2500,
+    deposit: initialData?.deposit || initialData?.securityDeposit || 2500,
     totalUnits: initialData?.totalUnits || 1,
     occupiedUnits: initialData?.occupiedUnits || 0,
     status: initialData?.status || 'Available',
@@ -76,6 +130,46 @@ export default function OwnerPropertyForm({
   })
 
   const [errors, setErrors] = useState({})
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || initialData.propertyName || '',
+        type: toTitleCaseType(initialData.type || initialData.propertyType),
+        address: initialData.address || '',
+        city: initialData.city || '',
+        state: initialData.state || 'CA',
+        zipCode: initialData.zipCode || '',
+        bedrooms: initialData.bedrooms !== undefined ? initialData.bedrooms : 2,
+        bathrooms: initialData.bathrooms !== undefined ? initialData.bathrooms : 2,
+        area: initialData.area || initialData.totalArea || 1100,
+        furnishing: toTitleCaseFurnishing(
+          initialData.furnishing || initialData.furnishingStatus
+        ),
+        parking:
+          initialData.parking ||
+          (initialData.parkingAvailable != null
+            ? initialData.parkingAvailable
+              ? 'Garage'
+              : 'None'
+            : 'Garage'),
+        monthlyRent: initialData.monthlyRent || 2500,
+        deposit: initialData.deposit || initialData.securityDeposit || 2500,
+        totalUnits: initialData.totalUnits || 1,
+        occupiedUnits: initialData.occupiedUnits || 0,
+        status: initialData.status || 'Available',
+        description: initialData.description || '',
+        amenities: initialData.amenities || [
+          'In-unit Laundry',
+          'Central AC',
+          'High-speed Wi-Fi',
+        ],
+        imageUrl:
+          (initialData.images && initialData.images[0]) ||
+          SAMPLE_IMAGE_PRESETS[0],
+      })
+    }
+  }, [initialData])
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -103,12 +197,14 @@ export default function OwnerPropertyForm({
       errs.name = 'Property name is required'
     }
 
-    if (!formData.address.trim()) {
-      errs.address = 'Street address is required'
-    }
-
-    if (!formData.city.trim()) {
-      errs.city = 'City is required'
+    // Street address and city validated when creating fresh listings
+    if (!initialData) {
+      if (!formData.address.trim()) {
+        errs.address = 'Street address is required'
+      }
+      if (!formData.city.trim()) {
+        errs.city = 'City is required'
+      }
     }
 
     if (!formData.monthlyRent || Number(formData.monthlyRent) <= 0) {
@@ -133,6 +229,8 @@ export default function OwnerPropertyForm({
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // Prevent duplicate submissions while in flight
+    if (isLoading) return
     if (!validate()) return
 
     const payload = {
@@ -178,7 +276,7 @@ export default function OwnerPropertyForm({
 
           <Select
             label="Property Type"
-            options={PROPERTY_TYPES}
+            options={PROPERTY_TYPE_OPTIONS}
             value={formData.type}
             onChange={(e) => handleChange('type', e.target.value)}
             required
@@ -500,6 +598,7 @@ export default function OwnerPropertyForm({
           type="submit"
           variant="primary"
           isLoading={isLoading}
+          disabled={isLoading}
         >
           {submitLabel}
         </Button>

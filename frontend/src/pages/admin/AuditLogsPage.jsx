@@ -78,10 +78,14 @@ export default function AuditLogsPage() {
   const getRoleBadgeClass = (role) => {
     switch (role?.toLowerCase()) {
       case 'admin':
+      case 'super_admin':
+      case 'superadmin':
         return 'bg-[#EAF2F7] text-[#315A7D] border-[#D9E0E6]'
       case 'owner':
+      case 'property_owner':
         return 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
       case 'manager':
+      case 'property_manager':
         return 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]'
       case 'tenant':
       default:
@@ -93,16 +97,14 @@ export default function AuditLogsPage() {
     switch (module?.toLowerCase()) {
       case 'authentication':
         return 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]'
+      case 'authorization':
+        return 'bg-[#FDF3E7] text-[#B86200] border-[#EED7B8]'
       case 'properties':
+      case 'property':
         return 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
-      case 'payments':
-        return 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
-      case 'applications':
+      case 'system':
+      case 'security':
         return 'bg-[#EAF2F7] text-[#315A7D] border-[#D9E0E6]'
-      case 'maintenance':
-        return 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
-      case 'owner verification':
-        return 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
       default:
         return 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]'
     }
@@ -110,7 +112,7 @@ export default function AuditLogsPage() {
 
   return (
     <DashboardLayout
-      defaultRole="admin"
+      defaultRole="SUPER_ADMIN"
       activeItem="audit-logs"
       pageTitle="Audit Logs"
     >

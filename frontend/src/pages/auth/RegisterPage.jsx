@@ -3,7 +3,25 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, Lock, User, UserPlus, Building2, Briefcase } from 'lucide-react'
+import {
+  Mail,
+  Lock,
+  User,
+  UserPlus,
+  Building2,
+  Briefcase,
+  Clock,
+  ShieldAlert,
+  CheckCircle2,
+  LogIn,
+} from 'lucide-react'
+import {
+  ROLES,
+  isTenant,
+  isPropertyOwner,
+  isPropertyManager,
+  isOwnerOrManager,
+} from '../../utils/roles'
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -13,9 +31,12 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState('tenant')
+  const [role, setRole] = useState(ROLES.TENANT)
   const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isPendingApproval, setIsPendingApproval] = useState(false)
+  const [registeredData, setRegisteredData] = useState(null)
 
   const validate = () => {
     const errs = {}
@@ -49,21 +70,113 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setFormError('')
     if (!validate()) return
 
     setIsLoading(true)
     try {
       const result = await register({ name, email, password, role })
       if (result.success) {
-        const destination =
-          role === 'owner' || role === 'manager'
+        if (result.isPending || result.status === 'PENDING') {
+          setRegisteredData({
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            role,
+          })
+          setIsPendingApproval(true)
+        } else {
+          const destination = isOwnerOrManager(role)
             ? '/owner/dashboard'
             : '/tenant/dashboard'
-        navigate(destination, { replace: true })
+          navigate(destination, { replace: true })
+        }
+      } else {
+        setFormError(result.error || 'Registration failed')
       }
+    } catch (err) {
+      setFormError('An unexpected error occurred during registration. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Waiting for Approval state view for PROPERTY_OWNER
+  if (isPendingApproval) {
+    return (
+      <AuthLayout
+        title="Registration Submitted"
+        subtitle="Your Property Owner account is pending administrator verification"
+      >
+        <div className="space-y-5">
+          {/* Status Banner */}
+          <div className="p-4 rounded-xl bg-[#F0F7F3] border border-[#C6DEC8] text-center space-y-2.5">
+            <div className="w-12 h-12 rounded-full bg-[#EDF7EE] border border-[#C6DEC8] flex items-center justify-center mx-auto text-[#3F7D58]">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-serif font-bold text-[#243447]">
+                Awaiting Administrator Approval
+              </h3>
+              <p className="text-xs text-[#5B6875] mt-1 max-w-sm mx-auto leading-relaxed">
+                Thank you, <span className="font-semibold text-[#243447]">{registeredData?.name || name}</span>.
+                Your property owner registration has been recorded and submitted for Super Admin review.
+              </p>
+            </div>
+          </div>
+
+          {/* Account Details Summary */}
+          <div className="p-3.5 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-xs space-y-2">
+            <div className="flex justify-between items-center py-1 border-b border-[#D9E0E6]/60">
+              <span className="text-[#5B6875]">Account Email:</span>
+              <span className="font-mono font-medium text-[#243447]">{registeredData?.email || email}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-[#D9E0E6]/60">
+              <span className="text-[#5B6875]">Role Requested:</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-[#315A7D]">
+                <Building2 className="w-3.5 h-3.5" />
+                Property Owner
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-[#5B6875]">Verification Status:</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FEF7EC] text-[#8A5B16] border border-[#F4E2B6]">
+                <ShieldAlert className="w-3 h-3" />
+                Pending Super Admin Review
+              </span>
+            </div>
+          </div>
+
+          {/* Compliance & Next Steps Notice */}
+          <div className="p-3 rounded-lg bg-[#EAF2F7] border border-[#D9E0E6] text-xs text-[#274B68] space-y-1.5 leading-relaxed">
+            <div className="flex items-center gap-1.5 font-semibold text-[#243447]">
+              <CheckCircle2 className="w-4 h-4 text-[#3F7D58]" />
+              <span>What happens next?</span>
+            </div>
+            <p className="text-[11px] text-[#5B6875]">
+              In accordance with HomeSphere enterprise security policies, property owner credentials must be verified by a Super Administrator before access to the Owner Portal is unlocked.
+            </p>
+          </div>
+
+          {/* Action button */}
+          <Button
+            type="button"
+            variant="primary"
+            className="w-full"
+            onClick={() => navigate('/login')}
+            leftIcon={<LogIn className="w-4 h-4" />}
+          >
+            Return to Sign In
+          </Button>
+
+          <div className="text-center text-xs text-[#5B6875]">
+            Need immediate assistance?{' '}
+            <Link to="/contact" className="font-semibold text-[#315A7D] hover:underline">
+              Contact Support
+            </Link>
+          </div>
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (
@@ -72,6 +185,12 @@ export default function RegisterPage() {
       subtitle="Join HomeSphere as a tenant, owner, or manager"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {formError && (
+          <div className="p-3 rounded-md bg-[#FBF0F0] border border-[#EFC8C7] text-xs font-medium text-[#B94A48]">
+            {formError}
+          </div>
+        )}
+
         {/* Role Selector Tabs */}
         <div>
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#243447]">
@@ -80,9 +199,9 @@ export default function RegisterPage() {
           <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
             <button
               type="button"
-              onClick={() => setRole('tenant')}
+              onClick={() => setRole(ROLES.TENANT)}
               className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                role === 'tenant'
+                isTenant(role)
                   ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
                   : 'text-[#5B6875] hover:text-[#243447]'
               }`}
@@ -92,9 +211,9 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRole('owner')}
+              onClick={() => setRole(ROLES.PROPERTY_OWNER)}
               className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                role === 'owner'
+                isPropertyOwner(role)
                   ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
                   : 'text-[#5B6875] hover:text-[#243447]'
               }`}
@@ -104,9 +223,9 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRole('manager')}
+              onClick={() => setRole(ROLES.PROPERTY_MANAGER)}
               className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                role === 'manager'
+                isPropertyManager(role)
                   ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
                   : 'text-[#5B6875] hover:text-[#243447]'
               }`}

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import UIShowcase from '../components/common/UIShowcase'
 import { Button } from '../components/ui'
 import { ArrowLeft, Home, LogIn } from 'lucide-react'
+import { getDashboardPath, getPortalName } from '../utils/roles'
 
 export default function UIShowcasePage() {
   const { user } = useAuth()
@@ -25,9 +26,9 @@ export default function UIShowcasePage() {
 
           <div className="flex items-center gap-2">
             {user ? (
-              <Link to={user.role === 'owner' ? '/owner/dashboard' : '/tenant/dashboard'}>
+              <Link to={getDashboardPath(user.role)}>
                 <Button size="sm" variant="primary" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                  Back to {user.role === 'owner' ? 'Owner' : 'Tenant'} Dashboard
+                  Back to {getPortalName(user.role)}
                 </Button>
               </Link>
             ) : (

@@ -64,12 +64,16 @@ export default function UserManagementPage() {
   const getRoleIcon = (role) => {
     switch (role?.toLowerCase()) {
       case 'owner':
+      case 'property_owner':
         return <Building2 className="w-3.5 h-3.5 text-[#3F7D58]" />
       case 'tenant':
         return <User className="w-3.5 h-3.5 text-[#315A7D]" />
       case 'manager':
+      case 'property_manager':
         return <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" />
       case 'admin':
+      case 'super_admin':
+      case 'superadmin':
         return <Shield className="w-3.5 h-3.5 text-[#315A7D]" />
       default:
         return <User className="w-3.5 h-3.5 text-[#5B6875]" />
@@ -79,12 +83,16 @@ export default function UserManagementPage() {
   const getRoleBadgeClass = (role) => {
     switch (role?.toLowerCase()) {
       case 'owner':
+      case 'property_owner':
         return 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
       case 'tenant':
         return 'bg-[#EAF2F7] text-[#274B68] border-[#D9E0E6]'
       case 'manager':
+      case 'property_manager':
         return 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]'
       case 'admin':
+      case 'super_admin':
+      case 'superadmin':
         return 'bg-[#EAF2F7] text-[#315A7D] border-[#D9E0E6]'
       default:
         return 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]'
@@ -93,7 +101,7 @@ export default function UserManagementPage() {
 
   return (
     <DashboardLayout
-      defaultRole="admin"
+      defaultRole="SUPER_ADMIN"
       activeItem="users"
       pageTitle="User Management"
     >

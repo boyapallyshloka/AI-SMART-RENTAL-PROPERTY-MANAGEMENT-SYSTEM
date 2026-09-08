@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { StatusBadge, Button, EmptyState } from '../ui'
+import { StatusBadge, Button, EmptyState, Loader } from '../ui'
+import { CANONICAL_PROPERTY_STATUSES } from '../../api/propertyApi'
 import {
   Eye,
   Edit,
@@ -17,9 +18,18 @@ import {
  * OwnerPropertyTable Component
  * @param {Object} props
  * @param {Array} props.properties
- * @param {(id: string) => void} props.onDelete
+ * @param {(id: string) => void} [props.onDelete]
+ * @param {(id: string, status: string) => void} [props.onStatusChange]
+ * @param {string|number|null} [props.deletingId]
+ * @param {string|number|null} [props.updatingStatusId]
  */
-export default function OwnerPropertyTable({ properties = [], onDelete }) {
+export default function OwnerPropertyTable({
+  properties = [],
+  onDelete,
+  onStatusChange,
+  deletingId = null,
+  updatingStatusId = null,
+}) {
   if (properties.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
@@ -154,9 +164,32 @@ export default function OwnerPropertyTable({ properties = [], onDelete }) {
                     )}
                   </td>
 
-                  {/* Status Badge */}
-                  <td className="py-4 px-4 whitespace-nowrap min-w-[110px]">
-                    <StatusBadge status={prop.status} size="sm" />
+                  {/* Status Badge / Selector */}
+                  <td className="py-4 px-4 whitespace-nowrap min-w-[140px]">
+                    {onStatusChange ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          aria-label="Change property status"
+                          value={prop.status}
+                          disabled={updatingStatusId === prop.id || updatingStatusId === prop.propertyId}
+                          onChange={(e) => onStatusChange(prop.id, e.target.value)}
+                          className="text-xs font-semibold rounded-md border border-[#D9E0E6] bg-white text-[#243447] py-1 px-2 focus:outline-none focus:ring-1 focus:ring-[#315A7D] cursor-pointer hover:border-[#315A7D] transition-colors disabled:opacity-60"
+                        >
+                          {CANONICAL_PROPERTY_STATUSES.map((st) => (
+                            <option key={st} value={st}>
+                              {st === 'UNDER_MAINTENANCE'
+                                ? 'Maintenance'
+                                : st.charAt(0) + st.slice(1).toLowerCase()}
+                            </option>
+                          ))}
+                        </select>
+                        {(updatingStatusId === prop.id || updatingStatusId === prop.propertyId) && (
+                          <Loader size="xs" />
+                        )}
+                      </div>
+                    ) : (
+                      <StatusBadge status={prop.status} size="sm" />
+                    )}
                   </td>
 
                   {/* Action Buttons */}
@@ -189,6 +222,7 @@ export default function OwnerPropertyTable({ properties = [], onDelete }) {
                           type="button"
                           aria-label="Delete property"
                           title="Delete Property"
+                          disabled={deletingId === prop.id || deletingId === prop.propertyId}
                           onClick={() => {
                             if (
                               window.confirm(
@@ -198,9 +232,13 @@ export default function OwnerPropertyTable({ properties = [], onDelete }) {
                               onDelete(prop.id)
                             }
                           }}
-                          className="p-1.5 rounded-md text-[#5B6875] hover:text-[#B94A48] hover:bg-[#FDF2F2] transition-colors"
+                          className="p-1.5 rounded-md text-[#5B6875] hover:text-[#B94A48] hover:bg-[#FDF2F2] transition-colors disabled:opacity-50"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingId === prop.id || deletingId === prop.propertyId ? (
+                            <Loader size="xs" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       )}
                     </div>

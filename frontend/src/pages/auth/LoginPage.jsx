@@ -4,6 +4,15 @@ import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
 import { Mail, Lock, LogIn, Sparkles, Building2, User, Briefcase, Shield } from 'lucide-react'
+import { getDashboardPath } from '../../utils/roles'
+import { DEMO_ACCOUNTS } from '../../api/mockAuth'
+
+const DEMO_ICONS = {
+  owner: <Building2 className="w-3.5 h-3.5 text-[#5B6875]" />,
+  tenant: <User className="w-3.5 h-3.5 text-[#5B6875]" />,
+  manager: <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" />,
+  admin: <Shield className="w-3.5 h-3.5 text-[#315A7D]" />,
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -50,14 +59,7 @@ export default function LoginPage() {
 
         // If no prior location or trying to go to login/root, route by role
         if (!destination || destination === '/login' || destination === '/') {
-          if (result.user.role === 'admin' || result.user.role === 'superadmin') {
-            destination = '/admin/dashboard'
-          } else if (result.user.role === 'owner' || result.user.role === 'manager') {
-            // manager goes to /owner/dashboard temporarily per requirements
-            destination = '/owner/dashboard'
-          } else {
-            destination = '/tenant/dashboard'
-          }
+          destination = getDashboardPath(result.user.role)
         }
 
         navigate(destination, { replace: true })
@@ -150,61 +152,22 @@ export default function LoginPage() {
             Quick Fill Demo Accounts
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('owner@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
-                <Building2 className="w-3.5 h-3.5 text-[#5B6875]" />
-                <span>Owner</span>
-              </div>
-              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
-                owner@...
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('tenant@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
-                <User className="w-3.5 h-3.5 text-[#5B6875]" />
-                <span>Tenant</span>
-              </div>
-              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
-                tenant@...
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('manager@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
-                <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" />
-                <span>Manager</span>
-              </div>
-              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
-                manager@...
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin@homesphere.com', 'password123')}
-              className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
-                <Shield className="w-3.5 h-3.5 text-[#315A7D]" />
-                <span>Admin</span>
-              </div>
-              <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
-                admin@...
-              </p>
-            </button>
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.key}
+                type="button"
+                onClick={() => handleQuickFill(account.email, account.password)}
+                className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
+              >
+                <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
+                  {DEMO_ICONS[account.key]}
+                  <span>{account.label}</span>
+                </div>
+                <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
+                  {account.displayEmail}
+                </p>
+              </button>
+            ))}
           </div>
         </div>
 

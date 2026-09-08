@@ -1,11 +1,14 @@
 import axios from 'axios'
 
 /**
- * Axios client configured for HomeSphere Spring Boot REST API
- * Base URL is read from Vite environment variable VITE_API_BASE_URL
+ * Axios Client configured for HomeSphere Spring Boot REST API
+ * 
+ * Base URL:
+ * - VITE_API_BASE_URL environment variable
+ * - Fallback: http://localhost:8080/api
  */
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,
@@ -15,16 +18,35 @@ const axiosClient = axios.create({
   timeout: 15000,
 })
 
-// Request Interceptor: Attach JWT token from localStorage if available
+/**
+ * Request Interceptor
+ * 1. Automatically attach JWT Bearer token if present in localStorage
+ * 2. Do NOT force Content-Type for FormData (multipart/form-data) requests to allow automatic boundary generation
+ */
 axiosClient.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem('token') ||
-      localStorage.getItem('homesphere_token')
+    // 1. Dynamic JWT attachment
+    try {
+      const token =
+        localStorage.getItem('token') ||
+        localStorage.getItem('homesphere_token')
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      if (token && token.trim()) {
+        config.headers.Authorization = `Bearer ${token.trim()}`
+      }
+    } catch (e) {
+      // Ignore storage access errors in non-browser/restricted environments
     }
+
+    // 2. FormData / Multipart handling: allow browser/axios to set multipart boundary
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        delete config.headers['Content-Type']
+      }
+    } else if (config.headers && !config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json'
+    }
+
     return config
   },
   (error) => {
@@ -32,29 +54,82 @@ axiosClient.interceptors.request.use(
   }
 )
 
-// Response Interceptor: Basic error handling
+/**
+ * Response Interceptor
+ * Centralized error handling for:
+ * - 401 Unauthorized (session expired / invalid token)
+ * - 403 Forbidden (insufficient permissions / role restriction)
+ * - 404 Not Found (resource missing)
+ * - 500+ Server Errors (internal server error / bad gateway / unavailable)
+ * - Network / Timeout errors
+ */
 axiosClient.interceptors.response.use(
   (response) => {
     return response.data
   },
   (error) => {
-    // Standardized error representation for consuming services
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'An unexpected network error occurred'
+    const status = error.response?.status
+    const data = error.response?.data
+    let message = data?.message || data?.error || error.message
+
+    switch (status) {
+      case 401:
+        // Unauthorized: token expired or invalid credentials
+        message = message || 'Your session has expired. Please sign in again.'
+        try {
+          localStorage.removeItem('token')
+          localStorage.removeItem('homesphere_token')
+          localStorage.removeItem('homesphere_user')
+        } catch (e) {
+          // Ignore storage cleanup error in restricted environments
+        }
+        break
+
+      case 403:
+        // Forbidden: user doesn't have permission for this resource
+        message = message || 'You do not have permission to perform this action.'
+        break
+
+      case 404:
+        // Not Found
+        message = message || 'The requested resource was not found.'
+        break
+
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        // Server Errors
+        message = message || 'A server error occurred. Please try again later.'
+        break
+
+      default:
+        if (!error.response) {
+          // Network connection or timeout error
+          message = 'Unable to connect to the server. Please check your network connection.'
+        }
+        break
+    }
+
+    const standardizedError = {
+      status: status || 0,
+      message,
+      data,
+      isNetworkError: !error.response,
+      isAuthError: status === 401,
+      isForbidden: status === 403,
+      isNotFound: status === 404,
+      isServerError: status ? status >= 500 : false,
+      originalError: error,
+    }
 
     console.error('API Error:', {
-      status: error.response?.status,
-      message,
+      status: standardizedError.status,
+      message: standardizedError.message,
       url: error.config?.url,
     })
 
-    return Promise.reject({
-      status: error.response?.status,
-      message,
-      data: error.response?.data,
-    })
+    return Promise.reject(standardizedError)
   }
 )
 

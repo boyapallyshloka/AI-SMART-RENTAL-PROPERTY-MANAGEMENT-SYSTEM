@@ -24,6 +24,13 @@ import {
 import NavItem from './NavItem'
 import { getPendingApplicationsCount } from '../../utils/applicationMockData'
 import { useScout } from '../../context/ScoutContext'
+import {
+  ROLES,
+  isSuperAdmin,
+  isTenant,
+  isOwnerOrManager,
+  getPortalName,
+} from '../../utils/roles'
 
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -60,15 +67,15 @@ const ADMIN_MENU = [
 /**
  * Enterprise Sidebar Component for HomeSphere
  * @param {Object} props
- * @param {'owner' | 'tenant'} props.role
+ * @param {string} props.role
  * @param {string} props.activeItem
  * @param {(item: string) => void} props.onSelect
  * @param {boolean} props.isOpen
  * @param {() => void} props.onClose
- * @param {(newRole: 'owner' | 'tenant') => void} props.onRoleChange
+ * @param {(newRole: string) => void} props.onRoleChange
  */
 export default function Sidebar({
-  role = 'owner',
+  role = ROLES.PROPERTY_OWNER,
   activeItem = 'dashboard',
   onSelect,
   isOpen = false,
@@ -91,18 +98,17 @@ export default function Sidebar({
     return item
   })
 
-  const menuItems =
-    role === 'admin' || role === 'superadmin'
-      ? ADMIN_MENU
-      : role === 'tenant'
-      ? TENANT_MENU
-      : dynamicOwnerMenu
+  const menuItems = isSuperAdmin(role)
+    ? ADMIN_MENU
+    : isTenant(role)
+    ? TENANT_MENU
+    : dynamicOwnerMenu
 
   const handleItemClick = (id) => {
     if (onSelect) onSelect(id)
     if (onClose) onClose()
 
-    if (role === 'admin' || role === 'superadmin') {
+    if (isSuperAdmin(role)) {
       if (id === 'dashboard') navigate('/admin/dashboard')
       else if (id === 'users') navigate('/admin/users')
       else if (id === 'owner-verification') navigate('/admin/owner-verification')
@@ -110,7 +116,7 @@ export default function Sidebar({
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
       else if (id === 'settings' || id === 'system-settings') navigate('/admin/system-settings')
-    } else if (role === 'owner' || role === 'manager') {
+    } else if (isOwnerOrManager(role)) {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
       else if (id === 'buildings') navigate('/owner/buildings')
@@ -120,7 +126,7 @@ export default function Sidebar({
       else if (id === 'maintenance') navigate('/owner/maintenance')
       else if (id === 'reports') navigate('/owner/reports')
       else if (id === 'ai-insights') navigate('/owner/ai-insights')
-    } else if (role === 'tenant') {
+    } else if (isTenant(role)) {
       if (id === 'dashboard') navigate('/tenant/dashboard')
       else if (id === 'buildings' || id === 'my-rental') navigate('/tenant/buildings')
       else if (id === 'find-properties' || id === 'browse') navigate('/tenant/find-properties')
@@ -182,14 +188,14 @@ export default function Sidebar({
               <span className="text-[10px] uppercase font-bold text-[#5B6875] block tracking-wider">
                 Portal View
               </span>
-              <span className="font-semibold text-[#243447] capitalize">
-                {role} Portal
+              <span className="font-semibold text-[#243447]">
+                {getPortalName(role)}
               </span>
             </div>
             {onRoleChange && (
               <button
                 type="button"
-                onClick={() => onRoleChange(role === 'owner' ? 'tenant' : 'owner')}
+                onClick={() => onRoleChange(isTenant(role) ? ROLES.PROPERTY_OWNER : ROLES.TENANT)}
                 title="Switch portal view"
                 className="flex items-center gap-1 px-2 py-1 rounded-md bg-white text-[#315A7D] border border-[#D9E0E6] font-medium text-[11px] hover:bg-[#D9E6F0] transition-colors"
               >

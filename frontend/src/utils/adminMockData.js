@@ -102,14 +102,13 @@ export const MOCK_USERS = [
   },
 ]
 
-/**
- * Filter users who are owners with Pending verification status
- */
 export function getPendingOwners() {
   return MOCK_USERS.filter(
-    (u) => u.role === 'Owner' && u.verificationStatus === 'Pending'
+    (u) => (u.role === 'Owner' || u.role === 'PROPERTY_OWNER') && u.verificationStatus === 'Pending'
   )
 }
+
+export const getPendingOwnerVerifications = getPendingOwners
 
 export const AUDIT_MODULES = [
   'All Modules',

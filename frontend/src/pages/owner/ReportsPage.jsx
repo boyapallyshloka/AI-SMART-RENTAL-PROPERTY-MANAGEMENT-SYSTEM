@@ -23,15 +23,21 @@ import {
 } from 'recharts'
 import {
   DollarSign,
-  Users,
-  Wrench,
-  AlertCircle,
   TrendingUp,
+  Clock,
+  ArrowUpRight,
+  ArrowDownRight,
+  Download,
+  Calendar,
+  Filter,
+  RefreshCw,
+  Building,
   Building2,
   FileBarChart,
 } from 'lucide-react'
+import { ROLES, isSuperAdmin } from '../../utils/roles'
 
-export default function ReportsPage({ role = 'owner' }) {
+export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
   const [incomeData, setIncomeData] = useState([])
@@ -54,7 +60,7 @@ export default function ReportsPage({ role = 'owner' }) {
     <DashboardLayout
       defaultRole={role}
       activeItem="reports"
-      pageTitle={role === 'admin' ? 'Platform Reports & Analytics' : 'Reports & Analytics'}
+      pageTitle={isSuperAdmin(role) ? 'Platform Reports & Analytics' : 'Reports & Analytics'}
     >
       <div className="space-y-6">
         {/* Page Header */}

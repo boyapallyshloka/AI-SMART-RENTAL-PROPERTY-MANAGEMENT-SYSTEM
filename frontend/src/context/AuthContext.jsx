@@ -1,177 +1,178 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import * as authApi from '../api/authApi.js'
+import { normalizeRole, getRoleLabel } from '../utils/roles.js'
 
-/**
- * Temporary mock user accounts
- */
-export const MOCK_USERS = [
-  {
-    id: 'usr_owner_01',
-    email: 'owner@homesphere.com',
-    password: 'password123',
-    name: 'Marcus Vance',
-    role: 'owner',
-    avatarText: 'MV',
-    roleLabel: 'Property Owner',
-  },
-  {
-    id: 'usr_tenant_01',
-    email: 'tenant@homesphere.com',
-    password: 'password123',
-    name: 'Elena Rostova',
-    role: 'tenant',
-    avatarText: 'ER',
-    roleLabel: 'Verified Tenant',
-  },
-  {
-    id: 'usr_manager_01',
-    email: 'manager@homesphere.com',
-    password: 'password123',
-    name: 'Sarah Connor',
-    role: 'manager',
-    avatarText: 'SC',
-    roleLabel: 'Property Manager',
-  },
-  {
-    id: 'usr_admin_01',
-    email: 'admin@homesphere.com',
-    password: 'password123',
-    name: 'Shloka Reddy',
-    role: 'admin',
-    avatarText: 'SR',
-    roleLabel: 'Super Admin',
-  },
-]
-
-const STORAGE_KEY = 'homesphere_mock_user'
+const STORAGE_KEY = 'homesphere_user'
+const LEGACY_STORAGE_KEY = 'homesphere_mock_user'
+const TOKEN_KEY = 'homesphere_token'
+const LEGACY_TOKEN_KEY = 'token'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Load saved mock user from localStorage on initial render
+  // Load saved session from localStorage on initial render & migrate legacy session if found
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      let stored = localStorage.getItem(STORAGE_KEY)
+      // Check legacy key if primary key is absent
+      if (!stored) {
+        const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY)
+        if (legacyStored) {
+          stored = legacyStored
+          localStorage.setItem(STORAGE_KEY, legacyStored)
+          localStorage.removeItem(LEGACY_STORAGE_KEY)
+        }
+      }
+
       if (stored) {
-        setUser(JSON.parse(stored))
+        const parsed = JSON.parse(stored)
+        if (parsed && parsed.role) {
+          const canonical = normalizeRole(parsed.role)
+          if (parsed.role !== canonical) {
+            parsed.role = canonical
+            parsed.roleLabel = getRoleLabel(canonical)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+          }
+        }
+        setUser(parsed)
+      }
+
+      const storedToken =
+        localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
+      if (storedToken) {
+        setToken(storedToken)
       }
     } catch (e) {
-      console.error('Failed to parse stored user from localStorage', e)
+      console.error('Failed to parse stored session from localStorage', e)
     } finally {
       setLoading(false)
     }
   }, [])
 
   /**
-   * Log in with mock credentials
+   * Log in user via authApi gateway
    * @param {string} email
    * @param {string} password
    */
   const login = async (email, password) => {
     setError(null)
-    const normalizedEmail = (email || '').trim().toLowerCase()
-    const trimmedPassword = (password || '').trim()
+    const result = await authApi.login({ email, password })
 
-    // Simulate async network response
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    if (result.success) {
+      setUser(result.user)
+      if (result.token) {
+        setToken(result.token)
+      }
 
-    const matchedUser = MOCK_USERS.find(
-      (u) => u.email.toLowerCase() === normalizedEmail && u.password === trimmedPassword
-    )
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user))
+        if (result.token) {
+          localStorage.setItem(TOKEN_KEY, result.token)
+          localStorage.setItem(LEGACY_TOKEN_KEY, result.token)
+        }
+      } catch (e) {
+        console.error('Failed to save session to localStorage', e)
+      }
 
-    if (!matchedUser) {
-      const errMsg =
-        'Invalid email or password. Use owner@homesphere.com, tenant@homesphere.com, or manager@homesphere.com with password123.'
-      setError(errMsg)
-      return { success: false, error: errMsg }
+      return { success: true, user: result.user }
     }
 
-    const sessionUser = {
-      id: matchedUser.id,
-      email: matchedUser.email,
-      name: matchedUser.name,
-      role: matchedUser.role,
-      avatarText: matchedUser.avatarText,
-      roleLabel: matchedUser.roleLabel,
-    }
-
-    setUser(sessionUser)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser))
-    } catch (e) {
-      console.error('Failed to save user session', e)
-    }
-
-    return { success: true, user: sessionUser }
+    setError(result.error)
+    return result
   }
 
   /**
-   * Mock registration
+   * Register a user via authApi gateway
+   * - PROPERTY_OWNER returns PENDING state (no active session created)
+   * - TENANT & PROPERTY_MANAGER return ACTIVE state with active session
+   * - SUPER_ADMIN is rejected
    */
-  const register = async ({ name, email, password, role = 'tenant' }) => {
+  const register = async (registrationData) => {
     setError(null)
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    const result = await authApi.register(registrationData)
 
-    const normalizedEmail = (email || '').trim().toLowerCase()
-    const roleLabels = {
-      owner: 'Property Owner',
-      manager: 'Property Manager',
-      tenant: 'Verified Tenant',
+    if (result.success) {
+      if (result.isPending || result.status === 'PENDING') {
+        // Pending approval: do not create active authenticated session
+        return {
+          success: true,
+          user: result.user,
+          status: 'PENDING',
+          isPending: true,
+        }
+      }
+
+      // Active registration: create authenticated session
+      setUser(result.user)
+      if (result.token) {
+        setToken(result.token)
+      }
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user))
+        if (result.token) {
+          localStorage.setItem(TOKEN_KEY, result.token)
+          localStorage.setItem(LEGACY_TOKEN_KEY, result.token)
+        }
+      } catch (e) {
+        console.error('Failed to save session to localStorage', e)
+      }
+
+      return {
+        success: true,
+        user: result.user,
+        status: 'ACTIVE',
+        isPending: false,
+      }
     }
 
-    const sessionUser = {
-      id: `usr_${Date.now()}`,
-      email: normalizedEmail,
-      name: name.trim() || `New ${roleLabels[role] || 'User'}`,
-      role,
-      avatarText: (name.trim() || 'User').slice(0, 2).toUpperCase(),
-      roleLabel: roleLabels[role] || 'User',
-    }
-
-    setUser(sessionUser)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser))
-    } catch (e) {
-      console.error('Failed to save session', e)
-    }
-
-    return { success: true, user: sessionUser }
+    setError(result.error)
+    return result
   }
 
   /**
-   * Log out user
+   * Log out user via authApi gateway and clear session
    */
-  const logout = () => {
-    setUser(null)
-    setError(null)
+  const logout = async () => {
     try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch (e) {
-      console.error('Failed to clear session', e)
+      await authApi.logout()
+    } finally {
+      setUser(null)
+      setToken(null)
+      setError(null)
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(LEGACY_TOKEN_KEY)
+      } catch (e) {
+        console.error('Failed to clear session from localStorage', e)
+      }
     }
   }
 
   /**
-   * Mock forgot password
+   * Forgot password via authApi gateway
    */
   const forgotPassword = async (email) => {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    return { success: true }
+    return authApi.forgotPassword(email)
   }
 
   /**
-   * Mock reset password
+   * Reset password via authApi gateway
    */
   const resetPassword = async (email, newPassword) => {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    return { success: true }
+    return authApi.resetPassword({ email, password: newPassword })
   }
 
   const value = {
     user,
+    token,
     loading,
     error,
     login,

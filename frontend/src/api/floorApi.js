@@ -1,3 +1,4 @@
+import axiosClient from './axiosClient.js'
 import {
   getMockFloors,
   getMockFloorById,
@@ -8,51 +9,162 @@ import {
 } from '../utils/buildingUnitMockData.js'
 
 /**
- * Floor API Service Layer
- * 
- * ARCHITECTURAL DATA-SOURCE SEPARATION:
- * 1. OWNER CRUD: Prepared for Spring Boot REST API integration with confirmed endpoints.
- * 2. MANAGER: Strictly mock-backed (read-only; no backend authorization/endpoints exist yet).
- * 3. TENANT: Strictly mock-backed (read-only; no backend tenancy/relationship model exists yet).
+ * Floor API Service Layer (Spring Boot Integration)
+ * Controller: FloorController (/api/floors)
+ * Role: PROPERTY_OWNER
  */
 
-// ============================================================================
-// 1. OWNER FLOOR API (Confirmed Spring Boot Backend Endpoints)
-// ============================================================================
+export const ALLOWED_FLOOR_FIELDS = [
+  'floorName',
+  'floorNumber',
+  'buildingId',
+]
 
-// Confirmed endpoint: GET /api/floors/building/{buildingId}
-export const getFloorsByBuilding = async (buildingId) => {
-  return getMockFloorsByBuildingId(buildingId)
+/**
+ * Formats and sanitizes FloorRequest payload matching Spring Boot DTO constraints:
+ * - floorName: String (@NotBlank)
+ * - floorNumber: Integer (@NotNull, @PositiveOrZero)
+ * - buildingId: Long (@NotNull)
+ *
+ * Strictly ensures:
+ * - Normalizes frontend field aliases (name/floor -> floorName, number -> floorNumber)
+ * - Normalizes nested building data (building.id / building.buildingId -> buildingId)
+ * - Ensures numeric values for floorNumber and buildingId (preserving valid 0)
+ * - Does NOT convert invalid numbers into NaN
+ * - Strictly strips response and UI fields (floorId, id, building, buildingName, propertyId, propertyName, createdAt, updatedAt, ownerId, etc.)
+ */
+export const formatFloorRequest = (data = {}) => {
+  const rawName =
+    data.floorName !== undefined
+      ? data.floorName
+      : data.name !== undefined
+      ? data.name
+      : data.floor !== undefined
+      ? data.floor
+      : undefined
+
+  const floorName =
+    rawName != null && String(rawName).trim() !== ''
+      ? String(rawName).trim()
+      : undefined
+
+  let floorNumber = undefined
+  const rawFloorNumber =
+    data.floorNumber !== undefined ? data.floorNumber : data.number
+  if (
+    rawFloorNumber !== undefined &&
+    rawFloorNumber !== null &&
+    rawFloorNumber !== ''
+  ) {
+    const num = Number(rawFloorNumber)
+    if (!Number.isNaN(num)) {
+      floorNumber = num
+    }
+  }
+
+  let buildingId = undefined
+  const rawBuildingId =
+    data.buildingId !== undefined
+      ? data.buildingId
+      : data.building?.id !== undefined
+      ? data.building.id
+      : data.building?.buildingId !== undefined
+      ? data.building.buildingId
+      : undefined
+  if (
+    rawBuildingId !== undefined &&
+    rawBuildingId !== null &&
+    rawBuildingId !== ''
+  ) {
+    const bId = Number(rawBuildingId)
+    if (!Number.isNaN(bId)) {
+      buildingId = bId
+    }
+  }
+
+  const payload = {
+    floorName,
+    floorNumber,
+    buildingId,
+  }
+
+  // Explicitly remove forbidden response and UI fields
+  delete payload.floorId
+  delete payload.id
+  delete payload.building
+  delete payload.buildingName
+  delete payload.propertyId
+  delete payload.propertyName
+  delete payload.createdAt
+  delete payload.updatedAt
+  delete payload.ownerId
+
+  return Object.fromEntries(
+    Object.entries(payload).filter(([_, v]) => v !== undefined)
+  )
 }
 
-// Confirmed endpoint: GET /api/floors/{floorId}
-export const getFloorById = async (floorId) => {
-  return getMockFloorById(floorId)
+/**
+ * Default implementation connects to real Spring Boot REST API for owner operations.
+ * Mock fallback is preserved and can be toggled for testing.
+ */
+let useMockFallback = false
+
+export const setUseMockFloors = (enabled) => {
+  useMockFallback = Boolean(enabled)
 }
 
-// Confirmed endpoint: POST /api/floors
+export const isUsingMockFloors = () => useMockFallback
+
+// POST /api/floors
 export const createFloor = async (floorData) => {
-  return addMockFloor(floorData)
+  const payload = formatFloorRequest(floorData)
+  if (useMockFallback) {
+    return addMockFloor(floorData)
+  }
+  return axiosClient.post('/floors', payload)
 }
 
-// Confirmed endpoint: PUT /api/floors/{floorId}
+// GET /api/floors/building/{buildingId}
+export const getFloorsByBuilding = async (buildingId) => {
+  if (useMockFallback) {
+    return getMockFloorsByBuildingId(buildingId)
+  }
+  return axiosClient.get(`/floors/building/${buildingId}`)
+}
+
+// GET /api/floors/{floorId}
+export const getFloorById = async (floorId) => {
+  if (useMockFallback) {
+    return getMockFloorById(floorId)
+  }
+  return axiosClient.get(`/floors/${floorId}`)
+}
+
+// PUT /api/floors/{floorId}
 export const updateFloor = async (floorId, floorData) => {
-  return updateMockFloor(floorId, floorData)
+  const payload = formatFloorRequest(floorData)
+  if (useMockFallback) {
+    return updateMockFloor(floorId, floorData)
+  }
+  return axiosClient.put(`/floors/${floorId}`, payload)
 }
 
-// Confirmed endpoint: DELETE /api/floors/{floorId}
+// DELETE /api/floors/{floorId}
 export const deleteFloor = async (floorId) => {
-  return deleteMockFloor(floorId)
+  if (useMockFallback) {
+    return deleteMockFloor(floorId)
+  }
+  return axiosClient.delete(`/floors/${floorId}`)
 }
 
-// Owner service helper: list all floors (prepared for backend integration)
+// ============================================================================
+// UI Compatibility Helpers (Preserved for Manager/Tenant Views & Existing Pages)
+// ============================================================================
+
 export const getAllFloors = async () => {
   return getMockFloors()
 }
-
-// ============================================================================
-// 2. MANAGER FLOOR SERVICE (Frontend Mock-Backed • View Only)
-// ============================================================================
 
 export const getFloorsForManager = async (buildingId) => {
   return getMockFloorsByBuildingId(buildingId)
@@ -61,10 +173,6 @@ export const getFloorsForManager = async (buildingId) => {
 export const getFloorByIdForManager = async (floorId) => {
   return getMockFloorById(floorId)
 }
-
-// ============================================================================
-// 3. TENANT FLOOR SERVICE (Frontend Mock-Backed • View Only)
-// ============================================================================
 
 export const getFloorsForTenant = async (buildingId) => {
   return getMockFloorsByBuildingId(buildingId)

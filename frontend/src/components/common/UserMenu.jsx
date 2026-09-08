@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES, normalizeRole, getRoleLabel } from '../../utils/roles'
 
 /**
  * UserMenu Component for Topbar
  * Updated to use HomeSphere Primary Blue #315A7D (replaces bright purple avatar)
  *
  * @param {Object} props
- * @param {'owner' | 'tenant'} [props.role]
+ * @param {string} [props.role]
  * @param {() => void} [props.onLogout]
  */
 export default function UserMenu({ role, onLogout }) {
@@ -21,12 +22,34 @@ export default function UserMenu({ role, onLogout }) {
     // Graceful fallback if used outside AuthProvider
   }
 
-  const effectiveRole = role || auth?.user?.role || 'owner'
+  const effectiveRole = normalizeRole(role || auth?.user?.role || ROLES.PROPERTY_OWNER)
+  const isOwner = effectiveRole === ROLES.PROPERTY_OWNER
+  const isManager = effectiveRole === ROLES.PROPERTY_MANAGER
+  const isAdmin = effectiveRole === ROLES.SUPER_ADMIN
+
+  const defaultName = isOwner
+    ? 'Marcus Vance'
+    : isManager
+    ? 'Sarah Connor'
+    : isAdmin
+    ? 'Shloka Reddy'
+    : 'Elena Rostova'
+
+  const defaultEmail = isOwner
+    ? 'owner@homesphere.com'
+    : isManager
+    ? 'manager@homesphere.com'
+    : isAdmin
+    ? 'admin@homesphere.com'
+    : 'tenant@homesphere.com'
+
+  const defaultAvatar = isOwner ? 'MV' : isManager ? 'SC' : isAdmin ? 'SR' : 'ER'
+
   const userInfo = {
-    name: auth?.user?.name || (effectiveRole === 'owner' ? 'Marcus Vance' : 'Elena Rostova'),
-    email: auth?.user?.email || (effectiveRole === 'owner' ? 'owner@homesphere.com' : 'tenant@homesphere.com'),
-    roleLabel: auth?.user?.roleLabel || (effectiveRole === 'owner' ? 'Property Owner' : 'Verified Tenant'),
-    avatarText: auth?.user?.avatarText || (effectiveRole === 'owner' ? 'MV' : 'ER'),
+    name: auth?.user?.name || defaultName,
+    email: auth?.user?.email || defaultEmail,
+    roleLabel: auth?.user?.roleLabel || getRoleLabel(effectiveRole),
+    avatarText: auth?.user?.avatarText || defaultAvatar,
   }
 
   useEffect(() => {

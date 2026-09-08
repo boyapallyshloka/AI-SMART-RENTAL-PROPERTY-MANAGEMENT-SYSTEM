@@ -2,6 +2,7 @@ import React from 'react'
 import { Menu, ArrowLeftRight } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import UserMenu from './UserMenu'
+import { ROLES, normalizeRole, isTenant } from '../../utils/roles'
 
 /**
  * Enterprise Topbar Component for HomeSphere Dashboard
@@ -9,18 +10,34 @@ import UserMenu from './UserMenu'
  *
  * @param {Object} props
  * @param {() => void} props.onMenuClick
- * @param {'owner' | 'tenant'} props.role
- * @param {(newRole: 'owner' | 'tenant') => void} [props.onRoleChange]
+ * @param {string} props.role
+ * @param {(newRole: string) => void} [props.onRoleChange]
  * @param {string} [props.title='Dashboard']
  * @param {React.ReactNode} [props.actions]
  */
 export default function Topbar({
   onMenuClick,
-  role = 'owner',
+  role = ROLES.PROPERTY_OWNER,
   onRoleChange,
   title = 'Dashboard',
   actions,
 }) {
+  const getRoleDisplayName = (r) => {
+    const norm = normalizeRole(r)
+    switch (norm) {
+      case ROLES.SUPER_ADMIN:
+        return 'Admin'
+      case ROLES.PROPERTY_OWNER:
+        return 'Owner'
+      case ROLES.PROPERTY_MANAGER:
+        return 'Manager'
+      case ROLES.TENANT:
+        return 'Tenant'
+      default:
+        return r
+    }
+  }
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-[#D9E0E6] transition-colors">
       {/* Left section: Hamburger button & page title */}
@@ -50,13 +67,13 @@ export default function Topbar({
         {onRoleChange && (
           <button
             type="button"
-            onClick={() => onRoleChange(role === 'owner' ? 'tenant' : 'owner')}
+            onClick={() => onRoleChange(isTenant(role) ? ROLES.PROPERTY_OWNER : ROLES.TENANT)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#D9E0E6] bg-[#EAF2F7] text-[#243447] hover:bg-[#D9E6F0] transition-colors text-xs font-medium"
             title="Toggle between Owner and Tenant views"
           >
             <ArrowLeftRight className="w-3.5 h-3.5 text-[#5B6875]" />
             <span className="hidden md:inline">Viewing as:</span>
-            <span className="capitalize font-semibold">{role}</span>
+            <span className="capitalize font-semibold">{getRoleDisplayName(role)}</span>
           </button>
         )}
 

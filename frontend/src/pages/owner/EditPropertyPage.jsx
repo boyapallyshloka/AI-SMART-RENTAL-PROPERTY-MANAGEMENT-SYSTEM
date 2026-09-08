@@ -3,22 +3,59 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import OwnerPropertyForm from '../../components/properties/OwnerPropertyForm'
 import {
-  getMockPropertyById,
-  updateMockProperty,
-} from '../../utils/ownerPropertyMockData'
-import { Button, EmptyState } from '../../components/ui'
-import { ArrowLeft, Building2, Edit } from 'lucide-react'
+  getPropertyById,
+  updateProperty,
+  buildPropertyRequestPayload,
+} from '../../api/propertyApi'
+import { mapBackendPropertyToUi } from './PropertiesPage'
+import { Button, EmptyState, Loader } from '../../components/ui'
+import { ArrowLeft, Building2, Edit, AlertCircle } from 'lucide-react'
 
 export default function EditPropertyPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [property, setProperty] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingProperty, setIsLoadingProperty] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const found = getMockPropertyById(id)
-    setProperty(found)
+    const fetchProperty = async () => {
+      if (!id) return
+      setIsLoadingProperty(true)
+      setError(null)
+      try {
+        const response = await getPropertyById(id)
+        const data = response?.data || response
+        if (data && (data.propertyId || data.id)) {
+          setProperty(mapBackendPropertyToUi(data))
+        } else {
+          setProperty(null)
+        }
+      } catch (err) {
+        console.error(`Failed to load property details for ID ${id}:`, err)
+        setProperty(null)
+      } finally {
+        setIsLoadingProperty(false)
+      }
+    }
+
+    fetchProperty()
   }, [id])
+
+  if (isLoadingProperty) {
+    return (
+      <DashboardLayout
+        defaultRole="owner"
+        activeItem="properties"
+        pageTitle="Edit Property"
+      >
+        <div className="max-w-3xl mx-auto py-24 flex flex-col items-center justify-center">
+          <Loader size="xl" text="Loading property details..." center />
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   if (!property) {
     return (
@@ -45,13 +82,25 @@ export default function EditPropertyPage() {
     )
   }
 
-  const handleSubmit = (updatedData) => {
-    setIsLoading(true)
+  const handleSubmit = async (updatedData) => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    setError(null)
     try {
-      updateMockProperty(id, updatedData)
-      navigate(`/owner/properties/${id}`)
+      const payload = buildPropertyRequestPayload(updatedData)
+      await updateProperty(id, payload)
+      navigate(`/owner/properties/${id}`, {
+        state: { toastMessage: 'Property updated successfully.' },
+      })
+    } catch (err) {
+      console.error('Failed to update property:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to update property. Please check your inputs and try again.'
+      setError(errorMsg)
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -81,6 +130,23 @@ export default function EditPropertyPage() {
           <span className="text-[#243447] font-semibold">Edit</span>
         </div>
 
+        {/* Error Alert Banner */}
+        {error && (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-600 hover:text-red-800 font-bold ml-4"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="border-b border-[#D9E0E6] pb-4">
           <div className="flex items-center gap-3">
@@ -103,7 +169,7 @@ export default function EditPropertyPage() {
           initialData={property}
           onSubmit={handleSubmit}
           onCancel={() => navigate(`/owner/properties/${property.id}`)}
-          isLoading={isLoading}
+          isLoading={isSubmitting}
           submitLabel="Save Changes"
         />
       </div>

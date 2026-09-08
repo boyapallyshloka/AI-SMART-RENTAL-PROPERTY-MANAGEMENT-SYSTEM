@@ -61,10 +61,11 @@ import ContactPage from '../pages/ContactPage'
 // Route Guards
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
+import { ROLES, getDashboardPath, isPropertyOwner } from '../utils/roles'
 
 /**
  * Root Redirector: Sends authenticated user to their role dashboard or /login
- * Note: Manager goes to /owner/dashboard temporarily per requirements
+ * Note: Manager goes to /owner/dashboard per requirements
  */
 function RootRedirect() {
   const { user, loading } = useAuth()
@@ -75,13 +76,7 @@ function RootRedirect() {
     return <Navigate to="/login" replace />
   }
 
-  const destination =
-    user.role === 'admin' || user.role === 'superadmin'
-      ? '/admin/dashboard'
-      : user.role === 'owner' || user.role === 'manager'
-      ? '/owner/dashboard'
-      : '/tenant/dashboard'
-
+  const destination = getDashboardPath(user.role)
   return <Navigate to={destination} replace />
 }
 
@@ -92,7 +87,7 @@ function RootRedirect() {
 function OwnerOnlyBuildingRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user && user.role !== 'owner') {
+  if (user && !isPropertyOwner(user.role)) {
     return <Navigate to="/owner/dashboard" replace />
   }
   return children
@@ -126,7 +121,7 @@ export default function AppRoutes() {
         path="/owner/*"
         element={
           <ProtectedRoute>
-            <RoleRoute allowedRole={['owner', 'manager']}>
+            <RoleRoute allowedRole={[ROLES.PROPERTY_OWNER, ROLES.PROPERTY_MANAGER]}>
               <Routes>
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
                 <Route path="properties" element={<PropertiesPage />} />
@@ -154,6 +149,14 @@ export default function AppRoutes() {
                 <Route path="buildings/:buildingId/floors/:floorId" element={<FloorDetailsPage />} />
                 <Route
                   path="buildings/:buildingId/floors/:floorId/units/new"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddUnitPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
+                <Route
+                  path="units/add"
                   element={
                     <OwnerOnlyBuildingRoute>
                       <AddUnitPage />
@@ -191,7 +194,7 @@ export default function AppRoutes() {
         path="/tenant/*"
         element={
           <ProtectedRoute>
-            <RoleRoute allowedRole="tenant">
+            <RoleRoute allowedRole={[ROLES.TENANT]}>
               <Routes>
                 <Route path="dashboard" element={<TenantDashboardPage />} />
                 <Route path="buildings" element={<BuildingsPage />} />
@@ -219,7 +222,7 @@ export default function AppRoutes() {
         path="/admin/*"
         element={
           <ProtectedRoute>
-            <RoleRoute allowedRole="admin">
+            <RoleRoute allowedRole={[ROLES.SUPER_ADMIN]}>
               <Routes>
                 <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="users" element={<UserManagementPage />} />
@@ -233,6 +236,12 @@ export default function AppRoutes() {
             </RoleRoute>
           </ProtectedRoute>
         }
+      />
+
+      {/* Manager Portal Alias: smoothly redirects to owner/manager dashboard */}
+      <Route
+        path="/manager/*"
+        element={<Navigate to="/owner/dashboard" replace />}
       />
 
       {/* Fallback route */}

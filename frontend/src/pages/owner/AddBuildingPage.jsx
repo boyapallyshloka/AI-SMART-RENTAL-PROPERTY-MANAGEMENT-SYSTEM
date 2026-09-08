@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { Button, Input, Select, Textarea, EmptyState } from '../../components/ui'
-import { ArrowLeft, Building, Save } from 'lucide-react'
+import { Button, Input, Select, Textarea, EmptyState, Loader } from '../../components/ui'
+import { ArrowLeft, Building, Save, AlertCircle, Plus } from 'lucide-react'
 import {
   getBuildingById,
   createBuilding,
   updateBuilding,
 } from '../../api/buildingApi'
-import { getProperties } from '../../api/propertyApi'
+import { getMyProperties, getProperties } from '../../api/propertyApi'
 
 export default function AddBuildingPage() {
   const { buildingId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const isEditMode = Boolean(buildingId)
+  const queryPropertyId = searchParams.get('propertyId')
 
   const [properties, setProperties] = useState([])
   const [formData, setFormData] = useState({
@@ -21,44 +23,92 @@ export default function AddBuildingPage() {
     totalFloors: '1',
     totalUnits: '0',
     description: '',
-    propertyId: '',
+    propertyId: queryPropertyId || '',
   })
   const [errors, setErrors] = useState({})
-  const [isLoading, setIsLoading] = useState(false)
+  const [isInitLoading, setIsInitLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [apiError, setApiError] = useState(null)
   const [notFound, setNotFound] = useState(false)
 
   // Load properties and existing building data if in edit mode
   useEffect(() => {
-    const loadInitData = async () => {
-      try {
-        const props = await getProperties()
-        setProperties(props || [])
+    let isMounted = true
 
+    const loadInitData = async () => {
+      setIsInitLoading(true)
+      setApiError(null)
+
+      try {
+        // 1. Load Owner Properties
+        let propsList = []
+        try {
+          const propsRes = await getMyProperties()
+          propsList = Array.isArray(propsRes?.data)
+            ? propsRes.data
+            : Array.isArray(propsRes)
+            ? propsRes
+            : []
+        } catch (propsErr) {
+          console.warn('Failed to load properties via getMyProperties, trying fallback:', propsErr)
+          const fallback = await getProperties()
+          propsList = Array.isArray(fallback) ? fallback : []
+        }
+
+        if (!isMounted) return
+        setProperties(propsList)
+
+        // 2. In Edit Mode: Load existing building by ID (GET /api/buildings/{id})
         if (isEditMode) {
-          const existing = await getBuildingById(buildingId)
-          if (existing) {
-            setFormData({
-              buildingName: existing.buildingName || '',
-              totalFloors: String(existing.totalFloors ?? 1),
-              totalUnits: String(existing.totalUnits ?? 0),
-              description: existing.description || '',
-              propertyId: existing.propertyId || existing.property?.id || '',
-            })
-          } else {
-            setNotFound(true)
+          try {
+            const existing = await getBuildingById(buildingId)
+            if (!isMounted) return
+
+            if (existing) {
+              const bPropId = existing.propertyId ?? existing.property?.id ?? ''
+              setFormData({
+                buildingName: existing.buildingName || '',
+                totalFloors: String(existing.totalFloors ?? 1),
+                totalUnits: String(existing.totalUnits ?? 0),
+                description: existing.description || '',
+                propertyId: String(bPropId),
+              })
+            } else {
+              setNotFound(true)
+            }
+          } catch (bErr) {
+            console.error('Failed to load building details:', bErr)
+            if (isMounted) setNotFound(true)
           }
-        } else if (props && props.length > 0) {
+        } else {
+          // Add Mode: pre-select from query param or first property
+          const targetPropId = queryPropertyId
+            ? String(queryPropertyId)
+            : propsList.length > 0
+            ? String(propsList[0].propertyId ?? propsList[0].id)
+            : ''
+
           setFormData((prev) => ({
             ...prev,
-            propertyId: prev.propertyId || props[0].id,
+            propertyId: prev.propertyId || targetPropId,
           }))
         }
       } catch (err) {
         console.error('Error loading initial building form data:', err)
+        if (isMounted) {
+          setApiError(err.message || 'Failed to load initial data. Please refresh the page.')
+        }
+      } finally {
+        if (isMounted) setIsInitLoading(false)
       }
     }
+
     loadInitData()
-  }, [buildingId, isEditMode])
+
+    return () => {
+      isMounted = false
+    }
+  }, [buildingId, isEditMode, queryPropertyId])
 
   const validate = () => {
     const errs = {}
@@ -68,12 +118,22 @@ export default function AddBuildingPage() {
     }
 
     const floorsNum = Number(formData.totalFloors)
-    if (!formData.totalFloors || isNaN(floorsNum) || !Number.isInteger(floorsNum) || floorsNum <= 0) {
-      errs.totalFloors = 'Total floors must be a positive integer (at least 1).'
+    if (
+      formData.totalFloors === '' ||
+      isNaN(floorsNum) ||
+      !Number.isInteger(floorsNum) ||
+      floorsNum < 0
+    ) {
+      errs.totalFloors = 'Total floors must be a non-negative integer (0 or greater).'
     }
 
     const unitsNum = Number(formData.totalUnits)
-    if (formData.totalUnits === '' || isNaN(unitsNum) || !Number.isInteger(unitsNum) || unitsNum < 0) {
+    if (
+      formData.totalUnits === '' ||
+      isNaN(unitsNum) ||
+      !Number.isInteger(unitsNum) ||
+      unitsNum < 0
+    ) {
       errs.totalUnits = 'Total units must be a non-negative integer (0 or greater).'
     }
 
@@ -90,46 +150,63 @@ export default function AddBuildingPage() {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }))
     }
+    if (apiError) {
+      setApiError(null)
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setApiError(null)
+
     if (!validate()) return
 
-    setIsLoading(true)
+    setIsSubmitting(true)
     try {
-      const selectedProp = properties.find((p) => String(p.id) === String(formData.propertyId))
-      const propertyRef = selectedProp
-        ? {
-            id: selectedProp.id,
-            name: selectedProp.name,
-            type: selectedProp.type,
-            address: selectedProp.address,
-            city: selectedProp.city,
-            state: selectedProp.state,
-            zipCode: selectedProp.zipCode,
-          }
-        : null
-
       const payload = {
         buildingName: formData.buildingName.trim(),
         totalFloors: Number(formData.totalFloors),
         totalUnits: Number(formData.totalUnits),
-        description: formData.description.trim(),
-        propertyId: formData.propertyId,
-        property: propertyRef,
+        description: formData.description?.trim() || '',
+        propertyId: Number(formData.propertyId),
       }
 
       if (isEditMode) {
         await updateBuilding(buildingId, payload)
         navigate(`/owner/buildings/${buildingId}`)
       } else {
-        await createBuilding(payload)
-        navigate('/owner/buildings')
+        const created = await createBuilding(payload)
+        const newBuildingId = created?.buildingId || created?.data?.buildingId
+        if (newBuildingId) {
+          navigate(`/owner/buildings/${newBuildingId}`)
+        } else {
+          navigate('/owner/buildings')
+        }
       }
+    } catch (err) {
+      console.error('Failed to submit building form:', err)
+      const errorMsg =
+        err.message ||
+        err.data?.message ||
+        (isEditMode ? 'Failed to update building.' : 'Failed to create building.')
+      setApiError(errorMsg)
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
+  }
+
+  if (isInitLoading) {
+    return (
+      <DashboardLayout
+        defaultRole="owner"
+        activeItem="buildings"
+        pageTitle={isEditMode ? 'Edit Building' : 'Add Building'}
+      >
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+          <Loader size="lg" text={isEditMode ? 'Loading building details...' : 'Loading properties...'} />
+        </div>
+      </DashboardLayout>
+    )
   }
 
   if (notFound) {
@@ -157,12 +234,44 @@ export default function AddBuildingPage() {
     )
   }
 
+  if (!isEditMode && properties.length === 0) {
+    return (
+      <DashboardLayout
+        defaultRole="owner"
+        activeItem="buildings"
+        pageTitle="Add Building"
+      >
+        <div className="max-w-3xl mx-auto py-12 space-y-4">
+          <EmptyState
+            icon={<Building className="w-8 h-8 text-[#5B6875]" />}
+            title="No Properties Found"
+            description="A building must be associated with an existing property in your portfolio. Please register a property first before adding buildings."
+            action={
+              <Link to="/owner/properties/add">
+                <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                  Add Property First
+                </Button>
+              </Link>
+            }
+          />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   const propertyOptions = [
     { value: '', label: '-- Select Associated Property --' },
-    ...properties.map((p) => ({
-      value: p.id,
-      label: `${p.name} (${p.city}, ${p.state || 'CA'})`,
-    })),
+    ...properties.map((p) => {
+      const pId = String(p.propertyId ?? p.id)
+      const pName = p.propertyName ?? p.name ?? `Property #${pId}`
+      const pCity = p.city ?? p.address?.city ?? ''
+      const pState = p.state ?? p.address?.state ?? ''
+      const location = pCity && pState ? ` (${pCity}, ${pState})` : pCity ? ` (${pCity})` : ''
+      return {
+        value: pId,
+        label: `${pName}${location}`,
+      }
+    }),
   ]
 
   return (
@@ -206,6 +315,17 @@ export default function AddBuildingPage() {
           </div>
         </div>
 
+        {/* API Error Alert Banner */}
+        {apiError && (
+          <div className="p-4 rounded-xl bg-[#FDF2F2] border border-[#F8D7DA] text-[#B94A48] flex items-start gap-3 shadow-2xs">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <span className="font-semibold">Unable to save building: </span>
+              {apiError}
+            </div>
+          </div>
+        )}
+
         {/* Building Form Card */}
         <form
           onSubmit={handleSubmit}
@@ -235,10 +355,13 @@ export default function AddBuildingPage() {
                 onChange={(e) => handleChange('propertyId', e.target.value)}
                 options={propertyOptions}
                 error={errors.propertyId}
+                disabled={isEditMode}
                 required
               />
               <p className="text-[11px] text-[#5B6875] mt-1">
-                The master property portfolio to which this building belongs.
+                {isEditMode
+                  ? 'Building property association cannot be modified once created.'
+                  : 'The master property portfolio to which this building belongs.'}
               </p>
             </div>
 
@@ -246,7 +369,7 @@ export default function AddBuildingPage() {
               <Input
                 label="Total Floors"
                 type="number"
-                min="1"
+                min="0"
                 step="1"
                 placeholder="e.g. 4"
                 value={formData.totalFloors}
@@ -287,14 +410,14 @@ export default function AddBuildingPage() {
               onClick={() =>
                 navigate(isEditMode ? `/owner/buildings/${buildingId}` : '/owner/buildings')
               }
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="primary"
-              isLoading={isLoading}
+              isLoading={isSubmitting}
               leftIcon={<Save className="w-4 h-4" />}
             >
               {isEditMode ? 'Save Changes' : 'Create Building'}

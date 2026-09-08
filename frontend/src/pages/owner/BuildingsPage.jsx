@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { Button, Input, Select, EmptyState } from '../../components/ui'
+import { Button, Input, Select, EmptyState, Loader } from '../../components/ui'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import {
   Building,
@@ -14,29 +14,52 @@ import {
   Trash2,
   Home,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import {
   getAllBuildings,
   getBuildingsForManager,
   getBuildingsForTenant,
   getTenantRentalContext,
+  getBuildingsByProperty,
   deleteBuilding,
 } from '../../api/buildingApi'
+import { getMyProperties } from '../../api/propertyApi'
+import {
+  getMockFloorsByBuildingId,
+  getMockUnitsByBuildingId,
+} from '../../utils/buildingUnitMockData'
+import {
+  ROLES,
+  isPropertyOwner,
+  isPropertyManager,
+  isTenant as isTenantRole,
+} from '../../utils/roles'
 
 export default function BuildingsPage() {
   const { user } = useAuth()
-  const isOwner = user?.role === 'owner'
-  const isTenant = user?.role === 'tenant'
-  const isManager = user?.role === 'manager'
+  const isOwner = isPropertyOwner(user?.role)
+  const isTenant = isTenantRole(user?.role)
+  const isManager = isPropertyManager(user?.role)
   const canManage = isOwner
   const basePath = isTenant ? '/tenant' : '/owner'
 
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const queryPropertyId = searchParams.get('propertyId')
+
   const [myRental, setMyRental] = useState(null)
   const [buildings, setBuildings] = useState([])
+  const [ownerProperties, setOwnerProperties] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [propertyFilter, setPropertyFilter] = useState('all')
-  const [toastMessage, setToastMessage] = useState('')
+  const [propertyFilter, setPropertyFilter] = useState(queryPropertyId || 'all')
+  const [toastMessage, setToastMessage] = useState(
+    location.state?.toastMessage || location.state?.toast || ''
+  )
+  const [errorMessage, setErrorMessage] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadBuildings = async () => {
     try {
@@ -52,9 +75,46 @@ export default function BuildingsPage() {
         const managerBuildings = await getBuildingsForManager()
         setBuildings(managerBuildings || [])
       } else {
-        // Owner data source is backend-ready
-        const all = await getAllBuildings()
-        setBuildings(all || [])
+        // Owner data source connects to real backend:
+        setIsLoading(true)
+        try {
+          const propsRes = await getMyProperties()
+          const propsList = Array.isArray(propsRes?.data)
+            ? propsRes.data
+            : Array.isArray(propsRes)
+            ? propsRes
+            : []
+          setOwnerProperties(propsList)
+
+          const targetProps =
+            propertyFilter && propertyFilter !== 'all'
+              ? propsList.filter((p) => String(p.propertyId || p.id) === String(propertyFilter))
+              : propsList
+
+          const buildingArrays = await Promise.all(
+            targetProps.map(async (p) => {
+              try {
+                const bRes = await getBuildingsByProperty(p.propertyId || p.id)
+                const list = Array.isArray(bRes?.data)
+                  ? bRes.data
+                  : Array.isArray(bRes)
+                  ? bRes
+                  : []
+                return list.map((b) => ({
+                  ...b,
+                  propertyName: p.propertyName || p.name,
+                  propertyId: p.propertyId || p.id,
+                }))
+              } catch (err) {
+                console.warn(`Failed loading buildings for property ${p.propertyId || p.id}:`, err)
+                return []
+              }
+            })
+          )
+          setBuildings(buildingArrays.flat())
+        } finally {
+          setIsLoading(false)
+        }
       }
     } catch (err) {
       console.error('Error loading buildings:', err)
@@ -62,50 +122,92 @@ export default function BuildingsPage() {
   }
 
   useEffect(() => {
+    if (location.state?.toastMessage || location.state?.toast) {
+      setToastMessage(location.state.toastMessage || location.state.toast)
+      window.history.replaceState({}, document.title)
+      const timer = setTimeout(() => setToastMessage(''), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [location.state])
+
+  useEffect(() => {
+    if (queryPropertyId) {
+      setPropertyFilter(queryPropertyId)
+    }
+  }, [queryPropertyId])
+
+  useEffect(() => {
     loadBuildings()
-  }, [isTenant, user?.email])
+  }, [isTenant, user?.email, propertyFilter])
 
   const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return
-    const result = await deleteBuilding(deleteTarget.buildingId)
-    await loadBuildings()
-    setToastMessage(
-      `"${deleteTarget.buildingName}" and its ${result?.deletedFloorsCount ?? 0} floors (${result?.deletedUnitsCount ?? 0} units) were deleted.`
-    )
-    setDeleteTarget(null)
-    setTimeout(() => setToastMessage(''), 4000)
+    if (!deleteTarget || isDeleting) return
+    setIsDeleting(true)
+    setErrorMessage('')
+    try {
+      await deleteBuilding(deleteTarget.buildingId)
+      setBuildings((prev) =>
+        prev.filter((b) => b.buildingId !== deleteTarget.buildingId)
+      )
+      setToastMessage(
+        `Building "${deleteTarget.buildingName}" was deleted successfully.`
+      )
+      setDeleteTarget(null)
+      setTimeout(() => setToastMessage(''), 4000)
+    } catch (err) {
+      console.error('Failed to delete building:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to delete building. Please try again.'
+      setErrorMessage(errorMsg)
+      setTimeout(() => setErrorMessage(''), 5000)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // Extract unique properties for filter
   const uniqueProperties = Array.from(
-    new Set(buildings.map((b) => b.property?.id).filter(Boolean))
+    new Set(buildings.map((b) => b.propertyId || b.property?.id).filter(Boolean))
   ).map((id) => {
-    const found = buildings.find((b) => b.property?.id === id)
-    return { value: id, label: found.property.name }
+    const found = buildings.find((b) => (b.propertyId || b.property?.id) === id)
+    return { value: String(id), label: found.propertyName || found.property?.name || `Property #${id}` }
   })
 
-  const propertyFilterOptions = [
-    { value: 'all', label: 'All Associated Properties' },
-    ...uniqueProperties,
-  ]
+  const propertyFilterOptions = isOwner && ownerProperties.length > 0
+    ? [
+        { value: 'all', label: 'All Associated Properties' },
+        ...ownerProperties.map((p) => ({
+          value: String(p.propertyId || p.id),
+          label: p.propertyName || p.name,
+        })),
+      ]
+    : [
+        { value: 'all', label: 'All Associated Properties' },
+        ...uniqueProperties,
+      ]
 
   // Filtered buildings
   const filteredBuildings = buildings.filter((b) => {
+    const propName = b.propertyName || b.property?.name || ''
     const matchesSearch =
       searchQuery.trim() === '' ||
-      b.buildingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.buildingName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (b.description && b.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (b.property?.name && b.property.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      propName.toLowerCase().includes(searchQuery.toLowerCase())
 
+    const bPropId = String(b.propertyId || b.property?.id || '')
     const matchesProperty =
-      propertyFilter === 'all' || b.property?.id === propertyFilter
+      propertyFilter === 'all' || bPropId === String(propertyFilter)
 
     return matchesSearch && matchesProperty
   })
 
   return (
     <DashboardLayout
-      defaultRole={isTenant ? 'tenant' : 'owner'}
+      defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
       activeItem="buildings"
       pageTitle={isTenant ? 'My Rental Property' : 'Buildings'}
     >
@@ -120,6 +222,22 @@ export default function BuildingsPage() {
             <button
               onClick={() => setToastMessage('')}
               className="text-[#2A583B] hover:text-[#1c3c28] text-base leading-none px-1"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* Error Notification */}
+        {errorMessage && (
+          <div className="p-3.5 rounded-lg bg-[#FDF2F2] border border-[#F8D7DA] text-[#B94A48] text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-[#B94A48]" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage('')}
+              className="text-[#B94A48] hover:text-[#8C3836] text-base leading-none px-1"
             >
               &times;
             </button>
@@ -236,7 +354,11 @@ export default function BuildingsPage() {
         </div>
 
         {/* Buildings Grid */}
-        {filteredBuildings.length === 0 ? (
+        {isLoading ? (
+          <div className="py-16 flex justify-center">
+            <Loader size="lg" text="Loading buildings..." center />
+          </div>
+        ) : filteredBuildings.length === 0 ? (
           <EmptyState
             icon={<Building className="w-8 h-8 text-[#5B6875]" />}
             title="No buildings found"
@@ -286,17 +408,17 @@ export default function BuildingsPage() {
                         <h2 className="font-semibold text-base text-[#243447] truncate">
                           {building.buildingName}
                         </h2>
-                        {building.property && (
+                        {(building.propertyName || building.property?.name) && (
                           <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mt-0.5">
                             <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
-                            <span className="truncate">{building.property.name}</span>
+                            <span className="truncate">{building.propertyName || building.property?.name}</span>
                           </div>
                         )}
                       </div>
 
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
-                          {building.totalFloors} Floors &bull; {building.totalUnits} Units
+                          {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
                         </span>
                         {isTenant && building.buildingId === myRental?.currentBuilding?.buildingId && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
@@ -314,17 +436,15 @@ export default function BuildingsPage() {
                     )}
 
                     {/* Property Location Tag */}
-                    {building.property && (
-                      <div className="pt-2 border-t border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
-                        <span className="flex items-center gap-1 text-[11px]">
-                          <Home className="w-3.5 h-3.5 text-[#5B6875]" />
-                          {building.property.address}, {building.property.city}
-                        </span>
-                        <span className="text-[11px] font-mono text-[#5B6875]">
-                          ID: {building.buildingId}
-                        </span>
-                      </div>
-                    )}
+                    <div className="pt-2 border-t border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-[11px] truncate mr-2">
+                        <Home className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                        <span className="truncate">{building.propertyName || building.property?.name || 'Associated Property'}</span>
+                      </span>
+                      <span className="text-[11px] font-mono text-[#5B6875] shrink-0">
+                        ID: {building.buildingId}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Actions: View (All Roles), Edit & Delete (Owner Only) */}
@@ -382,13 +502,14 @@ export default function BuildingsPage() {
         {canManage && (
           <DeleteConfirmModal
             isOpen={Boolean(deleteTarget)}
-            onClose={() => setDeleteTarget(null)}
+            onClose={() => !isDeleting && setDeleteTarget(null)}
             onConfirm={handleDeleteConfirm}
+            isLoading={isDeleting}
             title="Delete Building"
             itemName={deleteTarget?.buildingName}
             consequenceMessage={
               deleteTarget &&
-              `Deleting this building will also permanently remove all ${deleteTarget.floorsCount} floors and ${deleteTarget.unitsCount} units registered within it.`
+              `Deleting this building will also permanently remove all floors and units registered within it.`
             }
           />
         )}

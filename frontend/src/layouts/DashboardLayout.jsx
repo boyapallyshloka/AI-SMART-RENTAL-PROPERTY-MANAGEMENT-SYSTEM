@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '../components/common/Sidebar'
 import Topbar from '../components/common/Topbar'
 import Footer from '../components/common/Footer'
 import ScoutAssistant from '../components/scout/ScoutAssistant'
+import { ROLES, normalizeRole } from '../utils/roles'
 
 /**
  * DashboardLayout Component for HomeSphere
@@ -10,7 +11,7 @@ import ScoutAssistant from '../components/scout/ScoutAssistant'
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children
- * @param {'owner' | 'tenant' | 'admin'} [props.defaultRole='owner']
+ * @param {string} [props.defaultRole=ROLES.PROPERTY_OWNER]
  * @param {string} [props.activeItem='dashboard']
  * @param {(item: string) => void} [props.onSelectNav]
  * @param {string} [props.pageTitle]
@@ -18,15 +19,19 @@ import ScoutAssistant from '../components/scout/ScoutAssistant'
  */
 export default function DashboardLayout({
   children,
-  defaultRole = 'owner',
+  defaultRole = ROLES.PROPERTY_OWNER,
   activeItem = 'dashboard',
   onSelectNav,
   pageTitle,
   topbarActions,
 }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [currentRole, setCurrentRole] = useState(defaultRole)
+  const [currentRole, setCurrentRole] = useState(() => normalizeRole(defaultRole))
   const [currentNav, setCurrentNav] = useState(activeItem)
+
+  useEffect(() => {
+    setCurrentRole(normalizeRole(defaultRole))
+  }, [defaultRole])
 
   const handleNavSelect = (item) => {
     setCurrentNav(item)
@@ -34,7 +39,7 @@ export default function DashboardLayout({
   }
 
   const handleRoleChange = (newRole) => {
-    setCurrentRole(newRole)
+    setCurrentRole(normalizeRole(newRole))
     setCurrentNav('dashboard')
   }
 

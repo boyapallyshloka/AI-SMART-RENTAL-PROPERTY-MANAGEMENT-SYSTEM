@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertySummaryCard from '../../components/properties/PropertySummaryCard'
 import OwnerPropertyTable from '../../components/properties/OwnerPropertyTable'
 import {
-  getMockProperties,
-  deleteMockProperty,
+  getMyProperties,
+  deleteProperty,
+  updatePropertyStatus,
+} from '../../api/propertyApi'
+import {
   PROPERTY_TYPES,
   STATUS_OPTIONS,
 } from '../../utils/ownerPropertyMockData'
-import { Button, Input, Select } from '../../components/ui'
+import { Button, Input, Select, Loader } from '../../components/ui'
 import {
   Plus,
   Search,
@@ -17,45 +20,229 @@ import {
   RotateCcw,
   Building,
   Building2,
+  AlertCircle,
 } from 'lucide-react'
 
+/**
+ * Maps Spring Boot PropertyResponse to the shape expected by UI components
+ * Backend fields:
+ * - propertyId -> id, propertyId
+ * - propertyName -> name, propertyName
+ * - propertyType -> type, propertyType
+ * - description -> description
+ * - totalArea -> area, totalArea
+ * - bedrooms -> bedrooms
+ * - bathrooms -> bathrooms
+ * - furnishingStatus -> furnishing, furnishingStatus
+ * - parkingAvailable -> parking, parkingAvailable
+ * - monthlyRent -> monthlyRent
+ * - securityDeposit -> deposit, securityDeposit
+ * - status -> status
+ * - ownerId, ownerName, createdAt, updatedAt
+ *
+ * NOTE: Address fields are left in fallback/empty state until Phase 4 Address integration.
+ * DO NOT invent fake address fields.
+ */
+export const mapBackendPropertyToUi = (prop) => {
+  if (!prop) return null
+
+  const id =
+    prop.propertyId != null
+      ? String(prop.propertyId)
+      : prop.id != null
+      ? String(prop.id)
+      : ''
+  const name = prop.propertyName || prop.name || 'Unnamed Property'
+  const type = prop.propertyType || prop.type || 'APARTMENT'
+
+  return {
+    ...prop,
+    id,
+    propertyId: prop.propertyId ?? prop.id,
+    name,
+    propertyName: prop.propertyName ?? prop.name,
+    type,
+    propertyType: prop.propertyType ?? prop.type,
+    // Address fields: keep in current fallback/empty state until Phase 4 Address integration
+    address: prop.address || '',
+    city: prop.city || '',
+    state: prop.state || '',
+    zipCode: prop.zipCode || '',
+    // Specs
+    bedrooms: prop.bedrooms != null ? Number(prop.bedrooms) : 0,
+    bathrooms: prop.bathrooms != null ? Number(prop.bathrooms) : 0,
+    area:
+      prop.totalArea != null
+        ? Number(prop.totalArea)
+        : prop.area != null
+        ? Number(prop.area)
+        : 0,
+    totalArea:
+      prop.totalArea != null
+        ? Number(prop.totalArea)
+        : prop.area != null
+        ? Number(prop.area)
+        : 0,
+    furnishing: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
+    furnishingStatus: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
+    parking:
+      prop.parkingAvailable != null
+        ? prop.parkingAvailable
+          ? 'Available'
+          : 'None'
+        : prop.parking || 'None',
+    parkingAvailable:
+      prop.parkingAvailable != null
+        ? Boolean(prop.parkingAvailable)
+        : prop.parking === 'Available' || Boolean(prop.parking),
+    // Financials
+    monthlyRent: prop.monthlyRent != null ? Number(prop.monthlyRent) : 0,
+    deposit:
+      prop.securityDeposit != null
+        ? Number(prop.securityDeposit)
+        : prop.deposit != null
+        ? Number(prop.deposit)
+        : 0,
+    securityDeposit:
+      prop.securityDeposit != null
+        ? Number(prop.securityDeposit)
+        : prop.deposit != null
+        ? Number(prop.deposit)
+        : 0,
+    // Status & details
+    status: prop.status || 'AVAILABLE',
+    description: prop.description || '',
+    // Units metrics (backend PropertyResponse does not have nested building/units)
+    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : 1,
+    occupiedUnits:
+      prop.occupiedUnits != null
+        ? Number(prop.occupiedUnits)
+        : prop.status === 'OCCUPIED'
+        ? 1
+        : 0,
+    images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
+    amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
+    ownerId: prop.ownerId,
+    ownerName: prop.ownerName,
+    createdAt: prop.createdAt,
+    updatedAt: prop.updatedAt,
+  }
+}
+
 export default function PropertiesPage() {
+  const location = useLocation()
   const [properties, setProperties] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [toastMessage, setToastMessage] = useState('')
+  const [toastMessage, setToastMessage] = useState(
+    location.state?.toastMessage || ''
+  )
+  const [deletingId, setDeletingId] = useState(null)
+  const [updatingStatusId, setUpdatingStatusId] = useState(null)
 
-  const loadProperties = () => {
-    const list = getMockProperties()
-    setProperties(list)
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      setToastMessage(location.state.toastMessage)
+      const timer = setTimeout(() => setToastMessage(''), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [location.state])
+
+  const loadProperties = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await getMyProperties()
+      const data = Array.isArray(response) ? response : response?.data || []
+      const mapped = data.map(mapBackendPropertyToUi)
+      setProperties(mapped)
+    } catch (err) {
+      console.error('Failed to load properties from backend:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Unable to load properties from server. Please try again.'
+      setError(errorMsg)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   useEffect(() => {
     loadProperties()
   }, [])
 
-  const handleDelete = (id) => {
-    deleteMockProperty(id)
-    loadProperties()
-    setToastMessage('Property deleted successfully.')
-    setTimeout(() => setToastMessage(''), 3000)
+  const handleDelete = async (id) => {
+    if (deletingId) return
+    setDeletingId(id)
+    try {
+      await deleteProperty(id)
+      setProperties((prev) =>
+        prev.filter((item) => item.id !== id && item.propertyId !== id)
+      )
+      setToastMessage('Property deleted successfully.')
+      setTimeout(() => setToastMessage(''), 3000)
+    } catch (err) {
+      console.error('Failed to delete property:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete property. Please try again.'
+      setError(errorMsg)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleStatusChange = async (id, newStatus) => {
+    if (updatingStatusId) return
+    setUpdatingStatusId(id)
+    try {
+      await updatePropertyStatus(id, newStatus)
+      setProperties((prev) =>
+        prev.map((item) =>
+          item.id === id || item.propertyId === id
+            ? { ...item, status: newStatus }
+            : item
+        )
+      )
+      setToastMessage(`Property status updated to ${newStatus}.`)
+      setTimeout(() => setToastMessage(''), 3000)
+    } catch (err) {
+      console.error('Failed to update property status:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to update property status. Please try again.'
+      setError(errorMsg)
+    } finally {
+      setUpdatingStatusId(null)
+    }
   }
 
   // Filtered properties
   const filteredProperties = properties.filter((item) => {
+    const name = (item.name || '').toLowerCase()
+    const address = (item.address || '').toLowerCase()
+    const city = (item.city || '').toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
+
     const matchesSearch =
-      searchQuery.trim() === '' ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.city.toLowerCase().includes(searchQuery.toLowerCase())
+      query === '' ||
+      name.includes(query) ||
+      address.includes(query) ||
+      city.includes(query)
 
     const matchesType =
-      typeFilter === 'all' || item.type.toLowerCase() === typeFilter.toLowerCase()
+      typeFilter === 'all' ||
+      (item.type || '').toLowerCase() === typeFilter.toLowerCase()
 
     const matchesStatus =
       statusFilter === 'all' ||
-      item.status.toLowerCase() === statusFilter.toLowerCase()
+      (item.status || '').toLowerCase() === statusFilter.toLowerCase()
 
     return matchesSearch && matchesType && matchesStatus
   })
@@ -95,6 +282,23 @@ export default function PropertiesPage() {
               className="text-[#2A583B] hover:text-[#1d3d29]"
             >
               &times;
+            </button>
+          </div>
+        )}
+
+        {/* Error Alert Banner */}
+        {error && (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={loadProperties}
+              className="text-xs font-semibold underline text-red-700 hover:text-red-900 ml-4 shrink-0 cursor-pointer"
+            >
+              Retry
             </button>
           </div>
         )}
@@ -185,11 +389,20 @@ export default function PropertiesPage() {
           </div>
         </div>
 
-        {/* Properties Table */}
-        <OwnerPropertyTable
-          properties={filteredProperties}
-          onDelete={handleDelete}
-        />
+        {/* Properties Table / Loading State */}
+        {isLoading ? (
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
+            <Loader size="lg" text="Loading properties..." center />
+          </div>
+        ) : (
+          <OwnerPropertyTable
+            properties={filteredProperties}
+            onDelete={handleDelete}
+            onStatusChange={handleStatusChange}
+            deletingId={deletingId}
+            updatingStatusId={updatingStatusId}
+          />
+        )}
       </div>
     </DashboardLayout>
   )

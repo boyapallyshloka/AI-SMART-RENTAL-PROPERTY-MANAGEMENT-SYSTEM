@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { Button, Input, EmptyState } from '../../components/ui'
+import { Button, Input, EmptyState, Loader } from '../../components/ui'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import {
   Building,
@@ -14,9 +14,12 @@ import {
   Trash2,
   Layers,
   CheckCircle2,
+  AlertCircle,
   Save,
   X,
   Search,
+  Lock,
+  Info,
 } from 'lucide-react'
 import {
   getBuildingById,
@@ -29,21 +32,29 @@ import {
   getFloorsByBuilding,
   getFloorsForManager,
   getFloorsForTenant,
+  getFloorById,
   createFloor,
   updateFloor,
   deleteFloor,
+  formatFloorRequest,
 } from '../../api/floorApi'
 import {
   getUnitsByFloor,
   getUnitsForManager,
   getUnitsForTenant,
 } from '../../api/unitApi'
+import {
+  ROLES,
+  isPropertyOwner,
+  isPropertyManager,
+  isTenant as isTenantRole,
+} from '../../utils/roles'
 
 export default function BuildingDetailsPage() {
   const { user } = useAuth()
-  const isOwner = user?.role === 'owner'
-  const isTenant = user?.role === 'tenant'
-  const isManager = user?.role === 'manager'
+  const isOwner = isPropertyOwner(user?.role)
+  const isTenant = isTenantRole(user?.role)
+  const isManager = isPropertyManager(user?.role)
   const canManage = isOwner
   const basePath = isTenant ? '/tenant' : '/owner'
 
@@ -51,19 +62,35 @@ export default function BuildingDetailsPage() {
 
   const { buildingId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [building, setBuilding] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [floors, setFloors] = useState([])
   const [floorUnitsMap, setFloorUnitsMap] = useState({})
   const [toastMessage, setToastMessage] = useState('')
 
   // Modals state
   const [isDeleteBuildingOpen, setIsDeleteBuildingOpen] = useState(false)
+  const [isDeletingBuilding, setIsDeletingBuilding] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [floorDeleteTarget, setFloorDeleteTarget] = useState(null)
-  const [floorModalData, setFloorModalData] = useState(null) // { mode: 'add' | 'edit', floorId?: string, floorName: string, floorNumber: string }
+  const [isDeletingFloor, setIsDeletingFloor] = useState(false)
+  const [floorModalData, setFloorModalData] = useState(null) // { mode: 'add' | 'edit', floorId?: string, floorName: string, floorNumber: string, buildingId?: number, isLoadingFloor?: boolean }
   const [floorFormErrors, setFloorFormErrors] = useState({})
+  const [isSubmittingFloor, setIsSubmittingFloor] = useState(false)
+  const [floorModalError, setFloorModalError] = useState('')
+
+  useEffect(() => {
+    const incomingToast = location.state?.toastMessage || location.state?.toast
+    if (incomingToast) {
+      setToastMessage(incomingToast)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   const loadData = async () => {
+    setIsLoading(true)
     try {
       let b = null
       let flrs = []
@@ -77,8 +104,33 @@ export default function BuildingDetailsPage() {
         b = await getBuildingByIdForManager(buildingId)
         if (b) flrs = await getFloorsForManager(buildingId)
       } else {
-        b = await getBuildingById(buildingId)
-        if (b) flrs = await getFloorsByBuilding(buildingId)
+        const res = await getBuildingById(buildingId)
+        b = res?.data || res || null
+        if (b) {
+          try {
+            const fRes = await getFloorsByBuilding(buildingId)
+            const flrList = Array.isArray(fRes?.data)
+              ? fRes.data
+              : Array.isArray(fRes)
+              ? fRes
+              : []
+            flrs = flrList.map((f) => ({
+              ...f,
+              id: f.floorId ?? f.id,
+              floorId: f.floorId ?? f.id,
+              name: f.floorName ?? f.name,
+              floorName: f.floorName ?? f.name,
+              floorNumber: f.floorNumber ?? f.number ?? 0,
+              buildingId: f.buildingId ?? buildingId,
+              buildingName: f.buildingName ?? b.buildingName,
+              propertyId: f.propertyId ?? b.propertyId,
+              propertyName: f.propertyName ?? b.propertyName,
+            }))
+          } catch (floorErr) {
+            console.error('Failed to load floors for building:', floorErr)
+            flrs = []
+          }
+        }
       }
 
       setBuilding(b)
@@ -92,7 +144,8 @@ export default function BuildingDetailsPage() {
               : isManager
               ? await getUnitsForManager(f.floorId)
               : await getUnitsByFloor(f.floorId)
-            return [f.floorId, uList || []]
+            const resolvedUnits = uList?.data ?? uList ?? []
+            return [f.floorId, Array.isArray(resolvedUnits) ? resolvedUnits : []]
           })
         )
         setFloorUnitsMap(Object.fromEntries(unitsEntries))
@@ -101,6 +154,9 @@ export default function BuildingDetailsPage() {
       }
     } catch (err) {
       console.error('Error loading building details:', err)
+      setBuilding(null)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -115,24 +171,55 @@ export default function BuildingDetailsPage() {
 
   // Delete Building handler
   const handleConfirmDeleteBuilding = async () => {
-    if (!building || !canManage) return
-    const res = await deleteBuilding(building.buildingId)
-    navigate(`${basePath}/buildings`, {
-      state: {
-        toast: `"${building.buildingName}" and its ${res?.deletedFloorsCount ?? 0} floors were deleted.`,
-      },
-    })
+    if (!building || !canManage || isDeletingBuilding) return
+    setIsDeletingBuilding(true)
+    setErrorMessage('')
+    try {
+      await deleteBuilding(building.buildingId)
+      setIsDeleteBuildingOpen(false)
+      navigate(`${basePath}/buildings`, {
+        state: {
+          toastMessage: `Building "${building.buildingName}" was deleted successfully.`,
+        },
+      })
+    } catch (err) {
+      console.error('Failed to delete building:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to delete building. Please try again.'
+      setErrorMessage(errorMsg)
+      setIsDeleteBuildingOpen(false)
+      setTimeout(() => setErrorMessage(''), 6000)
+    } finally {
+      setIsDeletingBuilding(false)
+    }
   }
 
   // Delete Floor handler
   const handleConfirmDeleteFloor = async () => {
-    if (!floorDeleteTarget || !canManage) return
-    const res = await deleteFloor(floorDeleteTarget.floorId)
-    await loadData()
-    showToast(
-      `"${floorDeleteTarget.floorName}" and ${res?.deletedUnitsCount ?? 0} units on that floor were deleted.`
-    )
-    setFloorDeleteTarget(null)
+    if (!floorDeleteTarget || !canManage || isDeletingFloor) return
+    setIsDeletingFloor(true)
+    setErrorMessage('')
+    try {
+      await deleteFloor(floorDeleteTarget.floorId)
+      setFloorDeleteTarget(null)
+      await loadData()
+      showToast(`Floor "${floorDeleteTarget.floorName}" was deleted successfully.`)
+    } catch (err) {
+      console.error('Failed to delete floor:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to delete floor. Please try again.'
+      setErrorMessage(errorMsg)
+      setFloorDeleteTarget(null)
+      setTimeout(() => setErrorMessage(''), 6000)
+    } finally {
+      setIsDeletingFloor(false)
+    }
   }
 
   // Floor form modal handlers
@@ -142,31 +229,77 @@ export default function BuildingDetailsPage() {
       mode: 'add',
       floorName: `Floor ${nextNumber}`,
       floorNumber: String(nextNumber),
+      buildingId: building.buildingId,
+      isLoadingFloor: false,
     })
     setFloorFormErrors({})
+    setFloorModalError('')
   }
 
-  const handleOpenEditFloor = (floor) => {
+  const handleOpenEditFloor = async (floor) => {
     setFloorModalData({
       mode: 'edit',
       floorId: floor.floorId,
-      floorName: floor.floorName,
-      floorNumber: String(floor.floorNumber),
+      floorName: floor.floorName || '',
+      floorNumber: String(floor.floorNumber ?? ''),
+      buildingId: floor.buildingId || building.buildingId,
+      isLoadingFloor: true,
     })
     setFloorFormErrors({})
+    setFloorModalError('')
+
+    try {
+      const res = await getFloorById(floor.floorId)
+      const freshFloor = res?.data || res
+      if (freshFloor) {
+        setFloorModalData((prev) =>
+          prev && prev.floorId === floor.floorId
+            ? {
+                ...prev,
+                floorName: freshFloor.floorName ?? prev.floorName,
+                floorNumber: String(freshFloor.floorNumber ?? prev.floorNumber),
+                buildingId: freshFloor.buildingId ?? prev.buildingId,
+                isLoadingFloor: false,
+              }
+            : prev
+        )
+      } else {
+        setFloorModalData((prev) => (prev ? { ...prev, isLoadingFloor: false } : null))
+      }
+    } catch (err) {
+      console.warn('Failed to fetch fresh floor for edit:', err)
+      setFloorModalData((prev) => (prev ? { ...prev, isLoadingFloor: false } : null))
+    }
   }
 
   const handleFloorSubmit = async (e) => {
     e.preventDefault()
-    const errs = {}
+    if (isSubmittingFloor || floorModalData?.isLoadingFloor) return
 
-    if (!floorModalData.floorName.trim()) {
+    const errs = {}
+    const trimmedName = (floorModalData.floorName || '').trim()
+
+    if (!trimmedName) {
       errs.floorName = 'Floor name is required.'
     }
 
-    const num = Number(floorModalData.floorNumber)
-    if (floorModalData.floorNumber === '' || isNaN(num) || !Number.isInteger(num)) {
+    const rawFloorNumber = floorModalData.floorNumber
+    const num = Number(rawFloorNumber)
+    if (
+      rawFloorNumber === '' ||
+      rawFloorNumber === null ||
+      rawFloorNumber === undefined ||
+      isNaN(num) ||
+      !Number.isInteger(num)
+    ) {
       errs.floorNumber = 'Floor number must be an integer.'
+    } else if (num < 0) {
+      errs.floorNumber = 'Floor number cannot be negative.'
+    }
+
+    const targetBuildingId = Number(floorModalData.buildingId || building?.buildingId)
+    if (!targetBuildingId || isNaN(targetBuildingId) || targetBuildingId <= 0) {
+      errs.buildingId = 'Valid building ID is required.'
     }
 
     if (Object.keys(errs).length > 0) {
@@ -174,36 +307,61 @@ export default function BuildingDetailsPage() {
       return
     }
 
-    if (floorModalData.mode === 'add') {
-      await createFloor({
-        floorName: floorModalData.floorName.trim(),
-        floorNumber: num,
-        buildingId: building.buildingId,
-        building: {
-          buildingId: building.buildingId,
-          buildingName: building.buildingName,
-          property: building.property,
-        },
-      })
-      showToast(`Added "${floorModalData.floorName.trim()}" successfully.`)
-    } else {
-      await updateFloor(floorModalData.floorId, {
-        floorName: floorModalData.floorName.trim(),
-        floorNumber: num,
-      })
-      showToast(`Updated "${floorModalData.floorName.trim()}" successfully.`)
-    }
+    setIsSubmittingFloor(true)
+    setFloorModalError('')
 
-    setFloorModalData(null)
-    await loadData()
+    try {
+      const payload = formatFloorRequest({
+        floorName: trimmedName,
+        floorNumber: num,
+        buildingId: targetBuildingId,
+      })
+
+      if (floorModalData.mode === 'add') {
+        await createFloor(payload)
+        showToast(`Added "${trimmedName}" successfully.`)
+      } else {
+        await updateFloor(floorModalData.floorId, payload)
+        showToast(`Updated "${trimmedName}" successfully.`)
+      }
+
+      setFloorModalData(null)
+      await loadData()
+    } catch (err) {
+      console.error('Failed to save floor:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        (floorModalData.mode === 'add'
+          ? 'Failed to create floor. Please check the values and try again.'
+          : 'Failed to update floor. Please check the values and try again.')
+      setFloorModalError(errorMsg)
+    } finally {
+      setIsSubmittingFloor(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <DashboardLayout
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+        activeItem="buildings"
+        pageTitle="Loading Building Details..."
+      >
+        <div className="max-w-3xl mx-auto py-24 flex flex-col items-center justify-center">
+          <Loader size="xl" text="Loading building details..." center />
+        </div>
+      </DashboardLayout>
+    )
   }
 
   if (!building) {
     return (
       <DashboardLayout
-        defaultRole={isTenant ? 'tenant' : 'owner'}
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
         activeItem="buildings"
-        pageTitle="Building Details"
+        pageTitle="Building Not Found"
       >
         <div className="space-y-6">
           <Link to={`${basePath}/buildings`}>
@@ -228,11 +386,16 @@ export default function BuildingDetailsPage() {
     )
   }
 
-  const allUnitsCount = getMockUnitsByBuildingId(building.buildingId).length
+  const allUnitsCount =
+    building.totalUnits != null
+      ? building.totalUnits
+      : building.units != null
+      ? building.units
+      : 0
 
   return (
     <DashboardLayout
-      defaultRole={isTenant ? 'tenant' : 'owner'}
+      defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
       activeItem="buildings"
       pageTitle={building.buildingName}
     >
@@ -247,6 +410,22 @@ export default function BuildingDetailsPage() {
             <button
               onClick={() => setToastMessage('')}
               className="text-[#2A583B] hover:text-[#1c3c28] text-base leading-none px-1"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* Error Notification */}
+        {errorMessage && (
+          <div className="p-3.5 rounded-lg bg-[#FDF2F2] border border-[#F8D7DA] text-[#B94A48] text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-[#B94A48]" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage('')}
+              className="text-[#B94A48] hover:text-[#8C3836] text-base leading-none px-1"
             >
               &times;
             </button>
@@ -310,19 +489,34 @@ export default function BuildingDetailsPage() {
               <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 {building.buildingName}
               </h1>
-              {building.property && (
-                <div className="flex items-center gap-2 text-xs text-[#5B6875] mt-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-[#315A7D]" />
+              {(building.propertyName || building.property?.name) && (
+                <div className="flex items-center gap-2 text-xs text-[#5B6875] mt-1.5 flex-wrap">
+                  <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
                   <span>
                     Associated Property:{' '}
                     <strong className="text-[#243447] font-semibold">
-                      {building.property.name}
+                      {building.propertyName || building.property?.name}
                     </strong>
                   </span>
-                  <span>&bull;</span>
-                  <span>
-                    {building.property.address}, {building.property.city}
-                  </span>
+                  {(building.propertyId || building.property?.id) && (
+                    <>
+                      <span>&bull;</span>
+                      <Link
+                        to={`/owner/properties/${building.propertyId || building.property?.id}`}
+                        className="text-[#315A7D] hover:underline font-semibold"
+                      >
+                        View Property Details
+                      </Link>
+                    </>
+                  )}
+                  {building.property?.address && (
+                    <>
+                      <span>&bull;</span>
+                      <span>
+                        {building.property.address}, {building.property.city}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -330,11 +524,11 @@ export default function BuildingDetailsPage() {
             <div className="flex items-center gap-3">
               <div className="px-3.5 py-2 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-center">
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#5B6875]">Floors</p>
-                <p className="text-xl font-bold text-[#243447]">{building.totalFloors}</p>
+                <p className="text-xl font-bold text-[#243447]">{building.totalFloors ?? 0}</p>
               </div>
               <div className="px-3.5 py-2 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-center">
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#5B6875]">Units</p>
-                <p className="text-xl font-bold text-[#315A7D]">{building.totalUnits}</p>
+                <p className="text-xl font-bold text-[#315A7D]">{building.totalUnits ?? 0}</p>
               </div>
             </div>
           </div>
@@ -481,24 +675,26 @@ export default function BuildingDetailsPage() {
             {/* Delete Building Modal */}
             <DeleteConfirmModal
               isOpen={isDeleteBuildingOpen}
-              onClose={() => setIsDeleteBuildingOpen(false)}
+              onClose={() => !isDeletingBuilding && setIsDeleteBuildingOpen(false)}
               onConfirm={handleConfirmDeleteBuilding}
+              isLoading={isDeletingBuilding}
               title="Delete Building"
               itemName={building.buildingName}
-              consequenceMessage={`This will permanently delete this building along with all of its ${floors.length} floors and ${allUnitsCount} units.`}
+              consequenceMessage={`This will permanently delete this building along with all of its registered floors and units.`}
             />
 
             {/* Delete Floor Modal */}
             <DeleteConfirmModal
               isOpen={Boolean(floorDeleteTarget)}
-              onClose={() => setFloorDeleteTarget(null)}
+              onClose={() => !isDeletingFloor && setFloorDeleteTarget(null)}
               onConfirm={handleConfirmDeleteFloor}
               title="Delete Floor"
               itemName={floorDeleteTarget?.floorName}
               consequenceMessage={
                 floorDeleteTarget &&
-                `This will permanently remove this floor and all ${floorDeleteTarget.unitsCount} units registered on it.`
+                `This will permanently remove this floor and all ${floorDeleteTarget.unitsCount ?? 0} units registered on it.`
               }
+              isLoading={isDeletingFloor}
             />
 
             {/* Add / Edit Floor Modal */}
@@ -525,60 +721,106 @@ export default function BuildingDetailsPage() {
                     </div>
 
                     <button
-                      onClick={() => setFloorModalData(null)}
-                      className="text-[#5B6875] hover:text-[#243447] p-1 rounded-md"
+                      type="button"
+                      onClick={() => !isSubmittingFloor && setFloorModalData(null)}
+                      disabled={isSubmittingFloor}
+                      className="text-[#5B6875] hover:text-[#243447] p-1 rounded-md disabled:opacity-50"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <form onSubmit={handleFloorSubmit} className="space-y-4">
-                    <div className="p-2.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] text-xs text-[#5B6875]">
-                      <span>Target Building: </span>
-                      <strong className="text-[#243447]">{building.buildingName}</strong>
+                  {floorModalError && (
+                    <div className="p-3 rounded-lg bg-[#FDF2F2] border border-[#F8D7DA] flex items-start gap-2.5 text-xs text-[#B94A48] animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <strong className="font-semibold block">Submission Error</strong>
+                        <span>{floorModalError}</span>
+                      </div>
                     </div>
+                  )}
 
-                    <Input
-                      label="Floor Name"
-                      placeholder="e.g. Ground Floor, 2nd Floor, Penthouse"
-                      value={floorModalData.floorName}
-                      onChange={(e) =>
-                        setFloorModalData((prev) => ({ ...prev, floorName: e.target.value }))
-                      }
-                      error={floorFormErrors.floorName}
-                      required
-                    />
-
-                    <Input
-                      label="Floor Number (Integer Level)"
-                      type="number"
-                      step="1"
-                      placeholder="e.g. 1, 2, 3"
-                      value={floorModalData.floorNumber}
-                      onChange={(e) =>
-                        setFloorModalData((prev) => ({ ...prev, floorNumber: e.target.value }))
-                      }
-                      error={floorFormErrors.floorNumber}
-                      required
-                    />
-
-                    <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-end gap-2.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setFloorModalData(null)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        leftIcon={<Save className="w-4 h-4" />}
-                      >
-                        {floorModalData.mode === 'add' ? 'Create Floor' : 'Save Changes'}
-                      </Button>
+                  {floorModalData.isLoadingFloor ? (
+                    <div className="py-8 flex flex-col items-center justify-center">
+                      <Loader size="md" text="Loading floor details..." center />
                     </div>
-                  </form>
+                  ) : (
+                    <form onSubmit={handleFloorSubmit} className="space-y-4">
+                      {floorModalData.mode === 'add' ? (
+                        <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#5B6875]">Target Building:</span>
+                            <strong className="text-[#243447] font-semibold">{building.buildingName}</strong>
+                          </div>
+                          <p className="text-[#315A7D] text-[11px] flex items-center gap-1 mt-1">
+                            <Info className="w-3.5 h-3.5 shrink-0" />
+                            Floor will be created under this building.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#5B6875]">Target Building:</span>
+                            <strong className="text-[#243447] font-semibold">{building.buildingName}</strong>
+                          </div>
+                          <p className="text-[#856404] text-[11px] flex items-center gap-1 mt-1">
+                            <Lock className="w-3.5 h-3.5 shrink-0" />
+                            Floor building association cannot be modified once created.
+                          </p>
+                        </div>
+                      )}
+
+                      <Input
+                        label="Floor Name"
+                        placeholder="e.g. Ground Floor, 2nd Floor, Penthouse"
+                        value={floorModalData.floorName}
+                        onChange={(e) =>
+                          setFloorModalData((prev) => ({ ...prev, floorName: e.target.value }))
+                        }
+                        error={floorFormErrors.floorName}
+                        disabled={isSubmittingFloor}
+                        required
+                      />
+
+                      <Input
+                        label="Floor Number (Integer Level)"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="e.g. 0, 1, 2, 3"
+                        value={floorModalData.floorNumber}
+                        onChange={(e) =>
+                          setFloorModalData((prev) => ({ ...prev, floorNumber: e.target.value }))
+                        }
+                        error={floorFormErrors.floorNumber}
+                        disabled={isSubmittingFloor}
+                        required
+                      />
+
+                      <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-end gap-2.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setFloorModalData(null)}
+                          disabled={isSubmittingFloor}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          disabled={isSubmittingFloor}
+                          leftIcon={isSubmittingFloor ? <Loader size="xs" /> : <Save className="w-4 h-4" />}
+                        >
+                          {isSubmittingFloor
+                            ? 'Saving...'
+                            : floorModalData.mode === 'add'
+                            ? 'Create Floor'
+                            : 'Save Changes'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               </div>
             )}

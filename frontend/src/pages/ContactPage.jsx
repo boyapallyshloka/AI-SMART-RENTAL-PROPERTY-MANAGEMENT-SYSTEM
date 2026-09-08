@@ -4,6 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import Footer from '../components/common/Footer'
 import { Button, Input, Select, Textarea } from '../components/ui'
 import {
+  getDashboardPath,
+  isSuperAdmin,
+  isPropertyOwner,
+  isPropertyManager,
+} from '../utils/roles'
+import {
   Home,
   ArrowLeft,
   LogIn,
@@ -18,6 +24,7 @@ import {
   Building2,
   LifeBuoy,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react'
 
 export default function ContactPage() {
@@ -62,15 +69,14 @@ export default function ContactPage() {
   // Determine back destination based on authentication status
   const getDashboardDestination = () => {
     if (!user) return '/login'
-    if (user.role === 'admin' || user.role === 'superadmin') return '/admin/dashboard'
-    if (user.role === 'owner' || user.role === 'manager') return '/owner/dashboard'
-    return '/tenant/dashboard'
+    return getDashboardPath(user.role)
   }
 
   const getDashboardLabel = () => {
     if (!user) return 'Sign In'
-    if (user.role === 'admin' || user.role === 'superadmin') return 'Back to Admin Dashboard'
-    if (user.role === 'owner' || user.role === 'manager') return 'Back to Owner Dashboard'
+    if (isSuperAdmin(user.role)) return 'Back to Admin Dashboard'
+    if (isPropertyOwner(user.role)) return 'Back to Owner Dashboard'
+    if (isPropertyManager(user.role)) return 'Back to Manager Dashboard'
     return 'Back to Tenant Dashboard'
   }
 
