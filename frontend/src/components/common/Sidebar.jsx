@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Home,
   LayoutDashboard,
+  Building,
   Building2,
   FileCheck,
   FileText,
@@ -27,6 +28,7 @@ import { useScout } from '../../context/ScoutContext'
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'properties', label: 'Properties', icon: <Building2 className="w-4 h-4" />, badge: '12' },
+  { id: 'buildings', label: 'Buildings', icon: <Building2 className="w-4 h-4" />, badge: '4' },
   { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" />, badge: '3' },
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
@@ -37,7 +39,8 @@ const OWNER_MENU = [
 
 const TENANT_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'browse', label: 'Browse Properties', icon: <Search className="w-4 h-4" /> },
+  { id: 'buildings', label: 'My Rental Property', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'find-properties', label: 'Find Properties', icon: <Search className="w-4 h-4" /> },
   { id: 'my-applications', label: 'My Applications', icon: <FileCheck className="w-4 h-4" />, badge: '1' },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
@@ -110,6 +113,7 @@ export default function Sidebar({
     } else if (role === 'owner' || role === 'manager') {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
+      else if (id === 'buildings') navigate('/owner/buildings')
       else if (id === 'applications') navigate('/owner/applications')
       else if (id === 'agreements') navigate('/owner/agreements')
       else if (id === 'payments') navigate('/owner/payments')
@@ -118,6 +122,8 @@ export default function Sidebar({
       else if (id === 'ai-insights') navigate('/owner/ai-insights')
     } else if (role === 'tenant') {
       if (id === 'dashboard') navigate('/tenant/dashboard')
+      else if (id === 'buildings' || id === 'my-rental') navigate('/tenant/buildings')
+      else if (id === 'find-properties' || id === 'browse') navigate('/tenant/find-properties')
       else if (id === 'my-applications') navigate('/tenant/applications')
       else if (id === 'agreement') navigate('/tenant/agreement')
       else if (id === 'payments') navigate('/tenant/payments')

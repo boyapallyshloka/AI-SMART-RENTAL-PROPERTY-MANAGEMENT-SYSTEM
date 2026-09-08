@@ -15,6 +15,7 @@ import {
   Search,
   Filter,
   RotateCcw,
+  Building,
   Building2,
 } from 'lucide-react'
 
@@ -108,11 +109,18 @@ export default function PropertiesPage() {
               Manage real estate listings, occupancy rates, and rental units
             </p>
           </div>
-          <Link to="/owner/properties/add">
-            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-              Add Property
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/owner/buildings">
+              <Button variant="outline" leftIcon={<Building className="w-4 h-4 text-[#315A7D]" />}>
+                View Buildings
+              </Button>
+            </Link>
+            <Link to="/owner/properties/add">
+              <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                Add Property
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Portfolio KPI Summary */}

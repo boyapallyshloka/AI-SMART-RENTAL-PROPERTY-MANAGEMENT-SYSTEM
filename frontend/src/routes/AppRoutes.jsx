@@ -14,6 +14,12 @@ import PropertiesPage from '../pages/owner/PropertiesPage'
 import AddPropertyPage from '../pages/owner/AddPropertyPage'
 import PropertyDetailsPage from '../pages/owner/PropertyDetailsPage'
 import EditPropertyPage from '../pages/owner/EditPropertyPage'
+import BuildingsPage from '../pages/owner/BuildingsPage'
+import AddBuildingPage from '../pages/owner/AddBuildingPage'
+import BuildingDetailsPage from '../pages/owner/BuildingDetailsPage'
+import FloorDetailsPage from '../pages/owner/FloorDetailsPage'
+import AddUnitPage from '../pages/owner/AddUnitPage'
+import UnitDetailsPage from '../pages/owner/UnitDetailsPage'
 import ApplicationsPage from '../pages/owner/ApplicationsPage'
 import ApplicationDetailsPage from '../pages/owner/ApplicationDetailsPage'
 import PaymentsPage from '../pages/owner/PaymentsPage'
@@ -33,6 +39,7 @@ import TenantAgreementPage from '../pages/tenant/TenantAgreementPage'
 import TenantPaymentsPage from '../pages/tenant/TenantPaymentsPage'
 import TenantMaintenancePage from '../pages/tenant/TenantMaintenancePage'
 import CreateMaintenanceRequestPage from '../pages/tenant/CreateMaintenanceRequestPage'
+import FindPropertiesPage from '../pages/tenant/FindPropertiesPage'
 
 // Admin Dashboard Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
@@ -78,6 +85,19 @@ function RootRedirect() {
   return <Navigate to={destination} replace />
 }
 
+/**
+ * Guard specifically for Owner-only Building & Unit routes.
+ * Prevents managers from accessing building management until explicitly enabled.
+ */
+function OwnerOnlyBuildingRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user && user.role !== 'owner') {
+    return <Navigate to="/owner/dashboard" replace />
+  }
+  return children
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -113,6 +133,42 @@ export default function AppRoutes() {
                 <Route path="properties/add" element={<AddPropertyPage />} />
                 <Route path="properties/:id" element={<PropertyDetailsPage />} />
                 <Route path="properties/:id/edit" element={<EditPropertyPage />} />
+                <Route path="buildings" element={<BuildingsPage />} />
+                <Route
+                  path="buildings/new"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddBuildingPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
+                <Route path="buildings/:buildingId" element={<BuildingDetailsPage />} />
+                <Route
+                  path="buildings/:buildingId/edit"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddBuildingPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
+                <Route path="buildings/:buildingId/floors/:floorId" element={<FloorDetailsPage />} />
+                <Route
+                  path="buildings/:buildingId/floors/:floorId/units/new"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddUnitPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
+                <Route path="units/:unitId" element={<UnitDetailsPage />} />
+                <Route
+                  path="units/:unitId/edit"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddUnitPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
                 <Route path="applications" element={<ApplicationsPage />} />
                 <Route path="applications/:id" element={<ApplicationDetailsPage />} />
                 <Route path="payments" element={<PaymentsPage />} />
@@ -138,6 +194,13 @@ export default function AppRoutes() {
             <RoleRoute allowedRole="tenant">
               <Routes>
                 <Route path="dashboard" element={<TenantDashboardPage />} />
+                <Route path="buildings" element={<BuildingsPage />} />
+                <Route path="my-rental" element={<Navigate to="/tenant/buildings" replace />} />
+                <Route path="buildings/:buildingId" element={<BuildingDetailsPage />} />
+                <Route path="buildings/:buildingId/floors/:floorId" element={<FloorDetailsPage />} />
+                <Route path="units/:unitId" element={<UnitDetailsPage />} />
+                <Route path="find-properties" element={<FindPropertiesPage />} />
+                <Route path="browse" element={<Navigate to="/tenant/find-properties" replace />} />
                 <Route path="applications" element={<TenantApplicationsPage />} />
                 <Route path="applications/new" element={<SubmitApplicationPage />} />
                 <Route path="agreement" element={<TenantAgreementPage />} />

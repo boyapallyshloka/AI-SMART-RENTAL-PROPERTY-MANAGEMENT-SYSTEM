@@ -1,36 +1,34 @@
-import axiosClient from './axiosClient'
+import {
+  getMockProperties,
+  getMockPropertyById,
+  addMockProperty,
+  updateMockProperty,
+  deleteMockProperty,
+} from '../utils/ownerPropertyMockData.js'
 
 /**
- * Property Management API Service (Spring Boot Integration)
- * Note: These are placeholder signatures for future backend integration.
+ * Property API Service Layer
+ * 
+ * Note: Endpoints to be confirmed by backend team.
+ * Currently backed by frontend mock data without making unconfirmed Axios calls.
  */
 
-// TODO: Replace with Spring Boot properties list endpoint (e.g. GET /properties)
-export const getProperties = async (params) => {
-  // return axiosClient.get('/properties', { params })
-  throw new Error('TODO: Connect to Spring Boot backend /properties')
+export const getProperties = async () => {
+  return getMockProperties()
 }
 
-// TODO: Replace with Spring Boot property details endpoint (e.g. GET /properties/{id})
 export const getPropertyById = async (id) => {
-  // return axiosClient.get(`/properties/${id}`)
-  throw new Error(`TODO: Connect to Spring Boot backend /properties/${id}`)
+  return getMockPropertyById(id)
 }
 
-// TODO: Replace with Spring Boot property creation endpoint (e.g. POST /properties)
 export const createProperty = async (propertyData) => {
-  // return axiosClient.post('/properties', propertyData)
-  throw new Error('TODO: Connect to Spring Boot backend /properties')
+  return addMockProperty(propertyData)
 }
 
-// TODO: Replace with Spring Boot property update endpoint (e.g. PUT /properties/{id})
 export const updateProperty = async (id, propertyData) => {
-  // return axiosClient.put(`/properties/${id}`, propertyData)
-  throw new Error(`TODO: Connect to Spring Boot backend /properties/${id}`)
+  return updateMockProperty(id, propertyData)
 }
 
-// TODO: Replace with Spring Boot property delete endpoint (e.g. DELETE /properties/{id})
 export const deleteProperty = async (id) => {
-  // return axiosClient.delete(`/properties/${id}`)
-  throw new Error(`TODO: Connect to Spring Boot backend /properties/${id}`)
+  return deleteMockProperty(id)
 }
