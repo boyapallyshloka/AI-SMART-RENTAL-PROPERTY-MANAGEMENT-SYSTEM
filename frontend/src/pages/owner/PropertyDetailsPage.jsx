@@ -11,6 +11,7 @@ import {
   Bath,
   Maximize2,
   DollarSign,
+  Building,
   Building2,
   Home,
   Users,
@@ -91,6 +92,15 @@ export default function PropertyDetailsPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <Link to="/owner/buildings">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Building className="w-4 h-4 text-[#315A7D]" />}
+              >
+                View Buildings
+              </Button>
+            </Link>
             <Link to={`/owner/properties/${property.id}/edit`}>
               <Button
                 variant="primary"

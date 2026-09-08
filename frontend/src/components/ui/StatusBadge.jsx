@@ -10,7 +10,12 @@ import React from 'react'
  * - Neutral: #5B6875 (text #5B6875 on #F0F4F7)
  */
 const STATUS_CONFIG = {
-  // Available / Active / Paid / Success / Resolved / Approved
+  // Available / Active / Paid / Success / Resolved / Approved / Vacant
+  vacant: {
+    label: 'Vacant',
+    badge: 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]',
+    dot: 'bg-[#3F7D58]',
+  },
   available: {
     label: 'Available',
     badge: 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]',
@@ -47,7 +52,17 @@ const STATUS_CONFIG = {
     dot: 'bg-[#3F7D58]',
   },
 
-  // Warnings / Pending / In Review / Under Review
+  // Warnings / Pending / In Review / Reserved / Maintenance
+  reserved: {
+    label: 'Reserved',
+    badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
+    dot: 'bg-[#B7791F]',
+  },
+  maintenance: {
+    label: 'Maintenance',
+    badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
+    dot: 'bg-[#B7791F]',
+  },
   pending: {
     label: 'Pending',
     badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',

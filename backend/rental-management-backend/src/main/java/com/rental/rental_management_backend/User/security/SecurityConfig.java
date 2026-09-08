@@ -71,11 +71,15 @@ public class SecurityConfig {
                 // SWAGGER
                 // =================================================
 
-                .requestMatchers(
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/v3/api-docs/**"
-                ).permitAll()
+             // =================================================
+             // SWAGGER + PROPERTY IMAGES
+             // =================================================
+             .requestMatchers(
+                     "/swagger-ui/**",
+                     "/swagger-ui.html",
+                     "/v3/api-docs/**",
+                     "/uploads/property-images/**"
+             ).permitAll()
 
                 // =================================================
                 // USER MANAGEMENT
