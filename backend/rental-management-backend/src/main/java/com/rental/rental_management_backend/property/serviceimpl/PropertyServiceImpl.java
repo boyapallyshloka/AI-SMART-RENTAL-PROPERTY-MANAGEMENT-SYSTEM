@@ -43,22 +43,23 @@ public class PropertyServiceImpl implements PropertyService {
         Property property = new Property();
 
         property.setPropertyName(request.getPropertyName());
+
         property.setPropertyType(request.getPropertyType());
+
         property.setDescription(request.getDescription());
+
         property.setTotalArea(request.getTotalArea());
-        property.setBedrooms(request.getBedrooms());
-        property.setBathrooms(request.getBathrooms());
+
         property.setFurnishingStatus(
                 request.getFurnishingStatus()
         );
+
         property.setParkingAvailable(
                 request.getParkingAvailable()
         );
-        property.setMonthlyRent(
-                request.getMonthlyRent()
-        );
-        property.setSecurityDeposit(
-                request.getSecurityDeposit()
+
+        property.setYearBuilt(
+                request.getYearBuilt()
         );
 
         /*
@@ -144,14 +145,6 @@ public class PropertyServiceImpl implements PropertyService {
                 request.getTotalArea()
         );
 
-        property.setBedrooms(
-                request.getBedrooms()
-        );
-
-        property.setBathrooms(
-                request.getBathrooms()
-        );
-
         property.setFurnishingStatus(
                 request.getFurnishingStatus()
         );
@@ -160,12 +153,8 @@ public class PropertyServiceImpl implements PropertyService {
                 request.getParkingAvailable()
         );
 
-        property.setMonthlyRent(
-                request.getMonthlyRent()
-        );
-
-        property.setSecurityDeposit(
-                request.getSecurityDeposit()
+        property.setYearBuilt(
+                request.getYearBuilt()
         );
 
         /*
@@ -206,6 +195,7 @@ public class PropertyServiceImpl implements PropertyService {
         validateOwner(owner);
 
         if (status == null) {
+
             throw new RuntimeException(
                     "Property status is required"
             );
@@ -287,14 +277,6 @@ public class PropertyServiceImpl implements PropertyService {
                 property.getTotalArea()
         );
 
-        response.setBedrooms(
-                property.getBedrooms()
-        );
-
-        response.setBathrooms(
-                property.getBathrooms()
-        );
-
         response.setFurnishingStatus(
                 property.getFurnishingStatus()
         );
@@ -303,12 +285,8 @@ public class PropertyServiceImpl implements PropertyService {
                 property.getParkingAvailable()
         );
 
-        response.setMonthlyRent(
-                property.getMonthlyRent()
-        );
-
-        response.setSecurityDeposit(
-                property.getSecurityDeposit()
+        response.setYearBuilt(
+                property.getYearBuilt()
         );
 
         response.setStatus(

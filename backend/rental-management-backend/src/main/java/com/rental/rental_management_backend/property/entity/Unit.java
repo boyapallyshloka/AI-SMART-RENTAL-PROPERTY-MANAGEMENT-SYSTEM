@@ -1,7 +1,5 @@
 package com.rental.rental_management_backend.property.entity;
 
-
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -43,29 +41,29 @@ public class Unit {
     @Column(name = "unit_id")
     private Long unitId;
 
-    @NotBlank
+    @NotBlank(message = "Unit number is required")
     @Column(name = "unit_number", nullable = false, length = 50)
     private String unitNumber;
 
-    @NotNull
+    @NotNull(message = "Unit type is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "unit_type", nullable = false, length = 30)
     private UnitType unitType;
 
-    @PositiveOrZero
+    @PositiveOrZero(message = "Area cannot be negative")
     @Column(name = "area")
     private Double area;
 
-    @PositiveOrZero
+    @PositiveOrZero(message = "Bedrooms cannot be negative")
     @Column(name = "bedrooms")
     private Integer bedrooms;
 
-    @PositiveOrZero
+    @PositiveOrZero(message = "Bathrooms cannot be negative")
     @Column(name = "bathrooms")
     private Integer bathrooms;
 
-    @NotNull
-    @DecimalMin(value = "0.0")
+    @NotNull(message = "Monthly rent is required")
+    @DecimalMin(value = "0.0", message = "Monthly rent cannot be negative")
     @Column(
         name = "monthly_rent",
         nullable = false,
@@ -74,8 +72,8 @@ public class Unit {
     )
     private BigDecimal monthlyRent;
 
-    @NotNull
-    @DecimalMin(value = "0.0")
+    @NotNull(message = "Security deposit is required")
+    @DecimalMin(value = "0.0", message = "Security deposit cannot be negative")
     @Column(
         name = "security_deposit",
         nullable = false,
@@ -84,7 +82,7 @@ public class Unit {
     )
     private BigDecimal securityDeposit;
 
-    @NotNull
+    @NotNull(message = "Unit status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private UnitStatus status;
@@ -96,7 +94,7 @@ public class Unit {
     @JoinColumn(name = "floor_id", nullable = false)
     private Floor floor;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -107,7 +105,6 @@ public class Unit {
 
     @PrePersist
     protected void onCreate() {
-
         createdAt = LocalDateTime.now();
 
         if (status == null) {
@@ -119,7 +116,6 @@ public class Unit {
 
     @PreUpdate
     protected void onUpdate() {
-
         updatedAt = LocalDateTime.now();
     }
 
@@ -215,15 +211,7 @@ public class Unit {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

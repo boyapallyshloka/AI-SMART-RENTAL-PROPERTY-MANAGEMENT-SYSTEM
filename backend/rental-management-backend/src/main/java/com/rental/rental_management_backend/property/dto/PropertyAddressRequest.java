@@ -2,6 +2,8 @@ package com.rental.rental_management_backend.property.dto;
 
 import java.math.BigDecimal;
 
+import com.rental.rental_management_backend.property.enums.AreaType;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
@@ -14,6 +16,8 @@ public class PropertyAddressRequest {
 
     @NotBlank(message = "Area is required")
     private String area;
+
+    private AreaType areaType;
 
     @NotBlank(message = "City is required")
     private String city;
@@ -60,6 +64,14 @@ public class PropertyAddressRequest {
 
     public void setArea(String area) {
         this.area = area;
+    }
+
+    public AreaType getAreaType() {
+        return areaType;
+    }
+
+    public void setAreaType(AreaType areaType) {
+        this.areaType = areaType;
     }
 
     public String getCity() {

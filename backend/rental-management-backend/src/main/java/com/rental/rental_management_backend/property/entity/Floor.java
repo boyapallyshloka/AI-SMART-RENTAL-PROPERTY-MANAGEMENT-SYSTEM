@@ -2,8 +2,6 @@ package com.rental.rental_management_backend.property.entity;
 
 import java.time.LocalDateTime;
 
-import com.rental.rental_management_backend.property.entity.Building;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -36,12 +34,12 @@ public class Floor {
     @Column(name = "floor_id")
     private Long floorId;
 
-    @NotBlank
+    @NotBlank(message = "Floor name is required")
     @Column(name = "floor_name", nullable = false, length = 100)
     private String floorName;
 
-    @NotNull
-    @PositiveOrZero
+    @NotNull(message = "Floor number is required")
+    @PositiveOrZero(message = "Floor number cannot be negative")
     @Column(name = "floor_number", nullable = false)
     private Integer floorNumber;
 
@@ -49,29 +47,13 @@ public class Floor {
     @JoinColumn(name = "building_id", nullable = false)
     private Building building;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public Floor() {
-    }
-
-    public Floor(
-            Long floorId,
-            String floorName,
-            Integer floorNumber,
-            Building building,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt) {
-
-        this.floorId = floorId;
-        this.floorName = floorName;
-        this.floorNumber = floorNumber;
-        this.building = building;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     @PrePersist
@@ -121,15 +103,7 @@ public class Floor {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

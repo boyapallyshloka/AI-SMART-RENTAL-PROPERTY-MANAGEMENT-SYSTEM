@@ -1,11 +1,8 @@
 package com.rental.rental_management_backend.property.dto;
 
-import java.math.BigDecimal;
-
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
 import com.rental.rental_management_backend.property.enums.PropertyType;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -23,29 +20,12 @@ public class PropertyRequest {
     @PositiveOrZero(message = "Total area cannot be negative")
     private Double totalArea;
 
-    @PositiveOrZero(message = "Bedrooms cannot be negative")
-    private Integer bedrooms;
-
-    @PositiveOrZero(message = "Bathrooms cannot be negative")
-    private Integer bathrooms;
-
     private FurnishingStatus furnishingStatus;
 
     private Boolean parkingAvailable;
 
-    @DecimalMin(
-        value = "0.0",
-        inclusive = true,
-        message = "Monthly rent cannot be negative"
-    )
-    private BigDecimal monthlyRent;
-
-    @DecimalMin(
-        value = "0.0",
-        inclusive = true,
-        message = "Security deposit cannot be negative"
-    )
-    private BigDecimal securityDeposit;
+    @PositiveOrZero(message = "Year built cannot be negative")
+    private Integer yearBuilt;
 
     public PropertyRequest() {
     }
@@ -82,22 +62,6 @@ public class PropertyRequest {
         this.totalArea = totalArea;
     }
 
-    public Integer getBedrooms() {
-        return bedrooms;
-    }
-
-    public void setBedrooms(Integer bedrooms) {
-        this.bedrooms = bedrooms;
-    }
-
-    public Integer getBathrooms() {
-        return bathrooms;
-    }
-
-    public void setBathrooms(Integer bathrooms) {
-        this.bathrooms = bathrooms;
-    }
-
     public FurnishingStatus getFurnishingStatus() {
         return furnishingStatus;
     }
@@ -114,19 +78,11 @@ public class PropertyRequest {
         this.parkingAvailable = parkingAvailable;
     }
 
-    public BigDecimal getMonthlyRent() {
-        return monthlyRent;
+    public Integer getYearBuilt() {
+        return yearBuilt;
     }
 
-    public void setMonthlyRent(BigDecimal monthlyRent) {
-        this.monthlyRent = monthlyRent;
-    }
-
-    public BigDecimal getSecurityDeposit() {
-        return securityDeposit;
-    }
-
-    public void setSecurityDeposit(BigDecimal securityDeposit) {
-        this.securityDeposit = securityDeposit;
+    public void setYearBuilt(Integer yearBuilt) {
+        this.yearBuilt = yearBuilt;
     }
 }

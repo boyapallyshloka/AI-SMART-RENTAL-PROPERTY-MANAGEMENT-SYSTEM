@@ -3,6 +3,8 @@ package com.rental.rental_management_backend.property.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.rental.rental_management_backend.property.enums.AreaType;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -27,6 +29,10 @@ public class PropertyAddress {
 
     @Column(nullable = false, length = 100)
     private String area;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "area_type", length = 30)
+    private AreaType areaType;
 
     @Column(nullable = false, length = 100)
     private String city;
@@ -61,17 +67,13 @@ public class PropertyAddress {
 
     @PrePersist
     protected void onCreate() {
-
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-
     }
 
     @PreUpdate
     protected void onUpdate() {
-
         updatedAt = LocalDateTime.now();
-
     }
 
     public PropertyAddress() {
@@ -107,6 +109,14 @@ public class PropertyAddress {
 
     public void setArea(String area) {
         this.area = area;
+    }
+
+    public AreaType getAreaType() {
+        return areaType;
+    }
+
+    public void setAreaType(AreaType areaType) {
+        this.areaType = areaType;
     }
 
     public String getCity() {

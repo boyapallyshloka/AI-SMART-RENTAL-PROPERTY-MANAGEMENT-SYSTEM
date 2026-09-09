@@ -23,7 +23,9 @@ public class PropertyAddressServiceImpl
         implements PropertyAddressService {
 
     private final PropertyAddressRepository addressRepository;
+
     private final PropertyRepository propertyRepository;
+
     private final UserRepository userRepository;
 
     public PropertyAddressServiceImpl(
@@ -44,6 +46,7 @@ public class PropertyAddressServiceImpl
         Property property = getOwnedProperty(propertyId);
 
         if (addressRepository.existsByProperty(property)) {
+
             throw new RuntimeException(
                     "Address already exists for this property"
             );
@@ -183,15 +186,30 @@ public class PropertyAddressServiceImpl
                 request.getAddressLine2()
         );
 
-        address.setArea(request.getArea());
+        address.setArea(
+                request.getArea()
+        );
 
-        address.setCity(request.getCity());
+        // M1: Area Type
+        address.setAreaType(
+                request.getAreaType()
+        );
 
-        address.setState(request.getState());
+        address.setCity(
+                request.getCity()
+        );
 
-        address.setCountry(request.getCountry());
+        address.setState(
+                request.getState()
+        );
 
-        address.setPincode(request.getPincode());
+        address.setCountry(
+                request.getCountry()
+        );
+
+        address.setPincode(
+                request.getPincode()
+        );
 
         address.setLatitude(
                 request.getLatitude()
@@ -225,15 +243,30 @@ public class PropertyAddressServiceImpl
                 address.getAddressLine2()
         );
 
-        response.setArea(address.getArea());
+        response.setArea(
+                address.getArea()
+        );
 
-        response.setCity(address.getCity());
+        // M1: Area Type
+        response.setAreaType(
+                address.getAreaType()
+        );
 
-        response.setState(address.getState());
+        response.setCity(
+                address.getCity()
+        );
 
-        response.setCountry(address.getCountry());
+        response.setState(
+                address.getState()
+        );
 
-        response.setPincode(address.getPincode());
+        response.setCountry(
+                address.getCountry()
+        );
+
+        response.setPincode(
+                address.getPincode()
+        );
 
         response.setLatitude(
                 address.getLatitude()
