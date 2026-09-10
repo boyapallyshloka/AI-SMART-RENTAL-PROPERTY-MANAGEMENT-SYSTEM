@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,14 +17,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.rental.rental_management_backend.User.dto.ChangePasswordRequest;
 import com.rental.rental_management_backend.User.dto.LoginRequest;
 import com.rental.rental_management_backend.User.dto.LoginResponse;
 import com.rental.rental_management_backend.User.dto.RegisterRequest;
+import com.rental.rental_management_backend.User.dto.ResetPasswordRequest;
 import com.rental.rental_management_backend.User.dto.UpdateUserRequest;
 import com.rental.rental_management_backend.User.dto.UserResponse;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.service.UserService;
+
+import com.rental.rental_management_backend.User.dto.ForgotPasswordRequest;
+
 
 import jakarta.validation.Valid;
 
@@ -63,6 +69,35 @@ public class UserController {
                 userService.loginUser(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    // =========================================================
+    // CHANGE PASSWORD
+    // =========================================================
+
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/auth/change-password")
+    public ResponseEntity<String> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        // Get logged-in user's email from JWT
+        String email = authentication.getName();
+
+        // Find logged-in user
+        UserResponse user =
+                userService.getMyProfile(email);
+
+        // Change password
+        userService.changePassword(
+                user.getId(),
+                request.getCurrentPassword(),
+                request.getNewPassword()
+        );
+
+        return ResponseEntity.ok(
+                "Password changed successfully"
+        );
     }
 
     // =========================================================
@@ -180,6 +215,56 @@ public class UserController {
                 )
         );
     }
+
+    // =========================================================
+    // MY PROFILE
+    // =========================================================
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/users/me")
+    public ResponseEntity<UserResponse> getMyProfile(
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                userService.getMyProfile(email)
+        );
+    }
+    
+ // =========================================================
+ // FORGOT PASSWORD
+ // =========================================================
+
+ @PostMapping("/auth/forgot-password")
+ public ResponseEntity<String> forgotPassword(
+         @Valid @RequestBody ForgotPasswordRequest request) {
+
+     userService.forgotPassword(request.getEmail());
+
+     return ResponseEntity.ok(
+             "Password reset token generated successfully"
+     );
+ }
+ 
+//=========================================================
+//RESET PASSWORD
+//=========================================================
+
+@PostMapping("/auth/reset-password")
+public ResponseEntity<String> resetPassword(
+      @Valid @RequestBody ResetPasswordRequest request) {
+
+  userService.resetPassword(
+          request.getToken(),
+          request.getNewPassword()
+  );
+
+  return ResponseEntity.ok(
+          "Password reset successfully"
+  );
 }
 
+ 
+}
 

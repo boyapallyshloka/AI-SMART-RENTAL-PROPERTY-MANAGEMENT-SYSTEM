@@ -87,22 +87,30 @@ public class SecurityConfig {
 
                 .requestMatchers(
                         "/api/auth/register",
-                        "/api/auth/login"
+                        "/api/auth/login",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password"
                 ).permitAll()
 
                 // =================================================
-                // SWAGGER
+                // SWAGGER + PROPERTY IMAGES
                 // =================================================
 
-             // =================================================
-             // SWAGGER + PROPERTY IMAGES
-             // =================================================
-             .requestMatchers(
-                     "/swagger-ui/**",
-                     "/swagger-ui.html",
-                     "/v3/api-docs/**",
-                     "/uploads/property-images/**"
-             ).permitAll()
+                .requestMatchers(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/uploads/property-images/**"
+                ).permitAll()
+
+                // =================================================
+                // CURRENT USER PROFILE
+                // ALL AUTHENTICATED ROLES
+                // =================================================
+
+                .requestMatchers(
+                        "/api/users/me"
+                ).authenticated()
 
                 // =================================================
                 // USER MANAGEMENT
@@ -137,6 +145,10 @@ public class SecurityConfig {
                         "/api/tenant/**"
                 ).hasRole("TENANT")
 
+                .requestMatchers(
+                        "/api/maintenance/**"
+                ).permitAll()
+
                 // =================================================
                 // ALL OTHER APIs
                 // =================================================
@@ -156,5 +168,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
-
 
