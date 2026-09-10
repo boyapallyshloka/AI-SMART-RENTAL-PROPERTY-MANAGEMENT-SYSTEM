@@ -22,7 +22,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import {
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Clock,
   ArrowUpRight,
@@ -34,6 +34,9 @@ import {
   Building,
   Building2,
   FileBarChart,
+  Users,
+  Wrench,
+  AlertCircle,
 } from 'lucide-react'
 import { ROLES, isSuperAdmin } from '../../utils/roles'
 
@@ -100,12 +103,12 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
                     Monthly Income
                   </span>
                   <div className="p-2 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
-                    <DollarSign className="w-4 h-4" />
+                    <IndianRupee className="w-4 h-4" />
                   </div>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-[#243447] tracking-tight">
-                    ${summary.monthlyIncome.toLocaleString()}
+                    ₹{summary.monthlyIncome.toLocaleString('en-IN')}
                   </p>
                   <p className="text-xs text-[#5B6875] mt-0.5">
                     Gross rental receivables
@@ -145,7 +148,7 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-[#243447] tracking-tight">
-                    ${summary.maintenanceCost.toLocaleString()}
+                    ₹{summary.maintenanceCost.toLocaleString('en-IN')}
                   </p>
                   <p className="text-xs text-[#5B6875] mt-0.5">
                     Repairs & service dispatches
@@ -165,7 +168,7 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-[#B94A48] tracking-tight">
-                    ${summary.outstandingRent.toLocaleString()}
+                    ₹{summary.outstandingRent.toLocaleString('en-IN')}
                   </p>
                   <p className="text-xs text-[#5B6875] mt-0.5">
                     Pending tenant payments
@@ -210,7 +213,7 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(val) => `$${val / 1000}k`}
+                        tickFormatter={(val) => `₹${val / 1000}k`}
                       />
                       <Tooltip
                         contentStyle={{
@@ -220,7 +223,7 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
                           color: '#ffffff',
                           fontSize: '12px',
                         }}
-                        formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
+                        formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
                       />
                       <Bar
                         dataKey="income"
@@ -332,17 +335,17 @@ export default function ReportsPage({ role = ROLES.PROPERTY_OWNER }) {
 
                         {/* Income */}
                         <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
-                          ${Number(item.income).toLocaleString()}
+                          ₹{Number(item.income).toLocaleString('en-IN')}
                         </td>
 
                         {/* Expenses */}
                         <td className="py-3 px-3 text-[#5B6875] whitespace-nowrap">
-                          ${Number(item.expenses).toLocaleString()}
+                          ₹{Number(item.expenses).toLocaleString('en-IN')}
                         </td>
 
                         {/* Profit */}
                         <td className="py-3 pl-3 pr-4 text-right font-semibold text-[#3F7D58] whitespace-nowrap">
-                          +${Number(item.profit).toLocaleString()}
+                          +₹{Number(item.profit).toLocaleString('en-IN')}
                         </td>
                       </tr>
                     ))}

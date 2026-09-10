@@ -44,7 +44,7 @@ export const INITIAL_AGREEMENTS = [
     rentDueDay: '1st of the month',
     noticePeriod: '30 days',
     status: 'Active',
-    notes: 'Townhome residential lease. One small pet approved with $500 pet deposit.',
+    notes: 'Townhome residential lease. One small pet approved with ₹500 pet deposit.',
     createdDate: '2026-08-22',
   },
   {

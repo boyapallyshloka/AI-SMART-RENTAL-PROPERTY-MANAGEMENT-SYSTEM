@@ -154,12 +154,12 @@ export default function OwnerPropertyTable({
                   {/* Rent */}
                   <td className="py-4 px-4 whitespace-nowrap min-w-[120px]">
                     <span className="font-bold text-[#243447]">
-                      ${Number(prop.monthlyRent || 0).toLocaleString()}
+                      ₹{Number(prop.monthlyRent || 0).toLocaleString('en-IN')}
                     </span>
                     <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
                     {prop.deposit > 0 && (
                       <p className="text-[11px] text-[#5B6875]">
-                        ${Number(prop.deposit).toLocaleString()} dep
+                        ₹{Number(prop.deposit).toLocaleString('en-IN')} dep
                       </p>
                     )}
                   </td>

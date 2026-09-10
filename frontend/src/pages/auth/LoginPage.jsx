@@ -3,16 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, Lock, LogIn, Sparkles, Building2, User, Briefcase, Shield } from 'lucide-react'
+import { Mail, Lock, LogIn } from 'lucide-react'
 import { getDashboardPath } from '../../utils/roles'
-import { DEMO_ACCOUNTS } from '../../api/mockAuth'
-
-const DEMO_ICONS = {
-  owner: <Building2 className="w-3.5 h-3.5 text-[#5B6875]" />,
-  tenant: <User className="w-3.5 h-3.5 text-[#5B6875]" />,
-  manager: <Briefcase className="w-3.5 h-3.5 text-[#5B6875]" />,
-  admin: <Shield className="w-3.5 h-3.5 text-[#315A7D]" />,
-}
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -71,13 +63,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleQuickFill = (mockEmail, mockPassword) => {
-    setEmail(mockEmail)
-    setPassword(mockPassword)
-    setErrors({})
-    setAuthError('')
   }
 
   return (
@@ -146,31 +131,6 @@ export default function LoginPage() {
           Sign In
         </Button>
 
-        {/* Quick Mock Credentials */}
-        <div className="pt-4 border-t border-[#D9E0E6]">
-          <p className="text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider text-center mb-2.5">
-            Quick Fill Demo Accounts
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.key}
-                type="button"
-                onClick={() => handleQuickFill(account.email, account.password)}
-                className="p-2 text-left rounded-md border border-[#D9E0E6] hover:border-[#315A7D] bg-[#F7F8FA] hover:bg-[#EAF2F7] transition-colors text-xs group cursor-pointer"
-              >
-                <div className="flex items-center gap-1 font-semibold text-[#243447] group-hover:text-[#315A7D]">
-                  {DEMO_ICONS[account.key]}
-                  <span>{account.label}</span>
-                </div>
-                <p className="text-[10px] text-[#5B6875] font-mono mt-0.5 truncate">
-                  {account.displayEmail}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="pt-2 text-center text-xs text-[#5B6875]">
           Don't have an account?{' '}
           <Link
@@ -178,16 +138,6 @@ export default function LoginPage() {
             className="font-semibold text-[#315A7D] hover:underline"
           >
             Create an account
-          </Link>
-        </div>
-
-        <div className="pt-1 text-center">
-          <Link
-            to="/ui-showcase"
-            className="inline-flex items-center gap-1 text-xs text-[#5B6875] hover:text-[#243447] hover:underline"
-          >
-            <Sparkles className="w-3 h-3 text-[#B7791F]" />
-            <span>View Reusable UI Components Showcase</span>
           </Link>
         </div>
       </form>

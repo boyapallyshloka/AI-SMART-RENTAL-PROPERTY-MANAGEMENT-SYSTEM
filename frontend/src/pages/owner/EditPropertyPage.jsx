@@ -6,8 +6,8 @@ import {
   getPropertyById,
   updateProperty,
   buildPropertyRequestPayload,
+  mapBackendPropertyToUi,
 } from '../../api/propertyApi'
-import { mapBackendPropertyToUi } from './PropertiesPage'
 import { Button, EmptyState, Loader } from '../../components/ui'
 import { ArrowLeft, Building2, Edit, AlertCircle } from 'lucide-react'
 
@@ -19,27 +19,32 @@ export default function EditPropertyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    const fetchProperty = async () => {
-      if (!id) return
-      setIsLoadingProperty(true)
-      setError(null)
-      try {
-        const response = await getPropertyById(id)
-        const data = response?.data || response
-        if (data && (data.propertyId || data.id)) {
-          setProperty(mapBackendPropertyToUi(data))
-        } else {
-          setProperty(null)
-        }
-      } catch (err) {
-        console.error(`Failed to load property details for ID ${id}:`, err)
+  const fetchProperty = async () => {
+    if (!id) return
+    setIsLoadingProperty(true)
+    setError(null)
+    try {
+      const response = await getPropertyById(id)
+      const data = response?.data || response
+      if (data && (data.propertyId || data.id)) {
+        setProperty(mapBackendPropertyToUi(data))
+      } else {
         setProperty(null)
-      } finally {
-        setIsLoadingProperty(false)
       }
+    } catch (err) {
+      console.error(`Failed to load property details for ID ${id}:`, err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load property details. Please try again.'
+      setError(errorMsg)
+      setProperty(null)
+    } finally {
+      setIsLoadingProperty(false)
     }
+  }
 
+  useEffect(() => {
     fetchProperty()
   }, [id])
 
@@ -67,14 +72,21 @@ export default function EditPropertyPage() {
         <div className="max-w-3xl mx-auto py-12">
           <EmptyState
             icon={<Building2 className="w-8 h-8" />}
-            title="Property Not Found"
-            message={`We could not find any property matching ID "${id}".`}
+            title={error ? 'Failed to Load Property' : 'Property Not Found'}
+            message={error || `We could not find any property matching ID "${id}".`}
             action={
-              <Link to="/owner/properties">
-                <Button variant="primary" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                  Back to Properties
-                </Button>
-              </Link>
+              <div className="flex items-center gap-3">
+                {error && (
+                  <Button variant="primary" onClick={fetchProperty}>
+                    Retry
+                  </Button>
+                )}
+                <Link to="/owner/properties">
+                  <Button variant={error ? 'outline' : 'primary'} leftIcon={<ArrowLeft className="w-4 h-4" />}>
+                    Back to Properties
+                  </Button>
+                </Link>
+              </div>
             }
           />
         </div>

@@ -41,7 +41,11 @@ axiosClient.interceptors.request.use(
     // 2. FormData / Multipart handling: allow browser/axios to set multipart boundary
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       if (config.headers) {
-        delete config.headers['Content-Type']
+        if (typeof config.headers.delete === 'function') {
+          config.headers.delete('Content-Type')
+        } else {
+          delete config.headers['Content-Type']
+        }
       }
     } else if (config.headers && !config.headers['Content-Type']) {
       config.headers['Content-Type'] = 'application/json'
@@ -70,7 +74,11 @@ axiosClient.interceptors.response.use(
   (error) => {
     const status = error.response?.status
     const data = error.response?.data
-    let message = data?.message || data?.error || error.message
+    let message = data?.message
+    if (!message && data?.messages && typeof data.messages === 'object') {
+      message = Object.values(data.messages).join('. ')
+    }
+    message = message || data?.error || error.message
 
     switch (status) {
       case 401:

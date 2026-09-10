@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   User,
   Building2,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Briefcase,
   Phone,
@@ -303,10 +303,10 @@ export default function ApplicationDetailsPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875] flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5 text-[#5B6875]" /> Monthly Income
+                      <IndianRupee className="w-3.5 h-3.5 text-[#5B6875]" /> Monthly Income
                     </span>
                     <span className="font-semibold text-[#243447]">
-                      ${Number(application.monthlyIncome || 0).toLocaleString()} / month
+                      ₹{Number(application.monthlyIncome || 0).toLocaleString('en-IN')} / month
                     </span>
                   </div>
 

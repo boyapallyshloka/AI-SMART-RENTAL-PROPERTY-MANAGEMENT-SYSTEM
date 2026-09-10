@@ -61,6 +61,8 @@ export const normalizeLoginResponse = (raw) => {
     name: fullName,
     firstName: raw.firstName,
     lastName: raw.lastName,
+    phone: raw.phone || '',
+    gender: raw.gender || '',
     role: canonicalRole,
     status: raw.status || 'ACTIVE',
     avatarText: avatarText.toUpperCase(),
@@ -159,18 +161,25 @@ export const register = async (userData) => {
 
   // Active implementation: Spring Boot REST Backend via axiosClient
   try {
-    const nameParts = (userData.name || '').trim().split(' ')
-    const firstName =
-      userData.firstName || nameParts[0] || 'User'
-    const lastName =
-      userData.lastName || nameParts.slice(1).join(' ') || getRoleLabel(canonicalRole)
+    const nameParts = (userData.name || '').trim().split(/\s+/)
+    const firstName = (
+      userData.firstName ||
+      nameParts[0] ||
+      'User'
+    ).slice(0, 50)
+    const lastName = (
+      userData.lastName ||
+      nameParts.slice(1).join(' ') ||
+      nameParts[0] ||
+      getRoleLabel(canonicalRole)
+    ).slice(0, 50)
 
     const payload = {
       firstName,
       lastName,
       email: (userData.email || '').trim().toLowerCase(),
-      password: userData.password,
-      phone: userData.phone || '9876543210',
+      password: userData.password || '',
+      phone: (userData.phone || '9876543210').trim(),
       gender: userData.gender || 'OTHER',
       role: canonicalRole,
     }
@@ -196,14 +205,12 @@ export const register = async (userData) => {
 
 /**
  * Terminate user session and remove stored credentials
- * Spring Boot Endpoint: POST /api/auth/logout
+ * Spring Boot backend uses stateless JWT architecture.
  */
 export const logout = async () => {
   try {
     if (useMockFallback) {
       await mockLogout()
-    } else {
-      await axiosClient.post('/auth/logout').catch(() => {})
     }
   } finally {
     // Clear all token representations used by axiosClient and AuthContext

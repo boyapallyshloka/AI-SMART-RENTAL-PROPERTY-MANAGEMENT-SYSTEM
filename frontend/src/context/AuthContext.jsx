@@ -29,7 +29,10 @@ export function AuthProvider({ children }) {
         }
       }
 
-      if (stored) {
+      const storedToken =
+        localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
+
+      if (stored && storedToken) {
         const parsed = JSON.parse(stored)
         if (parsed && parsed.role) {
           const canonical = normalizeRole(parsed.role)
@@ -40,12 +43,11 @@ export function AuthProvider({ children }) {
           }
         }
         setUser(parsed)
-      }
-
-      const storedToken =
-        localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
-      if (storedToken) {
         setToken(storedToken)
+      } else if (stored && !storedToken) {
+        // Incomplete session without token: purge invalid session
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
       }
     } catch (e) {
       console.error('Failed to parse stored session from localStorage', e)
@@ -79,7 +81,7 @@ export function AuthProvider({ children }) {
         console.error('Failed to save session to localStorage', e)
       }
 
-      return { success: true, user: result.user }
+      return { success: true, user: result.user, token: result.token }
     }
 
     setError(result.error)
@@ -89,7 +91,7 @@ export function AuthProvider({ children }) {
   /**
    * Register a user via authApi gateway
    * - PROPERTY_OWNER returns PENDING state (no active session created)
-   * - TENANT & PROPERTY_MANAGER return ACTIVE state with active session
+   * - TENANT & PROPERTY_MANAGER return ACTIVE state with real authenticated session
    * - SUPER_ADMIN is rejected
    */
   const register = async (registrationData) => {
@@ -107,7 +109,25 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // Active registration: create authenticated session
+      // Active registration: automatically log in to acquire real backend JWT
+      if (!result.token && registrationData.email && registrationData.password) {
+        try {
+          const loginResult = await login(registrationData.email, registrationData.password)
+          if (loginResult.success) {
+            return {
+              success: true,
+              user: loginResult.user,
+              token: loginResult.token,
+              status: 'ACTIVE',
+              isPending: false,
+            }
+          }
+        } catch (loginErr) {
+          console.warn('Auto-login after registration failed, user must sign in manually', loginErr)
+        }
+      }
+
+      // Active registration fallback if token was already returned (e.g. mock mode)
       setUser(result.user)
       if (result.token) {
         setToken(result.token)
@@ -126,6 +146,7 @@ export function AuthProvider({ children }) {
       return {
         success: true,
         user: result.user,
+        token: result.token,
         status: 'ACTIVE',
         isPending: false,
       }

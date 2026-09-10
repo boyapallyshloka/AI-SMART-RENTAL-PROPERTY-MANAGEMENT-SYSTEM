@@ -7,7 +7,7 @@ import {
   Sparkles,
   ShieldCheck,
   CheckCircle2,
-  DollarSign,
+  IndianRupee,
   Car,
   Sofa,
   Clock,
@@ -281,7 +281,7 @@ export default function PropertyDetailsSection({ property }) {
       {/* 5. Costs & Utilities Breakdown */}
       <div className="rounded-lg border border-[#D9E0E6] bg-white p-6 shadow-2xs space-y-4">
         <h3 className="text-base font-bold text-[#243447] flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-[#3F7D58]" />
+          <IndianRupee className="w-5 h-5 text-[#3F7D58]" />
           <span>Pricing & Monthly Expenses</span>
         </h3>
 
@@ -291,22 +291,22 @@ export default function PropertyDetailsSection({ property }) {
             <div className="flex justify-between py-1 border-b border-[#D9E0E6]">
               <span className="text-[#5B6875]">Monthly Base Rent</span>
               <span className="font-bold text-[#315A7D] text-sm">
-                ${monthlyRent.toLocaleString()} / mo
+                ₹{Number(monthlyRent || 0).toLocaleString('en-IN')} / mo
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-[#D9E0E6]">
               <span className="text-[#5B6875]">Security Deposit</span>
               <span className="font-semibold text-[#243447]">
-                ${(deposit || monthlyRent).toLocaleString()} (Refundable)
+                ₹{Number(deposit || monthlyRent || 0).toLocaleString('en-IN')} (Refundable)
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-[#D9E0E6]">
               <span className="text-[#5B6875]">Application Fee</span>
-              <span className="font-semibold text-[#243447]">$45 (One-time)</span>
+              <span className="font-semibold text-[#243447]">₹45 (One-time)</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-[#5B6875]">Online Rent Payment Fee</span>
-              <span className="font-bold text-[#3F7D58]">$0 via HomeSphere AutoPay</span>
+              <span className="font-bold text-[#3F7D58]">₹0 via HomeSphere AutoPay</span>
             </div>
           </div>
 
@@ -328,7 +328,7 @@ export default function PropertyDetailsSection({ property }) {
               <p className="text-[#5B6875]">Tenant pays standard utilities (electricity, water, internet).</p>
             )}
             <p className="text-[11px] text-[#5B6875] pt-2">
-              * Average monthly electric/gas bill for this unit is ~$75 based on building history.
+              * Average monthly electric/gas bill for this unit is ~₹75 based on building history.
             </p>
           </div>
         </div>

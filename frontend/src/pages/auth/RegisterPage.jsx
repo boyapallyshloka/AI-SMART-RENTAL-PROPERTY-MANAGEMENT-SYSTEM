@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
-import { Button, Input } from '../../components/ui'
+import { Button, Input, Select } from '../../components/ui'
 import {
   Mail,
   Lock,
   User,
+  Phone,
   UserPlus,
   Building2,
   Briefcase,
@@ -29,6 +30,8 @@ export default function RegisterPage() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [gender, setGender] = useState('OTHER')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState(ROLES.TENANT)
@@ -41,6 +44,7 @@ export default function RegisterPage() {
   const validate = () => {
     const errs = {}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const phoneRegex = /^[6-9]\d{9}$/
 
     if (!name.trim()) {
       errs.name = 'Full name is required'
@@ -52,10 +56,22 @@ export default function RegisterPage() {
       errs.email = 'Please enter a valid email address'
     }
 
+    if (!phone.trim()) {
+      errs.phone = 'Phone number is required'
+    } else if (!phoneRegex.test(phone.trim())) {
+      errs.phone = 'Please enter a valid 10-digit Indian mobile number (starts with 6-9)'
+    }
+
+    if (!gender) {
+      errs.gender = 'Gender is required'
+    }
+
     if (!password) {
       errs.password = 'Password is required'
-    } else if (password.length < 6) {
-      errs.password = 'Password must be at least 6 characters'
+    } else if (password.length < 8) {
+      errs.password = 'Password must be at least 8 characters'
+    } else if (password.length > 100) {
+      errs.password = 'Password must not exceed 100 characters'
     }
 
     if (!confirmPassword) {
@@ -75,12 +91,21 @@ export default function RegisterPage() {
 
     setIsLoading(true)
     try {
-      const result = await register({ name, email, password, role })
+      const result = await register({
+        name,
+        email,
+        phone,
+        gender,
+        password,
+        role,
+      })
       if (result.success) {
         if (result.isPending || result.status === 'PENDING') {
           setRegisteredData({
             name: name.trim(),
             email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            gender,
             role,
           })
           setIsPendingApproval(true)
@@ -129,6 +154,10 @@ export default function RegisterPage() {
             <div className="flex justify-between items-center py-1 border-b border-[#D9E0E6]/60">
               <span className="text-[#5B6875]">Account Email:</span>
               <span className="font-mono font-medium text-[#243447]">{registeredData?.email || email}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-[#D9E0E6]/60">
+              <span className="text-[#5B6875]">Phone Number:</span>
+              <span className="font-mono font-medium text-[#243447]">{registeredData?.phone || phone}</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b border-[#D9E0E6]/60">
               <span className="text-[#5B6875]">Role Requested:</span>
@@ -264,9 +293,40 @@ export default function RegisterPage() {
         />
 
         <Input
+          label="Phone Number"
+          type="tel"
+          placeholder="e.g. 9876543210"
+          value={phone}
+          onChange={(e) => {
+            setPhone(e.target.value)
+            if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }))
+          }}
+          error={errors.phone}
+          leftIcon={<Phone className="w-4 h-4" />}
+          required
+        />
+
+        <Select
+          label="Gender"
+          value={gender}
+          onChange={(e) => {
+            setGender(e.target.value)
+            if (errors.gender) setErrors((prev) => ({ ...prev, gender: '' }))
+          }}
+          error={errors.gender}
+          required
+          options={[
+            { value: 'FEMALE', label: 'Female' },
+            { value: 'MALE', label: 'Male' },
+            { value: 'OTHER', label: 'Other' },
+            { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
+          ]}
+        />
+
+        <Input
           label="Password"
           type="password"
-          placeholder="At least 6 characters"
+          placeholder="At least 8 characters"
           value={password}
           onChange={(e) => {
             setPassword(e.target.value)

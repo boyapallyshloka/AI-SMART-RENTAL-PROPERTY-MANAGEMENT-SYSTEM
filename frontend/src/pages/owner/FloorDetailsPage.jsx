@@ -592,7 +592,7 @@ export default function FloorDetailsPage() {
                       <div className="flex items-baseline justify-between">
                         <span className="text-xs text-[#5B6875]">Monthly Rent</span>
                         <span className="text-base font-bold text-[#243447]">
-                          ${Number(unit.monthlyRent ?? 0).toLocaleString()}
+                          ₹{Number(unit.monthlyRent ?? 0).toLocaleString('en-IN')}
                           <span className="text-xs font-normal text-[#5B6875]">/mo</span>
                         </span>
                       </div>

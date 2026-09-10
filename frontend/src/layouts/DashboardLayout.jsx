@@ -38,11 +38,6 @@ export default function DashboardLayout({
     if (onSelectNav) onSelectNav(item)
   }
 
-  const handleRoleChange = (newRole) => {
-    setCurrentRole(normalizeRole(newRole))
-    setCurrentNav('dashboard')
-  }
-
   // Determine friendly title from current nav or pageTitle prop
   const displayTitle =
     pageTitle ||
@@ -66,7 +61,6 @@ export default function DashboardLayout({
         onSelect={handleNavSelect}
         isOpen={mobileSidebarOpen}
         onClose={() => setMobileSidebarOpen(false)}
-        onRoleChange={handleRoleChange}
       />
 
       {/* Main Content Area */}
@@ -76,7 +70,6 @@ export default function DashboardLayout({
           role={currentRole}
           title={displayTitle}
           onMenuClick={() => setMobileSidebarOpen(true)}
-          onRoleChange={handleRoleChange}
           actions={topbarActions}
         />
 

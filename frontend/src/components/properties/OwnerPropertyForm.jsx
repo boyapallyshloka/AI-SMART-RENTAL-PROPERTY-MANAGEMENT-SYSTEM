@@ -6,85 +6,52 @@ import {
   Textarea,
 } from '../ui'
 import {
-  FURNISHING_OPTIONS,
-  PARKING_OPTIONS,
-  STATUS_OPTIONS,
-  AMENITIES_LIST,
-} from '../../utils/ownerPropertyMockData'
+  mapPropertyTypeToBackend,
+  mapFurnishingStatusToBackend,
+  mapParkingAvailableToBackend,
+} from '../../api/propertyApi'
 import {
   Building2,
-  DollarSign,
-  Image as ImageIcon,
-  Check,
-  Plus,
-  X,
-  Sparkles,
+  Layers,
+  FileText,
 } from 'lucide-react'
 
 const PROPERTY_TYPE_OPTIONS = [
-  'Apartment',
-  'House',
-  'Villa',
-  'Condominium',
-  'Townhouse',
-  'Single Family',
-  'Loft',
-  'Commercial',
-  'PG',
-  'Hostel',
+  { label: 'Apartment', value: 'APARTMENT' },
+  { label: 'House', value: 'HOUSE' },
+  { label: 'Villa', value: 'VILLA' },
+  { label: 'PG (Paying Guest)', value: 'PG' },
+  { label: 'Hostel', value: 'HOSTEL' },
+  { label: 'Commercial', value: 'COMMERCIAL' },
 ]
 
-const toTitleCaseType = (t) => {
-  if (!t) return 'Apartment'
-  const upper = String(t).toUpperCase().replace(/\s+/g, '_')
-  switch (upper) {
-    case 'APARTMENT': return 'Apartment'
-    case 'HOUSE': return 'House'
-    case 'VILLA': return 'Villa'
-    case 'PG': return 'PG'
-    case 'HOSTEL': return 'Hostel'
-    case 'COMMERCIAL': return 'Commercial'
-    case 'CONDOMINIUM': return 'Condominium'
-    case 'TOWNHOUSE': return 'Townhouse'
-    case 'SINGLE_FAMILY': return 'Single Family'
-    case 'LOFT': return 'Loft'
-    default: return String(t)
-  }
-}
+const FURNISHING_STATUS_OPTIONS = [
+  { label: 'Unfurnished', value: 'UNFURNISHED' },
+  { label: 'Semi-Furnished', value: 'SEMI_FURNISHED' },
+  { label: 'Fully Furnished', value: 'FULLY_FURNISHED' },
+]
 
-const toTitleCaseFurnishing = (f) => {
-  if (!f) return 'Furnished'
-  const upper = String(f).toUpperCase().replace(/-/g, '_')
-  switch (upper) {
-    case 'FULLY_FURNISHED':
-    case 'FURNISHED':
-      return 'Furnished'
-    case 'SEMI_FURNISHED':
-      return 'Semi-Furnished'
-    case 'UNFURNISHED':
-      return 'Unfurnished'
-    default:
-      return String(f)
-  }
-}
-
-const SAMPLE_IMAGE_PRESETS = [
-  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80',
-  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=1000&q=80',
-  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1000&q=80',
-  'https://images.unsplash.com/photo-1512915922686-57c11dde9b6b?auto=format&fit=crop&w=1000&q=80',
-  'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1000&q=80',
+const PARKING_OPTIONS = [
+  { label: 'Available (Yes)', value: 'true' },
+  { label: 'Not Available (No)', value: 'false' },
 ]
 
 /**
  * OwnerPropertyForm Component
- * Supports creating and updating a property with validation and live image preview
- * @param {Object} props
- * @param {Object} [props.initialData]
- * @param {(data: Object) => void} props.onSubmit
- * @param {() => void} props.onCancel
- * @param {boolean} [props.isLoading=false]
- * @param {string} [props.submitLabel='Save Property']
+ * Contract-aligned form supporting create and update for backend PropertyRequest
+ *
+ * Backend Supported Fields (7 only):
+ * 1. propertyName (string, required)
+ * 2. propertyType (enum: APARTMENT, HOUSE, VILLA, PG, HOSTEL, COMMERCIAL, required)
+ * 3. description (string, optional)
+ * 4. totalArea (double, non-negative, optional)
+ * 5. furnishingStatus (enum: UNFURNISHED, SEMI_FURNISHED, FULLY_FURNISHED, optional)
+ * 6. parkingAvailable (boolean, required)
+ * 7. yearBuilt (integer, non-negative, optional)
+ *
+ * Excluded from form & submission:
+ * - bedrooms, bathrooms, monthlyRent, securityDeposit (legacy fields)
+ * - ownerId, status, propertyId/id (system/lifecycle fields)
  */
 export default function OwnerPropertyForm({
   initialData,
@@ -93,134 +60,113 @@ export default function OwnerPropertyForm({
   isLoading = false,
   submitLabel = 'Save Property',
 }) {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || initialData?.propertyName || '',
-    type: toTitleCaseType(initialData?.type || initialData?.propertyType),
-    address: initialData?.address || '',
-    city: initialData?.city || '',
-    state: initialData?.state || 'CA',
-    zipCode: initialData?.zipCode || '',
-    bedrooms: initialData?.bedrooms !== undefined ? initialData.bedrooms : 2,
-    bathrooms: initialData?.bathrooms !== undefined ? initialData.bathrooms : 2,
-    area: initialData?.area || initialData?.totalArea || 1100,
-    furnishing: toTitleCaseFurnishing(
-      initialData?.furnishing || initialData?.furnishingStatus
-    ),
-    parking:
-      initialData?.parking ||
-      (initialData?.parkingAvailable != null
-        ? initialData.parkingAvailable
-          ? 'Garage'
-          : 'None'
-        : 'Garage'),
-    monthlyRent: initialData?.monthlyRent || 2500,
-    deposit: initialData?.deposit || initialData?.securityDeposit || 2500,
-    totalUnits: initialData?.totalUnits || 1,
-    occupiedUnits: initialData?.occupiedUnits || 0,
-    status: initialData?.status || 'Available',
-    description: initialData?.description || '',
-    amenities: initialData?.amenities || [
-      'In-unit Laundry',
-      'Central AC',
-      'High-speed Wi-Fi',
-    ],
-    imageUrl:
-      (initialData?.images && initialData.images[0]) ||
-      SAMPLE_IMAGE_PRESETS[0],
-  })
+  const getInitialFormData = (data) => {
+    const rawType = data?.propertyType || data?.type
+    const mappedType = rawType ? mapPropertyTypeToBackend(rawType) : 'APARTMENT'
 
+    const rawFurnishing = data?.furnishingStatus || data?.furnishing
+    const mappedFurnishing = rawFurnishing
+      ? mapFurnishingStatusToBackend(rawFurnishing)
+      : 'UNFURNISHED'
+
+    let mappedParking = 'false'
+    if (data?.parkingAvailable != null) {
+      mappedParking = data.parkingAvailable ? 'true' : 'false'
+    } else if (data?.parking != null) {
+      mappedParking = mapParkingAvailableToBackend(data.parking) ? 'true' : 'false'
+    }
+
+    const rawYear = data?.yearBuilt != null ? data.yearBuilt : data?.year
+
+    return {
+      propertyName: data?.propertyName || data?.name || '',
+      name: data?.propertyName || data?.name || '',
+      propertyType: mappedType,
+      type: mappedType,
+      description: data?.description || '',
+      totalArea:
+        data?.totalArea != null
+          ? String(data.totalArea)
+          : data?.area != null
+          ? String(data.area)
+          : '',
+      area:
+        data?.totalArea != null
+          ? String(data.totalArea)
+          : data?.area != null
+          ? String(data.area)
+          : '',
+      furnishingStatus: mappedFurnishing,
+      furnishing: mappedFurnishing,
+      parkingAvailable: mappedParking,
+      parking: mappedParking,
+      yearBuilt: rawYear != null ? String(rawYear) : '',
+      year: rawYear != null ? String(rawYear) : '',
+    }
+  }
+
+  const [formData, setFormData] = useState(() => getInitialFormData(initialData))
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        name: initialData.name || initialData.propertyName || '',
-        type: toTitleCaseType(initialData.type || initialData.propertyType),
-        address: initialData.address || '',
-        city: initialData.city || '',
-        state: initialData.state || 'CA',
-        zipCode: initialData.zipCode || '',
-        bedrooms: initialData.bedrooms !== undefined ? initialData.bedrooms : 2,
-        bathrooms: initialData.bathrooms !== undefined ? initialData.bathrooms : 2,
-        area: initialData.area || initialData.totalArea || 1100,
-        furnishing: toTitleCaseFurnishing(
-          initialData.furnishing || initialData.furnishingStatus
-        ),
-        parking:
-          initialData.parking ||
-          (initialData.parkingAvailable != null
-            ? initialData.parkingAvailable
-              ? 'Garage'
-              : 'None'
-            : 'Garage'),
-        monthlyRent: initialData.monthlyRent || 2500,
-        deposit: initialData.deposit || initialData.securityDeposit || 2500,
-        totalUnits: initialData.totalUnits || 1,
-        occupiedUnits: initialData.occupiedUnits || 0,
-        status: initialData.status || 'Available',
-        description: initialData.description || '',
-        amenities: initialData.amenities || [
-          'In-unit Laundry',
-          'Central AC',
-          'High-speed Wi-Fi',
-        ],
-        imageUrl:
-          (initialData.images && initialData.images[0]) ||
-          SAMPLE_IMAGE_PRESETS[0],
-      })
+      setFormData(getInitialFormData(initialData))
     }
   }, [initialData])
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value }
+      // Keep aliases in sync
+      if (field === 'propertyName') updated.name = value
+      if (field === 'name') updated.propertyName = value
+      if (field === 'propertyType') updated.type = value
+      if (field === 'type') updated.propertyType = value
+      if (field === 'totalArea') updated.area = value
+      if (field === 'area') updated.totalArea = value
+      if (field === 'furnishingStatus') updated.furnishing = value
+      if (field === 'furnishing') updated.furnishingStatus = value
+      if (field === 'parkingAvailable') updated.parking = value
+      if (field === 'parking') updated.parkingAvailable = value
+      if (field === 'yearBuilt') updated.year = value
+      if (field === 'year') updated.yearBuilt = value
+      return updated
+    })
+
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: '' }))
     }
   }
 
-  const toggleAmenity = (amenity) => {
-    setFormData((prev) => {
-      const exists = prev.amenities.includes(amenity)
-      return {
-        ...prev,
-        amenities: exists
-          ? prev.amenities.filter((a) => a !== amenity)
-          : [...prev.amenities, amenity],
-      }
-    })
-  }
-
   const validate = () => {
     const errs = {}
 
-    if (!formData.name.trim()) {
+    const nameVal = (formData.propertyName || formData.name || '').trim()
+    if (!nameVal) {
+      errs.propertyName = 'Property name is required'
       errs.name = 'Property name is required'
     }
 
-    // Street address and city validated when creating fresh listings
-    if (!initialData) {
-      if (!formData.address.trim()) {
-        errs.address = 'Street address is required'
+    if (!formData.propertyType && !formData.type) {
+      errs.propertyType = 'Property type is required'
+    }
+
+    const areaVal = formData.totalArea !== '' ? formData.totalArea : formData.area
+    if (areaVal !== '' && areaVal != null) {
+      const areaNum = Number(areaVal)
+      if (isNaN(areaNum) || areaNum < 0) {
+        errs.totalArea = 'Total area cannot be negative'
+        errs.area = 'Total area cannot be negative'
       }
-      if (!formData.city.trim()) {
-        errs.city = 'City is required'
+    }
+
+    const yearVal = formData.yearBuilt !== '' ? formData.yearBuilt : formData.year
+    if (yearVal !== '' && yearVal != null) {
+      const yearNum = Number(yearVal)
+      if (isNaN(yearNum) || yearNum < 0 || !Number.isInteger(yearNum)) {
+        errs.yearBuilt = 'Year built must be a non-negative integer'
+        errs.year = 'Year built must be a non-negative integer'
       }
-    }
-
-    if (!formData.monthlyRent || Number(formData.monthlyRent) <= 0) {
-      errs.monthlyRent = 'Please enter a valid monthly rent amount'
-    }
-
-    if (Number(formData.bedrooms) < 0) {
-      errs.bedrooms = 'Bedrooms cannot be negative'
-    }
-
-    if (Number(formData.bathrooms) <= 0) {
-      errs.bathrooms = 'Bathrooms must be at least 0.5'
-    }
-
-    if (Number(formData.area) <= 0) {
-      errs.area = 'Area must be greater than 0 sq ft'
     }
 
     setErrors(errs)
@@ -233,24 +179,38 @@ export default function OwnerPropertyForm({
     if (isLoading) return
     if (!validate()) return
 
-    const payload = {
-      ...formData,
-      bedrooms: Number(formData.bedrooms),
-      bathrooms: Number(formData.bathrooms),
-      area: Number(formData.area),
-      monthlyRent: Number(formData.monthlyRent),
-      deposit: Number(formData.deposit),
-      totalUnits: Number(formData.totalUnits),
-      occupiedUnits: Number(formData.occupiedUnits),
-      images: [formData.imageUrl],
+    const rawPayload = {
+      propertyName: (formData.propertyName || formData.name || '').trim(),
+      propertyType: formData.propertyType || formData.type,
+      description: (formData.description || '').trim() || undefined,
+      totalArea:
+        formData.totalArea !== '' && formData.totalArea != null && !isNaN(Number(formData.totalArea))
+          ? Number(formData.totalArea)
+          : formData.area !== '' && formData.area != null && !isNaN(Number(formData.area))
+          ? Number(formData.area)
+          : undefined,
+      furnishingStatus: formData.furnishingStatus || formData.furnishing || undefined,
+      parkingAvailable:
+        formData.parkingAvailable === true || formData.parkingAvailable === 'true',
+      yearBuilt:
+        formData.yearBuilt !== '' && formData.yearBuilt != null && !isNaN(Number(formData.yearBuilt))
+          ? parseInt(formData.yearBuilt, 10)
+          : formData.year !== '' && formData.year != null && !isNaN(Number(formData.year))
+          ? parseInt(formData.year, 10)
+          : undefined,
     }
+
+    // Filter out undefined fields so the payload strictly contains ONLY defined PropertyRequest fields
+    const payload = Object.fromEntries(
+      Object.entries(rawPayload).filter(([_, v]) => v !== undefined)
+    )
 
     onSubmit(payload)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
-      {/* 1. Basic Information */}
+      {/* 1. General Property Information */}
       <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
         <div className="border-b border-[#D9E0E6] pb-4">
           <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
@@ -258,330 +218,107 @@ export default function OwnerPropertyForm({
             General Property Information
           </h2>
           <p className="text-xs text-[#5B6875] mt-0.5">
-            Basic identity and location details for your real estate listing
+            Basic identity and classification for your property listing
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-1">
             <Input
               label="Property Name"
               placeholder="e.g. Sunset Palms Residences"
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              error={errors.name}
+              value={formData.propertyName}
+              onChange={(e) => handleChange('propertyName', e.target.value)}
+              error={errors.propertyName || errors.name}
               required
             />
           </div>
 
-          <Select
-            label="Property Type"
-            options={PROPERTY_TYPE_OPTIONS}
-            value={formData.type}
-            onChange={(e) => handleChange('type', e.target.value)}
-            required
-          />
-
-          <Select
-            label="Availability Status"
-            options={STATUS_OPTIONS}
-            value={formData.status}
-            onChange={(e) => handleChange('status', e.target.value)}
-            required
-          />
-
-          <div className="sm:col-span-2">
-            <Input
-              label="Street Address"
-              placeholder="e.g. 420 Ocean Boulevard"
-              value={formData.address}
-              onChange={(e) => handleChange('address', e.target.value)}
-              error={errors.address}
+          <div className="sm:col-span-1">
+            <Select
+              label="Property Type"
+              options={PROPERTY_TYPE_OPTIONS}
+              value={formData.propertyType}
+              onChange={(e) => handleChange('propertyType', e.target.value)}
+              error={errors.propertyType}
               required
-            />
-          </div>
-
-          <Input
-            label="City"
-            placeholder="e.g. Santa Monica"
-            value={formData.city}
-            onChange={(e) => handleChange('city', e.target.value)}
-            error={errors.city}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="State"
-              placeholder="CA"
-              value={formData.state}
-              onChange={(e) => handleChange('state', e.target.value)}
-            />
-            <Input
-              label="ZIP Code"
-              placeholder="90401"
-              value={formData.zipCode}
-              onChange={(e) => handleChange('zipCode', e.target.value)}
             />
           </div>
         </div>
       </div>
 
-      {/* 2. Specifications & Layout */}
+      {/* 2. Specifications & Features */}
       <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
         <div className="border-b border-[#D9E0E6] pb-4">
-          <h2 className="text-base font-semibold text-[#243447]">
-            Unit Specifications & Features
+          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+            <Layers className="w-5 h-5 text-[#315A7D]" />
+            Property Specifications
           </h2>
           <p className="text-xs text-[#5B6875] mt-0.5">
-            Dimensions, furnishing level, and parking accommodations
+            Dimensions, construction year, furnishing status, and parking accommodations
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <Input
-            label="Bedrooms"
+            label="Total Area (Sq Ft)"
             type="number"
             min="0"
             step="1"
-            value={formData.bedrooms}
-            onChange={(e) => handleChange('bedrooms', e.target.value)}
-            error={errors.bedrooms}
-            required
+            placeholder="e.g. 1200"
+            value={formData.totalArea}
+            onChange={(e) => handleChange('totalArea', e.target.value)}
+            error={errors.totalArea || errors.area}
           />
 
           <Input
-            label="Bathrooms"
+            label="Year Built"
             type="number"
-            min="0.5"
-            step="0.5"
-            value={formData.bathrooms}
-            onChange={(e) => handleChange('bathrooms', e.target.value)}
-            error={errors.bathrooms}
-            required
-          />
-
-          <Input
-            label="Living Area (Sq Ft)"
-            type="number"
-            min="100"
-            step="10"
-            placeholder="1100"
-            value={formData.area}
-            onChange={(e) => handleChange('area', e.target.value)}
-            error={errors.area}
-            required
+            min="1800"
+            max={new Date().getFullYear() + 1}
+            step="1"
+            placeholder="e.g. 2022"
+            value={formData.yearBuilt}
+            onChange={(e) => handleChange('yearBuilt', e.target.value)}
+            error={errors.yearBuilt}
+            helperText="Year property was constructed"
           />
 
           <Select
-            label="Furnishing"
-            options={FURNISHING_OPTIONS}
-            value={formData.furnishing}
-            onChange={(e) => handleChange('furnishing', e.target.value)}
+            label="Furnishing Status"
+            options={FURNISHING_STATUS_OPTIONS}
+            value={formData.furnishingStatus}
+            onChange={(e) => handleChange('furnishingStatus', e.target.value)}
           />
 
           <Select
-            label="Parking Option"
+            label="Parking Available"
             options={PARKING_OPTIONS}
-            value={formData.parking}
-            onChange={(e) => handleChange('parking', e.target.value)}
+            value={formData.parkingAvailable}
+            onChange={(e) => handleChange('parkingAvailable', e.target.value)}
           />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Total Units"
-              type="number"
-              min="1"
-              value={formData.totalUnits}
-              onChange={(e) => handleChange('totalUnits', e.target.value)}
-            />
-            <Input
-              label="Occupied"
-              type="number"
-              min="0"
-              max={formData.totalUnits}
-              value={formData.occupiedUnits}
-              onChange={(e) => handleChange('occupiedUnits', e.target.value)}
-            />
-          </div>
         </div>
       </div>
 
-      {/* 3. Pricing & Financials */}
+      {/* 3. Description */}
       <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
         <div className="border-b border-[#D9E0E6] pb-4">
           <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#3F7D58]" />
-            Pricing & Deposits
+            <FileText className="w-5 h-5 text-[#315A7D]" />
+            Property Description
           </h2>
           <p className="text-xs text-[#5B6875] mt-0.5">
-            Base lease rate and required security deposit
+            Detailed overview of property architecture, features, and leasing highlights
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Input
-            label="Monthly Rent ($ USD)"
-            type="number"
-            min="0"
-            step="25"
-            placeholder="2500"
-            value={formData.monthlyRent}
-            onChange={(e) => handleChange('monthlyRent', e.target.value)}
-            leftIcon={<DollarSign className="w-4 h-4" />}
-            error={errors.monthlyRent}
-            required
-          />
-
-          <Input
-            label="Security Deposit ($ USD)"
-            type="number"
-            min="0"
-            step="25"
-            placeholder="2500"
-            value={formData.deposit}
-            onChange={(e) => handleChange('deposit', e.target.value)}
-            leftIcon={<DollarSign className="w-4 h-4" />}
-            helperText="Standard recommendation: 1 month rent"
-          />
-        </div>
-      </div>
-
-      {/* 4. Amenities */}
-      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-5">
-        <div className="border-b border-[#D9E0E6] pb-4">
-          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#B7791F]" />
-            Property Amenities
-          </h2>
-          <p className="text-xs text-[#5B6875] mt-0.5">
-            Select all convenience features and building facilities included
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2.5">
-          {AMENITIES_LIST.map((amenity) => {
-            const isSelected = formData.amenities.includes(amenity)
-            return (
-              <button
-                type="button"
-                key={amenity}
-                onClick={() => toggleAmenity(amenity)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  isSelected
-                    ? 'bg-[#EAF2F7] text-[#315A7D] border-[#315A7D] shadow-xs'
-                    : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6] hover:bg-[#EAF2F7] hover:text-[#243447]'
-                }`}
-              >
-                {isSelected ? (
-                  <Check className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
-                ) : (
-                  <Plus className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                )}
-                <span>{amenity}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 5. Image & Description */}
-      <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="border-b border-[#D9E0E6] pb-4">
-          <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-[#315A7D]" />
-            Media & Description
-          </h2>
-          <p className="text-xs text-[#5B6875] mt-0.5">
-            Add high-resolution photography and detailed leasing description
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <Input
-              label="Featured Image URL or Upload"
-              placeholder="https://images.unsplash.com/..."
-              value={formData.imageUrl}
-              onChange={(e) => handleChange('imageUrl', e.target.value)}
-              helperText="Provide an image URL, choose a preset below, or upload a local image file"
-            />
-            <div className="mt-2 flex items-center gap-3">
-              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#D9E0E6] hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] transition-colors">
-                <ImageIcon className="w-3.5 h-3.5 text-[#315A7D]" />
-                <span>Upload Local Photo</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          handleChange('imageUrl', event.target.result)
-                        }
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              </label>
-              <span className="text-[11px] text-[#5B6875]">PNG, JPG, WebP up to 5MB</span>
-            </div>
-          </div>
-
-          {/* Quick presets */}
-          <div>
-            <span className="block text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider mb-2">
-              Or Select Sample Preset Photo
-            </span>
-            <div className="grid grid-cols-5 gap-2">
-              {SAMPLE_IMAGE_PRESETS.map((url, idx) => (
-                <button
-                  type="button"
-                  key={idx}
-                  onClick={() => handleChange('imageUrl', url)}
-                  className={`relative rounded-xl overflow-hidden aspect-video border-2 transition-all ${
-                    formData.imageUrl === url
-                      ? 'border-[#315A7D] ring-2 ring-[#315A7D]/20'
-                      : 'border-[#D9E0E6] hover:border-[#315A7D] opacity-80 hover:opacity-100'
-                  }`}
-                >
-                  <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Live Preview Box */}
-          {formData.imageUrl && (
-            <div className="p-4 rounded-xl border border-[#D9E0E6] bg-[#F7F8FA]">
-              <span className="block text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider mb-2">
-                Live Image Preview
-              </span>
-              <div className="relative rounded-xl overflow-hidden aspect-video max-w-md border border-[#D9E0E6] bg-[#D9E0E6]">
-                <img
-                  src={formData.imageUrl}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = SAMPLE_IMAGE_PRESETS[0]
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          <Textarea
-            label="Property Description"
-            rows={4}
-            placeholder="Describe unit architecture, neighborhood perks, proximity to transit, and unique architectural amenities..."
-            value={formData.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-          />
-        </div>
+        <Textarea
+          label="Description"
+          rows={4}
+          placeholder="Describe property architecture, neighborhood perks, proximity to transit, and unique architectural features..."
+          value={formData.description}
+          onChange={(e) => handleChange('description', e.target.value)}
+        />
       </div>
 
       {/* Form Action Buttons */}

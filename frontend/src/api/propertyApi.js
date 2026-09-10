@@ -1,11 +1,4 @@
 import axiosClient from './axiosClient.js'
-import {
-  getMockProperties,
-  getMockPropertyById,
-  addMockProperty,
-  updateMockProperty,
-  deleteMockProperty,
-} from '../utils/ownerPropertyMockData.js'
 
 /**
  * Property Enums matching Spring Boot backend exactly
@@ -91,14 +84,24 @@ export const mapParkingAvailableToBackend = (parking) => {
  * Strictly converts form field names to backend names:
  *   name -> propertyName
  *   type -> propertyType (canonical enums)
+ *   description -> description
  *   area -> totalArea
  *   furnishing -> furnishingStatus (canonical enums)
  *   parking -> parkingAvailable (boolean)
- *   rent -> monthlyRent
- *   deposit -> securityDeposit
+ *   year / yearBuilt -> yearBuilt (integer)
  *
- * Strictly EXCLUDES response/UI-only fields:
- *   ownerId, ownerName, propertyId, status, createdAt, updatedAt,
+ * Current backend-supported PropertyRequest fields:
+ *   - propertyName
+ *   - propertyType
+ *   - description
+ *   - totalArea
+ *   - furnishingStatus
+ *   - parkingAvailable
+ *   - yearBuilt
+ *
+ * Strictly EXCLUDES response/status/legacy/UI-only fields:
+ *   ownerId, ownerName, propertyId, id, status, createdAt, updatedAt,
+ *   bedrooms, bathrooms, monthlyRent, securityDeposit,
  *   address, city, state, zipCode, amenities, buildings, units, images, etc.
  */
 export const buildPropertyRequestPayload = (data = {}) => {
@@ -113,15 +116,8 @@ export const buildPropertyRequestPayload = (data = {}) => {
 
   const rawArea = data.totalArea != null ? data.totalArea : data.area
   const totalArea =
-    rawArea != null && rawArea !== '' ? Number(rawArea) : undefined
-
-  const bedrooms =
-    data.bedrooms != null && data.bedrooms !== ''
-      ? Number(data.bedrooms)
-      : undefined
-  const bathrooms =
-    data.bathrooms != null && data.bathrooms !== ''
-      ? Number(data.bathrooms)
+    rawArea != null && rawArea !== '' && !isNaN(Number(rawArea))
+      ? Number(rawArea)
       : undefined
 
   const rawFurnishing = data.furnishingStatus || data.furnishing
@@ -134,35 +130,36 @@ export const buildPropertyRequestPayload = (data = {}) => {
   const parkingAvailable =
     rawParking != null ? mapParkingAvailableToBackend(rawParking) : undefined
 
-  const rawRent = data.monthlyRent != null ? data.monthlyRent : data.rent
-  const monthlyRent =
-    rawRent != null && rawRent !== '' ? Number(rawRent) : undefined
-
-  const rawDeposit =
-    data.securityDeposit != null ? data.securityDeposit : data.deposit
-  const securityDeposit =
-    rawDeposit != null && rawDeposit !== '' ? Number(rawDeposit) : undefined
+  const rawYear = data.yearBuilt != null ? data.yearBuilt : data.year
+  const yearBuilt =
+    rawYear != null && rawYear !== '' && !isNaN(Number(rawYear))
+      ? Math.round(Number(rawYear))
+      : undefined
 
   const payload = {
     propertyName: propertyName || undefined,
     propertyType,
     description,
     totalArea,
-    bedrooms,
-    bathrooms,
     furnishingStatus,
     parkingAvailable,
-    monthlyRent,
-    securityDeposit,
+    yearBuilt,
   }
 
-  // Ensure ownerId and all UI/response fields are NEVER included
+  // Ensure ownerId, status, id, and all legacy/UI fields are NEVER included in request payload
   delete payload.ownerId
   delete payload.ownerName
   delete payload.propertyId
+  delete payload.id
   delete payload.status
   delete payload.createdAt
   delete payload.updatedAt
+  delete payload.bedrooms
+  delete payload.bathrooms
+  delete payload.monthlyRent
+  delete payload.securityDeposit
+  delete payload.deposit
+  delete payload.rent
   delete payload.address
   delete payload.city
   delete payload.state
@@ -202,6 +199,14 @@ export const getMyProperties = async () => {
  */
 export const getPropertyById = async (id) => {
   return axiosClient.get(`/owner/properties/${id}`)
+}
+
+/**
+ * GET /api/owner/properties/{id}/details
+ * Retrieve complete property details (property, address, buildings, amenities, images)
+ */
+export const getPropertyDetails = async (id) => {
+  return axiosClient.get(`/owner/properties/${id}/details`)
 }
 
 /**
@@ -257,10 +262,118 @@ export const updatePropertyStatus = async (id, status) => {
   })
 }
 
+/**
+ * Maps Spring Boot PropertyResponse to the shape expected by UI components
+ * Backend fields:
+ * - propertyId -> id, propertyId
+ * - propertyName -> name, propertyName
+ * - propertyType -> type, propertyType
+ * - description -> description
+ * - totalArea -> area, totalArea
+ * - furnishingStatus -> furnishing, furnishingStatus
+ * - parkingAvailable -> parking, parkingAvailable
+ * - yearBuilt -> yearBuilt
+ * - status -> status
+ * - ownerId, ownerName, createdAt, updatedAt
+ */
+export const mapBackendPropertyToUi = (prop) => {
+  if (!prop) return null
+
+  const id =
+    prop.propertyId != null
+      ? String(prop.propertyId)
+      : prop.id != null
+      ? String(prop.id)
+      : ''
+  const name = prop.propertyName || prop.name || 'Unnamed Property'
+  const type = prop.propertyType || prop.type || 'APARTMENT'
+
+  return {
+    ...prop,
+    id,
+    propertyId: prop.propertyId ?? prop.id,
+    name,
+    propertyName: prop.propertyName ?? prop.name,
+    type,
+    propertyType: prop.propertyType ?? prop.type,
+    // Address fields: keep in current fallback/empty state until Phase 4 Address integration
+    address: prop.address || '',
+    city: prop.city || '',
+    state: prop.state || '',
+    zipCode: prop.zipCode || '',
+    // Specs (legacy fields no longer returned by backend Property API)
+    bedrooms: prop.bedrooms != null ? Number(prop.bedrooms) : null,
+    bathrooms: prop.bathrooms != null ? Number(prop.bathrooms) : null,
+    area:
+      prop.totalArea != null
+        ? Number(prop.totalArea)
+        : prop.area != null
+        ? Number(prop.area)
+        : 0,
+    totalArea:
+      prop.totalArea != null
+        ? Number(prop.totalArea)
+        : prop.area != null
+        ? Number(prop.area)
+        : 0,
+    furnishing: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
+    furnishingStatus: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
+    parking:
+      prop.parkingAvailable != null
+        ? prop.parkingAvailable
+          ? 'Available'
+          : 'None'
+        : prop.parking || 'None',
+    parkingAvailable:
+      prop.parkingAvailable != null
+        ? Boolean(prop.parkingAvailable)
+        : prop.parking === 'Available' || Boolean(prop.parking),
+    yearBuilt:
+      prop.yearBuilt != null
+        ? Number(prop.yearBuilt)
+        : prop.year != null
+        ? Number(prop.year)
+        : null,
+    // Financials (legacy fields no longer returned by backend Property API)
+    monthlyRent: prop.monthlyRent != null ? Number(prop.monthlyRent) : null,
+    deposit:
+      prop.securityDeposit != null
+        ? Number(prop.securityDeposit)
+        : prop.deposit != null
+        ? Number(prop.deposit)
+        : null,
+    securityDeposit:
+      prop.securityDeposit != null
+        ? Number(prop.securityDeposit)
+        : prop.deposit != null
+        ? Number(prop.deposit)
+        : null,
+    // Status & details
+    status: prop.status || 'AVAILABLE',
+    description: prop.description || '',
+    // Units metrics (backend PropertyResponse does not have nested building/units)
+    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : 1,
+    occupiedUnits:
+      prop.occupiedUnits != null
+        ? Number(prop.occupiedUnits)
+        : prop.status === 'OCCUPIED'
+        ? 1
+        : 0,
+    images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
+    amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
+    ownerId: prop.ownerId,
+    ownerName: prop.ownerName,
+    createdAt: prop.createdAt,
+    updatedAt: prop.updatedAt,
+  }
+}
+
 // ============================================================================
-// Development / UI Compatibility Fallbacks
-// Preserved so existing UI pages (AddBuildingPage, etc.) remain functional before Phase 3
+// Real Backend Property Fetching
+// Retrieves all properties from real Spring Boot backend /api/owner/properties
 // ============================================================================
 export const getProperties = async () => {
-  return getMockProperties()
+  const response = await getMyProperties()
+  const data = Array.isArray(response) ? response : response?.data || []
+  return data.map(mapBackendPropertyToUi)
 }

@@ -4,7 +4,7 @@ import { Button, StatusBadge, Loader } from '../../components/ui'
 import {
   RefreshCw,
   Building2,
-  DollarSign,
+  IndianRupee,
   ShieldAlert,
   Wrench,
   AlertTriangle,
@@ -46,7 +46,7 @@ export default function AIMonitoringPage() {
       status: 'Active',
       lastUpdated: '2026-09-02 04:00 UTC',
       confidence: '94.6% Accuracy',
-      icon: <DollarSign className="w-4 h-4 text-[#3F7D58]" />,
+      icon: <IndianRupee className="w-4 h-4 text-[#3F7D58]" />,
       bg: 'bg-[#EDF7EE] border-[#C6DEC8]',
       summary:
         'Analyzes submarket square footage rates, seasonal turnover, and local amenity scores to calculate optimal rental pricing ranges.',
@@ -110,7 +110,7 @@ export default function AIMonitoringPage() {
       severity: 'Warning',
       timestamp: '2026-09-03 08:30 UTC',
       message:
-        'Unit #205 listed at $3,450/month is +14% above predicted neighborhood equilibrium ($3,020). May lead to extended vacancy.',
+        'Unit #205 listed at ₹3,450/month is +14% above predicted neighborhood equilibrium (₹3,020). May lead to extended vacancy.',
       badgeClass: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
     },
     {
@@ -120,7 +120,7 @@ export default function AIMonitoringPage() {
       severity: 'High',
       timestamp: '2026-09-02 19:15 UTC',
       message:
-        'Invoice INV-2026-003 ($3,300) flagged with elevated risk score (78/100) after consecutive automated billing token rejections.',
+        'Invoice INV-2026-003 (₹3,300) flagged with elevated risk score (78/100) after consecutive automated billing token rejections.',
       badgeClass: 'bg-[#FDF2F2] text-[#8A2E2C] border-[#EFC8C7]',
     },
     {

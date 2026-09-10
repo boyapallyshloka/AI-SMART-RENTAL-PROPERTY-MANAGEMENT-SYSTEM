@@ -10,7 +10,7 @@ import {
 } from '../../components/ui'
 import {
   CreditCard,
-  DollarSign,
+  IndianRupee,
   Clock,
   CheckCircle2,
   AlertTriangle,
@@ -142,8 +142,8 @@ export default function TenantPaymentsPage() {
                   </span>
                   <div className="text-2xl font-bold text-[#243447] mt-1">
                     {upcomingInvoice
-                      ? `$${Number(upcomingInvoice.amount).toLocaleString()}`
-                      : '$0'}
+                      ? `₹${Number(upcomingInvoice.amount).toLocaleString('en-IN')}`
+                      : '₹0'}
                   </div>
                   <span className="text-xs text-[#5B6875] block mt-0.5">
                     {upcomingInvoice
@@ -163,7 +163,7 @@ export default function TenantPaymentsPage() {
                     Pending Amount
                   </span>
                   <div className="text-2xl font-bold text-[#B94A48] mt-1">
-                    ${totalPendingAmount.toLocaleString()}
+                    ₹{totalPendingAmount.toLocaleString('en-IN')}
                   </div>
                   <span className="text-xs text-[#5B6875] block mt-0.5">
                     {pendingInvoices.length} outstanding {pendingInvoices.length === 1 ? 'bill' : 'bills'}
@@ -181,7 +181,7 @@ export default function TenantPaymentsPage() {
                     Total Paid
                   </span>
                   <div className="text-2xl font-bold text-[#3F7D58] mt-1">
-                    ${totalPaidAmount.toLocaleString()}
+                    ₹{totalPaidAmount.toLocaleString('en-IN')}
                   </div>
                   <span className="text-xs text-[#5B6875] block mt-0.5">
                     {paidInvoices.length} settled {paidInvoices.length === 1 ? 'invoice' : 'invoices'}
@@ -256,7 +256,7 @@ export default function TenantPaymentsPage() {
 
                       {/* Amount */}
                       <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                        ${Number(inv.amount || 0).toLocaleString()}
+                        ₹{Number(inv.amount || 0).toLocaleString('en-IN')}
                       </td>
 
                       {/* Status */}
@@ -280,7 +280,7 @@ export default function TenantPaymentsPage() {
                             size="sm"
                             variant="primary"
                             onClick={handlePayNow}
-                            leftIcon={<DollarSign className="w-3.5 h-3.5" />}
+                            leftIcon={<IndianRupee className="w-3.5 h-3.5" />}
                           >
                             Pay Now
                           </Button>

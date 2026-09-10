@@ -42,7 +42,7 @@ const getDemoResponse = (query) => {
   ) {
     return {
       text: "You can use the Property Search section to filter properties by location, budget, bedrooms, furnishing and other preferences.",
-      suggestions: ['Under $1,500/mo', '2+ Bedrooms', 'Pet friendly units'],
+      suggestions: ['Under ₹1,500/mo', '2+ Bedrooms', 'Pet friendly units'],
     }
   }
 

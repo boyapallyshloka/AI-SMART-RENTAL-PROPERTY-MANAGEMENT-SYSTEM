@@ -5,7 +5,7 @@ const INITIAL_NOTIFICATIONS = [
   {
     id: 1,
     title: 'Rent payment received',
-    description: 'Unit #304 - $2,250 recorded successfully.',
+    description: 'Unit #304 - ₹2,250 recorded successfully.',
     time: '12m ago',
     unread: true,
     type: 'payment',

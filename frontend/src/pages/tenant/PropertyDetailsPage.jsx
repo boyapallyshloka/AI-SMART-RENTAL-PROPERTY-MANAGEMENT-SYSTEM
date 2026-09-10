@@ -2,10 +2,6 @@ import React, { useState } from 'react'
 import PropertyDetailsSection from '../../components/properties/PropertyDetailsSection'
 import PropertyCard from '../../components/properties/PropertyCard'
 import {
-  mockProperties,
-  getPropertyById,
-} from '../../utils/propertyMockData'
-import {
   ArrowLeft,
   MapPin,
   Sparkles,
@@ -13,7 +9,7 @@ import {
   Share2,
   Calendar,
   CheckCircle2,
-  DollarSign,
+  IndianRupee,
   ShieldCheck,
   Send,
   X,
@@ -25,25 +21,36 @@ import {
   AlertCircle,
 } from 'lucide-react'
 
-/**
- * PropertyDetailsPage
- * Displays full property details, photo gallery, AI match analysis, and interactive Apply Now flow.
- *
- * @param {Object} props
- * @param {Object} [props.property] - Selected property object
- * @param {string} [props.propertyId] - Property ID if object not passed directly
- * @param {Function} [props.onBack] - Callback to return to search results
- * @param {Function} [props.onSelectSimilar] - Callback when clicking a similar property
- */
 export default function PropertyDetailsPage({
   property: propFromProps,
   propertyId,
   onBack,
   onSelectSimilar,
 }) {
-  // Resolve property from props or fallback to ID or first mock property
-  const activeProperty =
-    propFromProps || (propertyId ? getPropertyById(propertyId) : mockProperties[0])
+  // Resolve property from props (strictly no mock property fallback)
+  const activeProperty = propFromProps || null
+
+  if (!activeProperty) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#EAF2F7] text-[#315A7D] mb-3">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h2 className="text-xl font-bold text-[#243447]">No Property Selected</h2>
+        <p className="text-sm text-[#5B6875] mt-1 max-w-md">
+          Please select a property from the discovery listings to view its full specifications and details.
+        </p>
+        <button
+          type="button"
+          onClick={() => (onBack ? onBack() : window.history.back())}
+          className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-[#315A7D] px-4 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-[#274B68] transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Properties</span>
+        </button>
+      </div>
+    )
+  }
 
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
@@ -113,10 +120,8 @@ export default function PropertyDetailsPage({
     setTourSubmitted(true)
   }
 
-  // Find similar recommended properties (excluding current)
-  const similarProperties = mockProperties
-    .filter((p) => p.id !== id)
-    .slice(0, 3)
+  // Similar properties: empty unless supplied via props
+  const similarProperties = []
 
   return (
     <div className="min-h-screen space-y-6 pb-20">
@@ -240,7 +245,7 @@ export default function PropertyDetailsPage({
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-3xl font-extrabold tracking-tight text-[#315A7D]">
-                    ${monthlyRent.toLocaleString()}
+                    ₹{monthlyRent.toLocaleString('en-IN')}
                   </span>
                   <span className="text-xs text-[#5B6875] font-medium ml-1">
                     / month
@@ -251,7 +256,7 @@ export default function PropertyDetailsPage({
                 </span>
               </div>
               <p className="text-xs text-[#5B6875]">
-                Security Deposit: <strong className="text-[#243447]">${deposit.toLocaleString()}</strong> (Due upon signing)
+                Security Deposit: <strong className="text-[#243447]">₹{deposit.toLocaleString('en-IN')}</strong> (Due upon signing)
               </p>
             </div>
 
@@ -318,33 +323,35 @@ export default function PropertyDetailsPage({
       </div>
 
       {/* 5. Recommended Similar Properties */}
-      <div className="pt-12 border-t border-[#D9E0E6] space-y-6">
-        <div>
-          <h3 className="text-xl font-bold text-[#243447] flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#315A7D]" />
-            <span>Similar High AI Match Properties</span>
-          </h3>
-          <p className="text-xs text-[#5B6875] mt-1">
-            Other curated rentals matching your profile and budget
-          </p>
-        </div>
+      {similarProperties.length > 0 && (
+        <div className="pt-12 border-t border-[#D9E0E6] space-y-6">
+          <div>
+            <h3 className="text-xl font-bold text-[#243447] flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#315A7D]" />
+              <span>Similar High AI Match Properties</span>
+            </h3>
+            <p className="text-xs text-[#5B6875] mt-1">
+              Other curated rentals matching your profile and budget
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {similarProperties.map((p) => (
-            <PropertyCard
-              key={p.id}
-              property={p}
-              onSelect={() => {
-                if (onSelectSimilar) {
-                  onSelectSimilar(p)
-                } else {
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }
-              }}
-            />
-          ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {similarProperties.map((p) => (
+              <PropertyCard
+                key={p.id}
+                property={p}
+                onSelect={() => {
+                  if (onSelectSimilar) {
+                    onSelectSimilar(p)
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 6. MODAL: Apply Now Interactive Rental Application Modal */}
@@ -362,7 +369,7 @@ export default function PropertyDetailsPage({
                   Apply for {name}
                 </h3>
                 <p className="text-xs text-[#5B6875]">
-                  {address || location} &bull; Rent: <strong className="text-[#243447]">${monthlyRent}/mo</strong>
+                  {address || location} &bull; Rent: <strong className="text-[#243447]">₹{monthlyRent}/mo</strong>
                 </p>
               </div>
 
@@ -480,7 +487,7 @@ export default function PropertyDetailsPage({
                   {/* Monthly Income */}
                   <div className="space-y-1">
                     <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                      <Briefcase className="w-3.5 h-3.5 text-[#315A7D]" /> Estimated Monthly Income ($)
+                      <Briefcase className="w-3.5 h-3.5 text-[#315A7D]" /> Estimated Monthly Income (₹)
                     </label>
                     <input
                       type="number"
@@ -507,7 +514,7 @@ export default function PropertyDetailsPage({
                 {/* Submit button bar */}
                 <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-between">
                   <span className="text-[#5B6875] text-[11px]">
-                    Application fee: $45 (waived for HomeSphere verified members)
+                    Application fee: ₹45 (waived for HomeSphere verified members)
                   </span>
                   <div className="flex gap-2">
                     <button

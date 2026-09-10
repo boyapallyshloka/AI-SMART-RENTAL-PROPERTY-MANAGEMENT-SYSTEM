@@ -15,7 +15,7 @@ import {
   Mail,
   Building2,
   Wrench,
-  DollarSign,
+  IndianRupee,
   Sparkles,
   Layers,
 } from 'lucide-react'
@@ -171,7 +171,7 @@ export default function UIShowcase() {
             placeholder="e.g. 1850"
             defaultValue="invalid_amount"
             error="Please enter a valid positive numeric amount"
-            leftIcon={<DollarSign className="w-4 h-4" />}
+            leftIcon={<IndianRupee className="w-4 h-4" />}
             required
           />
 

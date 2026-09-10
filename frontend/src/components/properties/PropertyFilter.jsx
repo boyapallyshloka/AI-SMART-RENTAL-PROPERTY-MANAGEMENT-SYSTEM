@@ -6,14 +6,34 @@ import {
   RotateCcw,
   Building2,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Bed,
   Sofa,
   Car,
   Sparkles,
   ChevronDown,
 } from 'lucide-react'
-import { filterOptions } from '../../utils/propertyMockData'
+export const filterOptions = {
+  propertyTypes: ['All Types', 'Apartment', 'Studio', 'Townhouse', 'Condo', 'Penthouse', 'Villa'],
+  cities: ['All Locations', 'Austin, TX', 'Seattle, WA', 'San Diego, CA', 'Miami, FL', 'New York, NY', 'Chicago, IL', 'Denver, CO', 'San Francisco, CA'],
+  bedrooms: [
+    { label: 'Any Beds', value: 'all' },
+    { label: 'Studio (0)', value: '0' },
+    { label: '1 Bed', value: '1' },
+    { label: '2 Beds', value: '2' },
+    { label: '3+ Beds', value: '3+' },
+    { label: '4+ Beds', value: '4+' },
+  ],
+  furnishing: ['All Furnishing', 'Furnished', 'Semi-Furnished', 'Unfurnished'],
+  parking: ['All Parking', 'Covered Garage', 'Dedicated Spot', 'Street Parking'],
+  priceRanges: [
+    { label: 'Any Budget', min: 0, max: Infinity },
+    { label: 'Under ₹2,000', min: 0, max: 2000 },
+    { label: '₹2,000 - ₹3,000', min: 2000, max: 3000 },
+    { label: '₹3,000 - ₹4,000', min: 3000, max: 4000 },
+    { label: '₹4,000+', min: 4000, max: Infinity },
+  ],
+}
 
 /**
  * Enterprise PropertyFilter Component for HomeSphere
@@ -164,13 +184,13 @@ export default function PropertyFilter({
             {/* 1. Budget / Rent Filter */}
             <div className="space-y-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-[#3F7D58]" />
+                <IndianRupee className="w-3.5 h-3.5 text-[#3F7D58]" />
                 Monthly Rent
               </label>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[#5B6875]">
-                    $
+                    ₹
                   </span>
                   <input
                     type="number"
@@ -185,7 +205,7 @@ export default function PropertyFilter({
                 <span className="text-[#5B6875] text-xs">-</span>
                 <div className="relative flex-1">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[#5B6875]">
-                    $
+                    ₹
                   </span>
                   <input
                     type="number"

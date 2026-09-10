@@ -44,7 +44,7 @@ export default function TenantDashboardPage() {
                 Welcome back, {user?.name || 'Elena'}!
               </h1>
               <p className="text-xs sm:text-sm text-[#EAF2F7]/90">
-                Your next lease payment of $2,400 is scheduled for October 1st, 2026.
+                Your next lease payment of ₹2,400 is scheduled for October 1st, 2026.
               </p>
             </div>
           </div>
@@ -61,7 +61,7 @@ export default function TenantDashboardPage() {
             <MetricCard
               title="Payment Status"
               value="Current"
-              subtitle="Last paid: Sep 1, 2026 ($2,400)"
+              subtitle="Last paid: Sep 1, 2026 (₹2,400)"
               change="AutoPay Enabled"
               icon={<CreditCard className="w-4 h-4 text-[#3F7D58]" />}
             />
@@ -86,9 +86,9 @@ export default function TenantDashboardPage() {
 
               <div className="space-y-2.5">
                 {[
-                  { id: 'INV-2026-09', date: 'Sep 01, 2026', amount: '$2,400.00' },
-                  { id: 'INV-2026-08', date: 'Aug 01, 2026', amount: '$2,400.00' },
-                  { id: 'INV-2026-07', date: 'Jul 01, 2026', amount: '$2,400.00' },
+                  { id: 'INV-2026-09', date: 'Sep 01, 2026', amount: '₹2,400.00' },
+                  { id: 'INV-2026-08', date: 'Aug 01, 2026', amount: '₹2,400.00' },
+                  { id: 'INV-2026-07', date: 'Jul 01, 2026', amount: '₹2,400.00' },
                 ].map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between p-3 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs">
                     <div>

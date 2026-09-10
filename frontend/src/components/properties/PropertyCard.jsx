@@ -65,9 +65,9 @@ export default function PropertyCard({
   }
 
   // Format currency
-  const formattedRent = new Intl.NumberFormat('en-US', {
+  const formattedRent = new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     maximumFractionDigits: 0,
   }).format(monthlyRent)
 
@@ -144,7 +144,7 @@ export default function PropertyCard({
           </div>
           {property.deposit && (
             <span className="text-[11px] text-[#5B6875] bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded-md">
-              Dep: ${property.deposit.toLocaleString()}
+              Dep: ₹{Number(property.deposit).toLocaleString('en-IN')}
             </span>
           )}
         </div>

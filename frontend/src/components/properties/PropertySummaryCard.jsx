@@ -1,5 +1,5 @@
 import React from 'react'
-import { Building2, Users, DollarSign, Home } from 'lucide-react'
+import { Building2, Users, IndianRupee, Home } from 'lucide-react'
 
 /**
  * KPI Summary Cards for Owner Properties
@@ -116,12 +116,12 @@ export default function PropertySummaryCard({ properties = [] }) {
             Est. Monthly Revenue
           </span>
           <div className="p-2.5 rounded-md bg-[#FEF7EC] text-[#B7791F] border border-[#F4E2B6]">
-            <DollarSign className="w-5 h-5" />
+            <IndianRupee className="w-5 h-5" />
           </div>
         </div>
         <div>
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-            ${monthlyRevenue.toLocaleString()}
+            ₹{Number(monthlyRevenue || 0).toLocaleString('en-IN')}
           </p>
           <p className="text-xs text-[#5B6875] mt-0.5">
             Gross lease receivables

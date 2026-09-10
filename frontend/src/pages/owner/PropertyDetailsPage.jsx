@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
+  getPropertyDetails,
   getPropertyById,
   deleteProperty,
   updatePropertyStatus,
   CANONICAL_PROPERTY_STATUSES,
+  mapBackendPropertyToUi,
 } from '../../api/propertyApi'
 import {
   getAddress,
@@ -36,7 +38,7 @@ import {
   Bed,
   Bath,
   Maximize2,
-  DollarSign,
+  IndianRupee,
   Building,
   Building2,
   Home,
@@ -58,111 +60,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 
-/**
- * Maps Spring Boot PropertyResponse to the shape expected by UI components
- * Backend fields:
- * - propertyId -> id, propertyId
- * - propertyName -> name, propertyName
- * - propertyType -> type, propertyType
- * - description -> description
- * - totalArea -> area, totalArea
- * - bedrooms -> bedrooms
- * - bathrooms -> bathrooms
- * - furnishingStatus -> furnishing, furnishingStatus
- * - parkingAvailable -> parking, parkingAvailable
- * - monthlyRent -> monthlyRent
- * - securityDeposit -> deposit, securityDeposit
- * - status -> status
- * - ownerId, ownerName, createdAt, updatedAt
- *
- * NOTE: Address fields are left in fallback/empty state until Phase 4 Address integration.
- * DO NOT invent fake address fields.
- */
-export const mapBackendPropertyToUi = (prop) => {
-  if (!prop) return null
-
-  const id =
-    prop.propertyId != null
-      ? String(prop.propertyId)
-      : prop.id != null
-      ? String(prop.id)
-      : ''
-  const name = prop.propertyName || prop.name || 'Unnamed Property'
-  const type = prop.propertyType || prop.type || 'APARTMENT'
-
-  return {
-    ...prop,
-    id,
-    propertyId: prop.propertyId ?? prop.id,
-    name,
-    propertyName: prop.propertyName ?? prop.name,
-    type,
-    propertyType: prop.propertyType ?? prop.type,
-    // Address fields: keep in current fallback/empty state until Phase 4 Address integration
-    address: prop.address || '',
-    city: prop.city || '',
-    state: prop.state || '',
-    zipCode: prop.zipCode || '',
-    // Specs
-    bedrooms: prop.bedrooms != null ? Number(prop.bedrooms) : 0,
-    bathrooms: prop.bathrooms != null ? Number(prop.bathrooms) : 0,
-    area:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    totalArea:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    furnishing: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
-    furnishingStatus: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
-    parking:
-      prop.parkingAvailable != null
-        ? prop.parkingAvailable
-          ? 'Available'
-          : 'None'
-        : prop.parking || 'None',
-    parkingAvailable:
-      prop.parkingAvailable != null
-        ? Boolean(prop.parkingAvailable)
-        : prop.parking === 'Available' || Boolean(prop.parking),
-    // Financials
-    monthlyRent: prop.monthlyRent != null ? Number(prop.monthlyRent) : 0,
-    deposit:
-      prop.securityDeposit != null
-        ? Number(prop.securityDeposit)
-        : prop.deposit != null
-        ? Number(prop.deposit)
-        : 0,
-    securityDeposit:
-      prop.securityDeposit != null
-        ? Number(prop.securityDeposit)
-        : prop.deposit != null
-        ? Number(prop.deposit)
-        : 0,
-    // Status & details
-    status: prop.status || 'AVAILABLE',
-    description: prop.description || '',
-    // Units metrics (backend PropertyResponse does not have nested building/units)
-    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : 1,
-    occupiedUnits:
-      prop.occupiedUnits != null
-        ? Number(prop.occupiedUnits)
-        : prop.status === 'OCCUPIED'
-        ? 1
-        : 0,
-    images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
-    amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
-    ownerId: prop.ownerId,
-    ownerName: prop.ownerName,
-    createdAt: prop.createdAt,
-    updatedAt: prop.updatedAt,
-  }
-}
+export { mapBackendPropertyToUi }
 
 export default function PropertyDetailsPage() {
   const { id } = useParams()
@@ -232,15 +130,72 @@ export default function PropertyDetailsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await getPropertyById(id)
+      // Consolidated details endpoint: GET /api/owner/properties/{id}/details
+      // Replaces separate getPropertyById(id)
+      const response = await getPropertyDetails(id)
       const data = response?.data || response
-      if (data && (data.propertyId || data.id)) {
-        setProperty(mapBackendPropertyToUi(data))
+
+      // 1. Property
+      const rawProperty = data?.property || (data?.propertyId ? data : null)
+      if (rawProperty && (rawProperty.propertyId || rawProperty.id)) {
+        setProperty(mapBackendPropertyToUi(rawProperty))
       } else {
         setProperty(null)
       }
+
+      // 2. Address
+      const rawAddress = data?.address || null
+      if (rawAddress && (rawAddress.addressId || rawAddress.addressLine1)) {
+        setAddressData(rawAddress)
+      } else {
+        setAddressData(null)
+      }
+
+      // 3. Images
+      const rawImages = Array.isArray(data?.images) ? data.images : []
+      setPropertyImages(rawImages)
+      if (rawImages.length > 0 && selectedImageIndex >= rawImages.length) {
+        setSelectedImageIndex(0)
+      }
+
+      // 4. Amenities
+      const rawAmenities = Array.isArray(data?.amenities) ? data.amenities : []
+      setPropertyAmenities(rawAmenities)
+
+      // 5. Buildings with nested Floors and Units
+      const rawBuildings = Array.isArray(data?.buildings) ? data.buildings : []
+      const parsedBuildings = rawBuildings.map((item) => {
+        const b = item.building || item
+        const rawFloors = Array.isArray(item.floors) ? item.floors : []
+        const floors = rawFloors.map((fItem) => {
+          const fl = fItem.floor || fItem
+          const rawUnits = Array.isArray(fItem.units) ? fItem.units : []
+          const units = rawUnits.map((uItem) => uItem.unit || uItem)
+          return {
+            ...fl,
+            floorId: fl.floorId != null ? fl.floorId : fl.id,
+            floorNumber: fl.floorNumber,
+            floorName: fl.floorName,
+            units,
+          }
+        })
+        const totalUnitsFromFloors = floors.reduce(
+          (sum, fl) => sum + (fl.units?.length || 0),
+          0
+        )
+        return {
+          ...b,
+          buildingId: b.buildingId != null ? b.buildingId : b.id,
+          buildingName: b.buildingName || b.name || 'Unnamed Building',
+          totalFloors: b.totalFloors != null ? b.totalFloors : floors.length,
+          totalUnits:
+            b.totalUnits != null ? b.totalUnits : totalUnitsFromFloors,
+          floors,
+        }
+      })
+      setPropertyBuildings(parsedBuildings)
     } catch (err) {
-      console.error(`Failed to load property details for ID ${id}:`, err)
+      console.error(`Failed to load consolidated property details for ID ${id}:`, err)
       if (err?.response?.status === 404) {
         setProperty(null)
       } else {
@@ -256,90 +211,24 @@ export default function PropertyDetailsPage() {
     }
   }
 
-  const loadAddress = async (propId) => {
-    if (!propId) return
-    setIsLoadingAddress(true)
-    setAddressError(null)
-    try {
-      const response = await getAddress(propId)
-      const data = response?.data || response
-      if (data && (data.addressId || data.addressLine1)) {
-        setAddressData(data)
-      } else {
-        setAddressData(null)
-      }
-    } catch (err) {
-      if (
-        err?.response?.status === 404 ||
-        err?.response?.data?.message?.toLowerCase().includes('not found')
-      ) {
-        setAddressData(null)
-      } else {
-        console.error(`Failed to load address for property ${propId}:`, err)
-        setAddressData(null)
-      }
-    } finally {
-      setIsLoadingAddress(false)
-    }
+  const loadAddress = async () => {
+    return loadProperty()
   }
 
-  const loadImages = async (propId) => {
-    if (!propId) return
-    setIsLoadingImages(true)
-    setUploadError(null)
-    try {
-      const res = await getImagesByProperty(propId)
-      const data = Array.isArray(res) ? res : res?.data || []
-      setPropertyImages(data)
-      if (data.length > 0 && selectedImageIndex >= data.length) {
-        setSelectedImageIndex(0)
-      }
-    } catch (err) {
-      console.error(`Failed to load images for property ${propId}:`, err)
-      setPropertyImages([])
-    } finally {
-      setIsLoadingImages(false)
-    }
+  const loadImages = async () => {
+    return loadProperty()
   }
 
-  const loadAmenities = async (propId) => {
-    if (!propId) return
-    setIsLoadingAmenities(true)
-    setAmenitiesError(null)
-    try {
-      const res = await getPropertyAmenities(propId)
-      const data = Array.isArray(res) ? res : res?.data || []
-      setPropertyAmenities(data)
-    } catch (err) {
-      console.error(`Failed to load amenities for property ${propId}:`, err)
-      setPropertyAmenities([])
-    } finally {
-      setIsLoadingAmenities(false)
-    }
+  const loadAmenities = async () => {
+    return loadProperty()
   }
 
-  const loadBuildings = async (propId) => {
-    if (!propId) return
-    setIsLoadingBuildings(true)
-    setBuildingsError(null)
-    try {
-      const res = await getBuildingsByProperty(propId)
-      const data = Array.isArray(res) ? res : res?.data || []
-      setPropertyBuildings(data)
-    } catch (err) {
-      console.error(`Failed to load buildings for property ${propId}:`, err)
-      setPropertyBuildings([])
-    } finally {
-      setIsLoadingBuildings(false)
-    }
+  const loadBuildings = async () => {
+    return loadProperty()
   }
 
   useEffect(() => {
     loadProperty()
-    loadAddress(id)
-    loadImages(id)
-    loadAmenities(id)
-    loadBuildings(id)
   }, [id])
 
   const handleDelete = async () => {
@@ -785,10 +674,18 @@ export default function PropertyDetailsPage() {
     )
   }
 
-  const total = Number(property.totalUnits) || 1
-  const occupied = Number(property.occupiedUnits) || 0
+  const allUnits = propertyBuildings.flatMap((b) =>
+    (b.floors || []).flatMap((fl) => fl.units || [])
+  )
+  const totalUnitsCalculated = allUnits.length > 0 ? allUnits.length : (Number(property.totalUnits) || 0)
+  const occupiedUnitsCalculated = allUnits.length > 0
+    ? allUnits.filter((u) => u.status === 'OCCUPIED' || u.status === 'RENTED').length
+    : (Number(property.occupiedUnits) || (property.status === 'OCCUPIED' ? 1 : 0))
+
+  const total = totalUnitsCalculated || 1
+  const occupied = occupiedUnitsCalculated
   const vacant = Math.max(0, total - occupied)
-  const occupancyPct = Math.round((occupied / total) * 100)
+  const occupancyPct = total > 0 ? Math.round((occupied / total) * 100) : 0
   const currentImage = propertyImages[selectedImageIndex] || propertyImages[0] || null
 
   return (
@@ -914,24 +811,22 @@ export default function PropertyDetailsPage() {
                       ]
                         .filter(Boolean)
                         .join(', ')
-                    : [property.address, property.city, property.state, property.zipCode]
-                        .filter(Boolean)
-                        .join(', ') || 'Address not specified'}
+                    : 'Address not specified'}
                 </span>
               </p>
             </div>
 
             <div className="text-left md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-[#D9E0E6]">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
-                Monthly Rent
+                Total Area
               </p>
               <p className="text-3xl font-extrabold text-[#315A7D] tracking-tight">
-                ${Number(property.monthlyRent || 0).toLocaleString()}
-                <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
+                {property.totalArea != null ? Number(property.totalArea).toLocaleString() : '—'}
+                <span className="text-xs text-[#5B6875] font-normal"> sq ft</span>
               </p>
-              {property.deposit > 0 && (
+              {property.yearBuilt && (
                 <p className="text-xs text-[#5B6875] mt-0.5">
-                  Deposit: ${Number(property.deposit).toLocaleString()}
+                  Year Built: {property.yearBuilt}
                 </p>
               )}
             </div>
@@ -1100,7 +995,7 @@ export default function PropertyDetailsPage() {
                 No Photos Uploaded Yet
               </h3>
               <p className="text-xs text-[#5B6875] max-w-sm mt-1 mb-4">
-                Showcase this property with photos of the exterior, interior living spaces, bedrooms, and amenities.
+                Showcase this property with photos of the exterior, interior living spaces, architecture, and amenities.
               </p>
               <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#315A7D] hover:bg-[#254663] text-white text-xs font-semibold shadow-sm transition-colors">
                 <Plus className="w-4 h-4" />
@@ -1415,7 +1310,7 @@ export default function PropertyDetailsPage() {
               )}
             </div>
 
-            {/* Unit Key Specs */}
+            {/* Property Specs */}
             <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm">
               <h2 className="text-base font-semibold text-[#243447] mb-4">
                 Property Dimensions & Specs
@@ -1423,31 +1318,21 @@ export default function PropertyDetailsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mb-1">
-                    <Bed className="w-3.5 h-3.5 text-[#315A7D]" />
-                    <span>Bedrooms</span>
-                  </div>
-                  <p className="text-lg font-bold text-[#243447]">
-                    {property.bedrooms} Beds
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
-                  <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mb-1">
-                    <Bath className="w-3.5 h-3.5 text-[#315A7D]" />
-                    <span>Bathrooms</span>
-                  </div>
-                  <p className="text-lg font-bold text-[#243447]">
-                    {property.bathrooms} Baths
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
-                  <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mb-1">
                     <Maximize2 className="w-3.5 h-3.5 text-[#315A7D]" />
-                    <span>Floor Area</span>
+                    <span>Total Area</span>
                   </div>
                   <p className="text-lg font-bold text-[#243447]">
-                    {property.area} sq ft
+                    {property.totalArea != null ? `${Number(property.totalArea).toLocaleString()} sq ft` : '—'}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mb-1">
+                    <Calendar className="w-3.5 h-3.5 text-[#315A7D]" />
+                    <span>Year Built</span>
+                  </div>
+                  <p className="text-lg font-bold text-[#243447]">
+                    {property.yearBuilt || '—'}
                   </p>
                 </div>
 
@@ -1457,15 +1342,25 @@ export default function PropertyDetailsPage() {
                     <span>Furnishing</span>
                   </div>
                   <p className="text-sm font-bold text-[#243447] truncate">
-                    {property.furnishing}
+                    {property.furnishing || 'Unfurnished'}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mb-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#315A7D]" />
+                    <span>Parking</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#243447] truncate">
+                    {property.parking || (property.parkingAvailable ? 'Available' : 'None')}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-[#D9E0E6] flex items-center justify-between text-xs text-[#5B6875]">
-                <span>Parking Accommodations:</span>
+                <span>Property Classification:</span>
                 <span className="font-semibold text-[#243447]">
-                  {property.parking}
+                  {property.propertyType || property.type || '—'}
                 </span>
               </div>
             </div>
@@ -1834,6 +1729,58 @@ export default function PropertyDetailsPage() {
                         </span>
                       </div>
 
+                      {/* Nested Floors & Units representation */}
+                      {Array.isArray(b.floors) && b.floors.length > 0 && (
+                        <div className="pt-2 border-t border-[#D9E0E6]/60 space-y-2">
+                          <div className="text-[11px] font-semibold text-[#5B6875] uppercase tracking-wider flex items-center justify-between">
+                            <span>Floors &amp; Units</span>
+                            <span>{b.floors.length} {b.floors.length === 1 ? 'Floor' : 'Floors'}</span>
+                          </div>
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                            {b.floors.map((fl) => (
+                              <div
+                                key={fl.floorId || fl.floorNumber}
+                                className="p-2 rounded-lg bg-white border border-[#D9E0E6] text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between font-semibold text-[#243447]">
+                                  <span className="flex items-center gap-1">
+                                    <Layers className="w-3 h-3 text-[#315A7D]" />
+                                    {fl.floorName || `Floor ${fl.floorNumber}`}
+                                  </span>
+                                  <span className="text-[11px] text-[#5B6875] font-normal">
+                                    {Array.isArray(fl.units) ? fl.units.length : 0} {(fl.units?.length === 1) ? 'unit' : 'units'}
+                                  </span>
+                                </div>
+                                {Array.isArray(fl.units) && fl.units.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1 pt-0.5">
+                                    {fl.units.map((u) => (
+                                      <span
+                                        key={u.unitId || u.unitNumber}
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                          u.status === 'OCCUPIED'
+                                            ? 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
+                                            : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
+                                        }`}
+                                        title={`Unit ${u.unitNumber} (${u.unitType || 'Unit'})${u.monthlyRent ? ` - ₹${Number(u.monthlyRent).toLocaleString('en-IN')}/mo` : ''}`}
+                                      >
+                                        <span>Unit {u.unitNumber}</span>
+                                        {u.unitType && (
+                                          <span className="text-[9px] opacity-75">
+                                            ({u.unitType.replace('_', ' ')})
+                                          </span>
+                                        )}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-[#8C9BA8] italic">No units on this floor</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="pt-1">
                         <Link
                           to={`/owner/buildings/${b.buildingId}`}
@@ -1921,29 +1868,41 @@ export default function PropertyDetailsPage() {
               </div>
             </div>
 
-            {/* Financial Overview Card */}
+            {/* Property Overview Card */}
             <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm space-y-3">
               <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-[#3F7D58]" />
-                Financial Breakdown
+                <Building className="w-4 h-4 text-[#315A7D]" />
+                Property Specifications
               </h2>
               <div className="space-y-2 text-xs divide-y divide-[#D9E0E6]">
                 <div className="flex justify-between pt-2">
-                  <span className="text-[#5B6875]">Monthly Rent:</span>
+                  <span className="text-[#5B6875]">Property Type:</span>
                   <span className="font-semibold text-[#243447]">
-                    ${Number(property.monthlyRent || 0).toLocaleString()}
+                    {property.propertyType || property.type || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2">
-                  <span className="text-[#5B6875]">Security Deposit:</span>
+                  <span className="text-[#5B6875]">Total Area:</span>
                   <span className="font-semibold text-[#243447]">
-                    ${Number(property.deposit || 0).toLocaleString()}
+                    {property.totalArea != null ? `${Number(property.totalArea).toLocaleString()} sq ft` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2">
-                  <span className="text-[#5B6875]">Annual Gross Potential:</span>
-                  <span className="font-bold text-[#3F7D58]">
-                    ${(Number(property.monthlyRent || 0) * 12 * total).toLocaleString()}
+                  <span className="text-[#5B6875]">Year Built:</span>
+                  <span className="font-semibold text-[#243447]">
+                    {property.yearBuilt || '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2">
+                  <span className="text-[#5B6875]">Furnishing:</span>
+                  <span className="font-semibold text-[#243447]">
+                    {property.furnishing || 'Unfurnished'}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2">
+                  <span className="text-[#5B6875]">Parking:</span>
+                  <span className="font-semibold text-[#243447]">
+                    {property.parking || (property.parkingAvailable ? 'Available' : 'None')}
                   </span>
                 </div>
               </div>

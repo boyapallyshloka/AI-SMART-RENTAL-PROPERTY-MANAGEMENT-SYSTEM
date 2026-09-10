@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
     {
       id: 'act-4',
       action: 'Rent payment settled via automated ACH',
-      entity: 'INV-2026-001 ($3,200)',
+      entity: 'INV-2026-001 (₹3,200)',
       category: 'Billing',
       timestamp: '2026-09-03 10:45:19',
       badgeColor: 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]',

@@ -6,7 +6,7 @@ export const MOCK_AI_INSIGHTS = [
   {
     id: 'insight-1',
     title: 'Recommended Rent Range',
-    prediction: '$3,450 – $3,650 / mo',
+    prediction: '₹3,450 – ₹3,650 / mo',
     confidence: '94% High Confidence',
     explanation:
       'Based on local neighborhood comps, market vacancy velocity, and autumn leasing momentum across comparable luxury units.',
@@ -59,7 +59,7 @@ export const MOCK_AI_INSIGHTS = [
     prediction: '+14.2% Net Margin Expansion',
     confidence: '90% High Confidence',
     explanation:
-      'Decreased vacancy downtime combined with optimal lease renewals project an estimated $31,200 annual portfolio profit lift.',
+      'Decreased vacancy downtime combined with optimal lease renewals project an estimated ₹31,200 annual portfolio profit lift.',
     status: 'Resolved',
     category: 'Financial Yield',
   },

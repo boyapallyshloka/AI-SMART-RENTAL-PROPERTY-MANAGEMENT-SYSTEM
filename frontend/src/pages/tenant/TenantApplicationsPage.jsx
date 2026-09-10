@@ -16,7 +16,7 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  DollarSign,
+  IndianRupee,
   AlertCircle,
 } from 'lucide-react'
 
@@ -154,7 +154,7 @@ export default function TenantApplicationsPage() {
 
                       {/* Monthly Income */}
                       <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
-                        ${Number(app.monthlyIncome || 0).toLocaleString()}
+                        ₹{Number(app.monthlyIncome || 0).toLocaleString('en-IN')}
                       </td>
 
                       {/* Status */}

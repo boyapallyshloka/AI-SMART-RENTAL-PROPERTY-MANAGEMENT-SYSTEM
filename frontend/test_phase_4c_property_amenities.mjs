@@ -23,15 +23,15 @@ async function runTests() {
 
   const amenityApiPath = path.resolve(
     __dirname,
-    '../../../../../OneDrive/Desktop/Homeshpere/frontend/src/api/amenityApi.js'
+    'src/api/amenityApi.js'
   )
   const propertyDetailsPagePath = path.resolve(
     __dirname,
-    '../../../../../OneDrive/Desktop/Homeshpere/frontend/src/pages/owner/PropertyDetailsPage.jsx'
+    'src/pages/owner/PropertyDetailsPage.jsx'
   )
   const axiosClientPath = path.resolve(
     __dirname,
-    '../../../../../OneDrive/Desktop/Homeshpere/frontend/src/api/axiosClient.js'
+    'src/api/axiosClient.js'
   )
 
   const axiosClientModule = await import(`file://${axiosClientPath}`)

@@ -5,13 +5,12 @@ import PropertySummaryCard from '../../components/properties/PropertySummaryCard
 import OwnerPropertyTable from '../../components/properties/OwnerPropertyTable'
 import {
   getMyProperties,
+  mapBackendPropertyToUi,
   deleteProperty,
   updatePropertyStatus,
-} from '../../api/propertyApi'
-import {
   PROPERTY_TYPES,
-  STATUS_OPTIONS,
-} from '../../utils/ownerPropertyMockData'
+  CANONICAL_PROPERTY_STATUSES,
+} from '../../api/propertyApi'
 import { Button, Input, Select, Loader } from '../../components/ui'
 import {
   Plus,
@@ -23,111 +22,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 
-/**
- * Maps Spring Boot PropertyResponse to the shape expected by UI components
- * Backend fields:
- * - propertyId -> id, propertyId
- * - propertyName -> name, propertyName
- * - propertyType -> type, propertyType
- * - description -> description
- * - totalArea -> area, totalArea
- * - bedrooms -> bedrooms
- * - bathrooms -> bathrooms
- * - furnishingStatus -> furnishing, furnishingStatus
- * - parkingAvailable -> parking, parkingAvailable
- * - monthlyRent -> monthlyRent
- * - securityDeposit -> deposit, securityDeposit
- * - status -> status
- * - ownerId, ownerName, createdAt, updatedAt
- *
- * NOTE: Address fields are left in fallback/empty state until Phase 4 Address integration.
- * DO NOT invent fake address fields.
- */
-export const mapBackendPropertyToUi = (prop) => {
-  if (!prop) return null
-
-  const id =
-    prop.propertyId != null
-      ? String(prop.propertyId)
-      : prop.id != null
-      ? String(prop.id)
-      : ''
-  const name = prop.propertyName || prop.name || 'Unnamed Property'
-  const type = prop.propertyType || prop.type || 'APARTMENT'
-
-  return {
-    ...prop,
-    id,
-    propertyId: prop.propertyId ?? prop.id,
-    name,
-    propertyName: prop.propertyName ?? prop.name,
-    type,
-    propertyType: prop.propertyType ?? prop.type,
-    // Address fields: keep in current fallback/empty state until Phase 4 Address integration
-    address: prop.address || '',
-    city: prop.city || '',
-    state: prop.state || '',
-    zipCode: prop.zipCode || '',
-    // Specs
-    bedrooms: prop.bedrooms != null ? Number(prop.bedrooms) : 0,
-    bathrooms: prop.bathrooms != null ? Number(prop.bathrooms) : 0,
-    area:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    totalArea:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    furnishing: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
-    furnishingStatus: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
-    parking:
-      prop.parkingAvailable != null
-        ? prop.parkingAvailable
-          ? 'Available'
-          : 'None'
-        : prop.parking || 'None',
-    parkingAvailable:
-      prop.parkingAvailable != null
-        ? Boolean(prop.parkingAvailable)
-        : prop.parking === 'Available' || Boolean(prop.parking),
-    // Financials
-    monthlyRent: prop.monthlyRent != null ? Number(prop.monthlyRent) : 0,
-    deposit:
-      prop.securityDeposit != null
-        ? Number(prop.securityDeposit)
-        : prop.deposit != null
-        ? Number(prop.deposit)
-        : 0,
-    securityDeposit:
-      prop.securityDeposit != null
-        ? Number(prop.securityDeposit)
-        : prop.deposit != null
-        ? Number(prop.deposit)
-        : 0,
-    // Status & details
-    status: prop.status || 'AVAILABLE',
-    description: prop.description || '',
-    // Units metrics (backend PropertyResponse does not have nested building/units)
-    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : 1,
-    occupiedUnits:
-      prop.occupiedUnits != null
-        ? Number(prop.occupiedUnits)
-        : prop.status === 'OCCUPIED'
-        ? 1
-        : 0,
-    images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
-    amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
-    ownerId: prop.ownerId,
-    ownerName: prop.ownerName,
-    createdAt: prop.createdAt,
-    updatedAt: prop.updatedAt,
-  }
-}
+export { mapBackendPropertyToUi }
 
 export default function PropertiesPage() {
   const location = useLocation()
@@ -238,7 +133,8 @@ export default function PropertiesPage() {
 
     const matchesType =
       typeFilter === 'all' ||
-      (item.type || '').toLowerCase() === typeFilter.toLowerCase()
+      (item.type || '').toLowerCase() === typeFilter.toLowerCase() ||
+      (item.propertyType || '').toLowerCase() === typeFilter.toLowerCase()
 
     const matchesStatus =
       statusFilter === 'all' ||
@@ -258,12 +154,21 @@ export default function PropertiesPage() {
 
   const typeOptions = [
     { value: 'all', label: 'All Property Types' },
-    ...PROPERTY_TYPES.map((t) => ({ value: t, label: t })),
+    ...Object.values(PROPERTY_TYPES).map((t) => ({
+      value: t,
+      label: t.charAt(0) + t.slice(1).toLowerCase(),
+    })),
   ]
 
   const statusFilterOptions = [
     { value: 'all', label: 'All Statuses' },
-    ...STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+    ...CANONICAL_PROPERTY_STATUSES.map((s) => ({
+      value: s,
+      label:
+        s === 'UNDER_MAINTENANCE'
+          ? 'Under Maintenance'
+          : s.charAt(0) + s.slice(1).toLowerCase(),
+    })),
   ]
 
   return (

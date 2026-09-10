@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getMockProperties } from '../../utils/ownerPropertyMockData'
+import { getAvailableProperties } from '../../api/unitApi'
 import { addApplication } from '../../utils/applicationMockData'
 import {
   Button,
@@ -14,7 +14,7 @@ import {
 import {
   FileCheck,
   Building2,
-  DollarSign,
+  IndianRupee,
   Briefcase,
   Calendar,
   Phone,
@@ -31,7 +31,7 @@ export default function SubmitApplicationPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  // Properties list from mock data
+  // Properties list from available properties API
   const [properties, setProperties] = useState([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [selectedUnit, setSelectedUnit] = useState('')
@@ -56,27 +56,48 @@ export default function SubmitApplicationPage() {
   const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
-    const list = getMockProperties()
-    setProperties(list)
-    if (list.length > 0) {
-      setSelectedPropertyId(list[0].id)
-      setSelectedUnit('Unit #101')
+    let isMounted = true
+    const loadProperties = async () => {
+      try {
+        const available = await getAvailableProperties(user)
+        if (!isMounted) return
+        const list = Array.isArray(available)
+          ? available.map((item) => item.property || item)
+          : []
+        setProperties(list)
+        if (list.length > 0) {
+          setSelectedPropertyId(String(list[0].id))
+          setSelectedUnit('Unit #101')
+        }
+      } catch (err) {
+        console.error('Failed to load available properties for application:', err)
+        if (isMounted) {
+          setProperties([])
+        }
+      }
     }
-  }, [])
+    loadProperties()
+    return () => {
+      isMounted = false
+    }
+  }, [user])
 
   // Selected property object
   const selectedProperty = properties.find((p) => String(p.id) === String(selectedPropertyId))
 
-  const propertyOptions = properties.map((p) => ({
-    value: String(p.id),
-    label: `${p.name} (${p.city}, ${p.state})`,
-  }))
+  const propertyOptions = properties.map((p) => {
+    const loc = [p.city, p.state].filter(Boolean).join(', ')
+    return {
+      value: String(p.id),
+      label: loc ? `${p.name} (${loc})` : p.name,
+    }
+  })
 
   const unitOptions = [
-    { value: 'Unit #101', label: 'Unit #101 - 1 Bed, 1 Bath ($2,450/mo)' },
-    { value: 'Unit #202', label: 'Unit #202 - 2 Bed, 2 Bath ($3,200/mo)' },
-    { value: 'Unit #304', label: 'Unit #304 - 2 Bed, 2.5 Bath ($3,800/mo)' },
-    { value: 'Penthouse #501', label: 'Penthouse #501 - 3 Bed, 3 Bath ($5,400/mo)' },
+    { value: 'Unit #101', label: 'Unit #101 - 1 Bed, 1 Bath (₹2,450/mo)' },
+    { value: 'Unit #202', label: 'Unit #202 - 2 Bed, 2 Bath (₹3,200/mo)' },
+    { value: 'Unit #304', label: 'Unit #304 - 2 Bed, 2.5 Bath (₹3,800/mo)' },
+    { value: 'Penthouse #501', label: 'Penthouse #501 - 3 Bed, 3 Bath (₹5,400/mo)' },
   ]
 
   const validate = () => {
@@ -227,7 +248,7 @@ export default function SubmitApplicationPage() {
                   </span>
                 </div>
                 <span className="font-bold text-[#315A7D] text-sm">
-                  ${selectedProperty.rent?.toLocaleString()}/mo
+                  ₹{Number(selectedProperty.rent || 0).toLocaleString('en-IN')}/mo
                 </span>
               </div>
             )}
@@ -296,20 +317,20 @@ export default function SubmitApplicationPage() {
           {/* Section 3: Financial & Employment Information */}
           <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
             <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-              <DollarSign className="w-4 h-4 text-[#3F7D58]" />
+              <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
               3. Employment & Monthly Income
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Monthly Gross Income ($)"
+                  label="Monthly Gross Income (₹)"
                   type="number"
                   placeholder="e.g. 8500"
                   value={monthlyIncome}
                   onChange={(e) => setMonthlyIncome(e.target.value)}
                   error={errors.monthlyIncome}
-                  leftIcon={<DollarSign className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
                   helperText="Required for rent-to-income verification"
                   required
                 />

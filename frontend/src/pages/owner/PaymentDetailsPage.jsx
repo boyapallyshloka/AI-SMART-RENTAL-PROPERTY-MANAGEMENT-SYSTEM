@@ -14,7 +14,7 @@ import {
   User,
   Building2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Clock,
   CheckCircle2,
   AlertTriangle,
@@ -289,7 +289,7 @@ export default function PaymentDetailsPage() {
               {/* Financial & Fee Breakdown */}
               <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
                 <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-                  <DollarSign className="w-4 h-4 text-[#3F7D58]" />
+                  <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
                   Financial Breakdown
                 </h2>
 
@@ -297,7 +297,7 @@ export default function PaymentDetailsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875]">Monthly Rent</span>
                     <span className="font-medium text-[#243447]">
-                      ${Number(invoice.monthlyRent || invoice.amount || 0).toLocaleString()}
+                      ₹{Number(invoice.monthlyRent || invoice.amount || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
 
@@ -310,7 +310,7 @@ export default function PaymentDetailsPage() {
                           : 'text-[#243447]'
                       }`}
                     >
-                      ${Number(invoice.lateFee || 0).toLocaleString()}
+                      ₹{Number(invoice.lateFee || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
 
@@ -319,7 +319,7 @@ export default function PaymentDetailsPage() {
                       Total Amount Due
                     </span>
                     <span className="text-lg font-bold text-[#243447]">
-                      ${Number(invoice.amount || 0).toLocaleString()}
+                      ₹{Number(invoice.amount || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
 

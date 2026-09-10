@@ -6,7 +6,7 @@ import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import {
   Home,
   ArrowLeft,
-  DollarSign,
+  IndianRupee,
   Bed,
   Bath,
   Pencil,
@@ -453,7 +453,7 @@ export default function UnitDetailsPage() {
           {/* Section 3: Rental & Financials */}
           <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
             <div className="flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-              <DollarSign className="w-4 h-4 text-[#315A7D]" />
+              <IndianRupee className="w-4 h-4 text-[#315A7D]" />
               <h2 className="font-semibold text-sm text-[#243447]">Rental &amp; Financials</h2>
             </div>
 
@@ -461,7 +461,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Monthly Rent</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ${Number(unit.monthlyRent ?? 0).toLocaleString()}
+                  ₹{Number(unit.monthlyRent ?? 0).toLocaleString('en-IN')}
                   <span className="text-xs font-normal text-[#5B6875]">/mo</span>
                 </p>
               </div>
@@ -469,7 +469,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Security Deposit</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ${Number(unit.securityDeposit ?? 0).toLocaleString()}
+                  ₹{Number(unit.securityDeposit ?? 0).toLocaleString('en-IN')}
                 </p>
               </div>
             </div>

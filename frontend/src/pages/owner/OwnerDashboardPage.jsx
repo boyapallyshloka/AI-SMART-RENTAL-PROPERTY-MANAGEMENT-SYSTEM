@@ -6,7 +6,7 @@ import { Button, StatusBadge, Loader } from '../../components/ui'
 import {
   Building2,
   Users,
-  DollarSign,
+  IndianRupee,
   Wrench,
   Plus,
   ArrowRight,
@@ -70,9 +70,9 @@ export default function OwnerDashboardPage() {
             />
             <MetricCard
               title="Monthly Revenue"
-              value="$24,850"
+              value="₹24,850"
               subtitle="Collected this month"
-              icon={<DollarSign className="w-4 h-4 text-[#315A7D]" />}
+              icon={<IndianRupee className="w-4 h-4 text-[#315A7D]" />}
             />
             <MetricCard
               title="Open Maintenance"
@@ -102,10 +102,10 @@ export default function OwnerDashboardPage() {
 
               <div className="divide-y divide-[#D9E0E6]">
                 {[
-                  { unit: 'Sunset Palms #302', type: '2 Bed, 2 Bath', rent: '$2,400', status: 'Occupied' },
-                  { unit: 'Sunset Palms #104', type: '1 Bed, 1 Bath', rent: '$1,850', status: 'Available' },
-                  { unit: 'Highland Oaks #201', type: '3 Bed, 2 Bath', rent: '$3,100', status: 'Pending' },
-                  { unit: 'Metro Lofts #512', type: 'Studio', rent: '$1,650', status: 'Occupied' },
+                  { unit: 'Sunset Palms #302', type: '2 Bed, 2 Bath', rent: '₹2,400', status: 'Occupied' },
+                  { unit: 'Sunset Palms #104', type: '1 Bed, 1 Bath', rent: '₹1,850', status: 'Available' },
+                  { unit: 'Highland Oaks #201', type: '3 Bed, 2 Bath', rent: '₹3,100', status: 'Pending' },
+                  { unit: 'Metro Lofts #512', type: 'Studio', rent: '₹1,650', status: 'Occupied' },
                 ].map((prop, i) => (
                   <div key={i} className="py-3 flex items-center justify-between text-sm">
                     <div>
@@ -132,7 +132,7 @@ export default function OwnerDashboardPage() {
                     </Button>
                   </Link>
                   <Link to="/owner/payments" className="block">
-                    <Button variant="secondary" className="w-full justify-start" leftIcon={<DollarSign className="w-4 h-4" />}>
+                    <Button variant="secondary" className="w-full justify-start" leftIcon={<IndianRupee className="w-4 h-4" />}>
                       Record Rent Payment
                     </Button>
                   </Link>
@@ -179,7 +179,7 @@ export default function OwnerDashboardPage() {
               <div className="divide-y divide-[#D9E0E6]">
                 {[
                   {
-                    description: 'Rent payment received ($2,400)',
+                    description: 'Rent payment received (₹2,400)',
                     property: 'Sunset Palms #302',
                     time: 'Today, 9:42 AM',
                     icon: <CreditCard className="w-4 h-4 text-[#3F7D58]" />,

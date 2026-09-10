@@ -501,7 +501,7 @@ export default function AddUnitPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Monthly Rent ($ USD)"
+                label="Monthly Rent (₹ INR)"
                 type="number"
                 min="0"
                 step="25"
@@ -513,7 +513,7 @@ export default function AddUnitPage() {
               />
 
               <Input
-                label="Security Deposit ($ USD)"
+                label="Security Deposit (₹ INR)"
                 type="number"
                 min="0"
                 step="25"

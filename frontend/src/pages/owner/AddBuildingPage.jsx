@@ -8,7 +8,7 @@ import {
   createBuilding,
   updateBuilding,
 } from '../../api/buildingApi'
-import { getMyProperties, getProperties } from '../../api/propertyApi'
+import { getMyProperties } from '../../api/propertyApi'
 
 export default function AddBuildingPage() {
   const { buildingId } = useParams()
@@ -40,20 +40,13 @@ export default function AddBuildingPage() {
       setApiError(null)
 
       try {
-        // 1. Load Owner Properties
-        let propsList = []
-        try {
-          const propsRes = await getMyProperties()
-          propsList = Array.isArray(propsRes?.data)
-            ? propsRes.data
-            : Array.isArray(propsRes)
-            ? propsRes
-            : []
-        } catch (propsErr) {
-          console.warn('Failed to load properties via getMyProperties, trying fallback:', propsErr)
-          const fallback = await getProperties()
-          propsList = Array.isArray(fallback) ? fallback : []
-        }
+        // 1. Load Owner Properties directly from backend API
+        const propsRes = await getMyProperties()
+        const propsList = Array.isArray(propsRes?.data)
+          ? propsRes.data
+          : Array.isArray(propsRes)
+          ? propsRes
+          : []
 
         if (!isMounted) return
         setProperties(propsList)
