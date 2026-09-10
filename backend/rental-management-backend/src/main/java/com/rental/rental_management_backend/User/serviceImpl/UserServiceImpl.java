@@ -1,7 +1,10 @@
 
 package com.rental.rental_management_backend.User.serviceImpl;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,12 +12,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.rental.rental_management_backend.User.Repository.PasswordResetTokenRepository;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.dto.LoginRequest;
 import com.rental.rental_management_backend.User.dto.LoginResponse;
 import com.rental.rental_management_backend.User.dto.RegisterRequest;
 import com.rental.rental_management_backend.User.dto.UpdateUserRequest;
 import com.rental.rental_management_backend.User.dto.UserResponse;
+import com.rental.rental_management_backend.User.entity.PasswordResetToken;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
@@ -33,14 +38,19 @@ public class UserServiceImpl implements UserService {
 
     private final JwtService jwtService;
 
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+
     public UserServiceImpl(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            PasswordResetTokenRepository passwordResetTokenRepository) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.passwordResetTokenRepository =
+                passwordResetTokenRepository;
     }
 
     // =========================================================
@@ -54,22 +64,22 @@ public class UserServiceImpl implements UserService {
                 .toLowerCase()
                 .trim();
 
-        // Check duplicate email
         if (userRepository.existsByEmail(email)) {
+
             throw new UserAlreadyExistsException(
                     "Email already registered"
             );
         }
 
-        // Check duplicate phone
         if (userRepository.existsByPhone(request.getPhone())) {
+
             throw new UserAlreadyExistsException(
                     "Phone number already registered"
             );
         }
 
-        // SUPER_ADMIN cannot register publicly
         if (request.getRole() == RoleType.SUPER_ADMIN) {
+
             throw new IllegalArgumentException(
                     "SUPER_ADMIN cannot be created through public registration"
             );
@@ -87,7 +97,6 @@ public class UserServiceImpl implements UserService {
 
         user.setEmail(email);
 
-        // Encrypt password
         user.setPassword(
                 passwordEncoder.encode(
                         request.getPassword()
@@ -100,18 +109,12 @@ public class UserServiceImpl implements UserService {
 
         user.setRole(request.getRole());
 
-        // =====================================================
-        // ROLE BASED REGISTRATION STATUS
-        // =====================================================
-
         if (request.getRole() == RoleType.PROPERTY_OWNER) {
 
-            // Property owners require SUPER_ADMIN verification
             user.setStatus(UserStatus.PENDING);
 
         } else {
 
-            // Tenant and Property Manager can be active
             user.setStatus(UserStatus.ACTIVE);
         }
 
@@ -142,7 +145,6 @@ public class UserServiceImpl implements UserService {
                         )
                 );
 
-        // Only ACTIVE users can login
         if (user.getStatus() != UserStatus.ACTIVE) {
 
             throw new IllegalArgumentException(
@@ -150,7 +152,6 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Check password
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 user.getPassword())) {
@@ -160,7 +161,6 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Create Spring Security UserDetails
         UserDetails userDetails =
                 org.springframework.security.core.userdetails.User
                         .withUsername(user.getEmail())
@@ -171,7 +171,6 @@ public class UserServiceImpl implements UserService {
                         )
                         .build();
 
-        // Generate JWT
         String token =
                 jwtService.generateToken(userDetails);
 
@@ -179,10 +178,15 @@ public class UserServiceImpl implements UserService {
                 new LoginResponse();
 
         response.setToken(token);
+
         response.setUserId(user.getId());
+
         response.setFirstName(user.getFirstName());
+
         response.setLastName(user.getLastName());
+
         response.setEmail(user.getEmail());
+
         response.setRole(user.getRole());
 
         return response;
@@ -477,6 +481,193 @@ public class UserServiceImpl implements UserService {
 
         return response;
     }
-}
 
+    // =========================================================
+    // GET MY PROFILE
+    // =========================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getMyProfile(
+            String email) {
+
+        User user =
+                userRepository.findByEmail(
+                        email.toLowerCase().trim()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: "
+                                        + email
+                        )
+                );
+
+        return mapToResponse(user);
+    }
+
+    // =========================================================
+    // CHANGE PASSWORD
+    // =========================================================
+
+    @Override
+    public void changePassword(
+            Long id,
+            String currentPassword,
+            String newPassword) {
+
+        User user =
+                userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id: "
+                                        + id
+                        )
+                );
+
+        // Check current password
+        if (!passwordEncoder.matches(
+                currentPassword,
+                user.getPassword())) {
+
+            throw new IllegalArgumentException(
+                    "Current password is incorrect"
+            );
+        }
+
+        // Prevent using the same password
+        if (passwordEncoder.matches(
+                newPassword,
+                user.getPassword())) {
+
+            throw new IllegalArgumentException(
+                    "New password must be different from current password"
+            );
+        }
+
+        // Encrypt new password
+        user.setPassword(
+                passwordEncoder.encode(newPassword)
+        );
+
+        userRepository.save(user);
+    }
+
+    // =========================================================
+    // FORGOT PASSWORD
+    // =========================================================
+    
+    @Override
+    public void forgotPassword(String email) {
+
+        String normalizedEmail =
+                email.toLowerCase().trim();
+
+        // Find user
+        User user =
+                userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: " + email
+                        )
+                );
+
+        // Find existing reset token for this user
+        Optional<PasswordResetToken> existingToken =
+                passwordResetTokenRepository
+                        .findByUserId(user.getId());
+
+        // Delete existing token
+        if (existingToken.isPresent()) {
+
+            passwordResetTokenRepository.delete(
+                    existingToken.get()
+            );
+
+            // Force DELETE to PostgreSQL before INSERT
+            passwordResetTokenRepository.flush();
+        }
+
+        // Generate new reset token
+        String token =
+                UUID.randomUUID().toString();
+
+        // Token expires after 15 minutes
+        LocalDateTime expiryDate =
+                LocalDateTime.now().plusMinutes(15);
+
+        PasswordResetToken resetToken =
+                new PasswordResetToken(
+                        token,
+                        user,
+                        expiryDate
+                );
+
+        // Save new token
+        passwordResetTokenRepository.save(
+                resetToken
+        );
+
+        // Temporary testing output
+        System.out.println(
+                "PASSWORD RESET TOKEN: " + token
+        );
+    }
+    
+    // =========================================================
+    // RESET PASSWORD
+    // =========================================================
+
+    @Override
+    public void resetPassword(
+            String token,
+            String newPassword) {
+
+        // Find reset token
+        PasswordResetToken resetToken =
+                passwordResetTokenRepository
+                        .findByToken(token)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Invalid password reset token"
+                                )
+                        );
+
+        // Check token expiry
+        if (resetToken.getExpiryDate()
+                .isBefore(LocalDateTime.now())) {
+
+            passwordResetTokenRepository
+                    .deleteByToken(token);
+
+            throw new IllegalArgumentException(
+                    "Password reset token has expired"
+            );
+        }
+
+        // Get user associated with reset token
+        User user = resetToken.getUser();
+
+        // Prevent using the same password
+        if (passwordEncoder.matches(
+                newPassword,
+                user.getPassword())) {
+
+            throw new IllegalArgumentException(
+                    "New password must be different from current password"
+            );
+        }
+
+        // Encrypt new password
+        user.setPassword(
+                passwordEncoder.encode(newPassword)
+        );
+
+        // Save updated user
+        userRepository.save(user);
+
+        // Delete token after successful password reset
+        passwordResetTokenRepository
+                .deleteByToken(token);
+    }
+}
 
