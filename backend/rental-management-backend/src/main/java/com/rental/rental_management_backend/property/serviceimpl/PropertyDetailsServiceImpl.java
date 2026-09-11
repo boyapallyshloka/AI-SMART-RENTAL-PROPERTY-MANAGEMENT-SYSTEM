@@ -17,7 +17,6 @@ import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse
 import com.rental.rental_management_backend.property.dto.PropertyImageResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.dto.UnitResponse;
-
 import com.rental.rental_management_backend.property.service.AmenityService;
 import com.rental.rental_management_backend.property.service.BuildingService;
 import com.rental.rental_management_backend.property.service.FloorService;
@@ -31,21 +30,13 @@ import com.rental.rental_management_backend.property.service.UnitService;
 public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
     private final PropertyService propertyService;
-
     private final PropertyAddressService propertyAddressService;
-
     private final BuildingService buildingService;
-
     private final FloorService floorService;
-
     private final UnitService unitService;
-
     private final AmenityService amenityService;
-
     private final PropertyImageService propertyImageService;
 
-
-    // Manual constructor
     public PropertyDetailsServiceImpl(
             PropertyService propertyService,
             PropertyAddressService propertyAddressService,
@@ -64,126 +55,274 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         this.propertyImageService = propertyImageService;
     }
 
+    // ============================================================
+    // OWNER PROPERTY DETAILS
+    // ============================================================
 
     @Override
+    @Transactional(readOnly = true)
     public PropertyDetailsResponse getPropertyDetails(Long propertyId) {
 
-        /*
-         * 1. PROPERTY
-         */
         PropertyResponse property =
                 propertyService.getMyPropertyById(propertyId);
 
+        return buildPropertyDetailsResponse(
+                propertyId,
+                property,
+                false
+        );
+    }
 
-        /*
-         * 2. ADDRESS
-         * A property is allowed to exist without an address.
-         * If the address does not exist and the service throws
-         * ResourceNotFoundException, treat address as null.
-         */
+    // ============================================================
+    // PUBLIC / TENANT PROPERTY DETAILS
+    // ============================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyDetailsResponse getPublicPropertyDetails(
+            Long propertyId) {
+
+        PropertyResponse property =
+                propertyService.getPublicPropertyById(propertyId);
+
+        return buildPropertyDetailsResponse(
+                propertyId,
+                property,
+                true
+        );
+    }
+
+    // ============================================================
+    // BUILD COMPLETE PROPERTY DETAILS
+    // ============================================================
+
+    private PropertyDetailsResponse buildPropertyDetailsResponse(
+            Long propertyId,
+            PropertyResponse property,
+            boolean publicView) {
+
+        // ========================================================
+        // 1. ADDRESS
+        // ========================================================
+
         PropertyAddressResponse address = null;
+
         try {
-            address = propertyAddressService.getAddressByPropertyId(propertyId);
+
+            if (publicView) {
+
+                // Tenant / public flow
+                address =
+                        propertyAddressService
+                                .getPublicAddressByPropertyId(
+                                        propertyId);
+
+            } else {
+
+                // Owner flow
+                address =
+                        propertyAddressService
+                                .getAddressByPropertyId(
+                                        propertyId);
+            }
+
         } catch (ResourceNotFoundException ex) {
+
+            // Address is optional.
+            // If no address exists, continue with address = null.
             address = null;
         }
 
+        // ========================================================
+        // 2. BUILDINGS
+        // ========================================================
 
-        /*
-         * 3. BUILDINGS
-         */
-        List<BuildingResponse> buildingResponses =
-                buildingService.getBuildingsByProperty(propertyId);
+        List<BuildingResponse> buildingResponses;
+
+        if (publicView) {
+
+            // Tenant / public flow
+            buildingResponses =
+                    buildingService
+                            .getPublicBuildingsByProperty(
+                                    propertyId);
+
+        } else {
+
+            // Owner flow
+            buildingResponses =
+                    buildingService
+                            .getBuildingsByProperty(
+                                    propertyId);
+        }
+
+        if (buildingResponses == null) {
+            buildingResponses = new ArrayList<>();
+        }
 
         List<BuildingDetailsResponse> buildings =
                 new ArrayList<>();
 
-        if (buildingResponses != null) {
-            for (BuildingResponse building : buildingResponses) {
-                if (building == null) {
+        // ========================================================
+        // 3. FLOORS
+        // 4. UNITS
+        // ========================================================
+
+        for (BuildingResponse building : buildingResponses) {
+
+            if (building == null) {
+                continue;
+            }
+
+            BuildingDetailsResponse buildingDetails =
+                    new BuildingDetailsResponse();
+
+            buildingDetails.setBuilding(building);
+
+            // ----------------------------------------------------
+            // FLOORS
+            // ----------------------------------------------------
+
+            List<FloorResponse> floorResponses;
+
+            if (publicView) {
+
+                // Tenant / public flow
+                floorResponses =
+                        floorService
+                                .getPublicFloorsByBuilding(
+                                        building.getBuildingId());
+
+            } else {
+
+                // Owner flow
+                floorResponses =
+                        floorService
+                                .getFloorsByBuilding(
+                                        building.getBuildingId());
+            }
+
+            if (floorResponses == null) {
+                floorResponses = new ArrayList<>();
+            }
+
+            List<FloorDetailsResponse> floors =
+                    new ArrayList<>();
+
+            // ----------------------------------------------------
+            // UNITS
+            // ----------------------------------------------------
+
+            for (FloorResponse floor : floorResponses) {
+
+                if (floor == null) {
                     continue;
                 }
 
-                BuildingDetailsResponse buildingDetails =
-                        new BuildingDetailsResponse();
+                FloorDetailsResponse floorDetails =
+                        new FloorDetailsResponse();
 
-                buildingDetails.setBuilding(building);
+                floorDetails.setFloor(floor);
 
+                List<UnitResponse> units;
 
-                List<FloorResponse> floorResponses =
-                        floorService.getFloorsByBuilding(
-                                building.getBuildingId()
-                        );
+                if (publicView) {
 
-                List<FloorDetailsResponse> floors =
-                        new ArrayList<>();
+                    // Tenant / public flow
+                    units =
+                            unitService
+                                    .getPublicUnitsByFloor(
+                                            floor.getFloorId());
 
-                if (floorResponses != null) {
-                    for (FloorResponse floor : floorResponses) {
-                        if (floor == null) {
-                            continue;
-                        }
+                } else {
 
-                        FloorDetailsResponse floorDetails =
-                                new FloorDetailsResponse();
-
-                        floorDetails.setFloor(floor);
-
-
-                        List<UnitResponse> units =
-                                unitService.getUnitsByFloor(
-                                        floor.getFloorId()
-                                );
-
-                        floorDetails.setUnits(units != null ? units : new ArrayList<>());
-
-                        floors.add(floorDetails);
-                    }
+                    // Owner flow
+                    units =
+                            unitService
+                                    .getUnitsByFloor(
+                                            floor.getFloorId());
                 }
 
-                buildingDetails.setFloors(floors);
+                if (units == null) {
+                    units = new ArrayList<>();
+                }
 
-                buildings.add(buildingDetails);
+                floorDetails.setUnits(units);
+
+                floors.add(floorDetails);
             }
+
+            buildingDetails.setFloors(floors);
+
+            buildings.add(buildingDetails);
         }
 
+        // ========================================================
+        // 5. AMENITIES
+        // ========================================================
 
-        /*
-         * 6. AMENITIES
-         */
-        List<AmenityResponse> amenities =
-                amenityService.getPropertyAmenities(propertyId);
+        List<AmenityResponse> amenities;
+
+        if (publicView) {
+
+            // Tenant / public flow
+            amenities =
+                    amenityService
+                            .getPublicPropertyAmenities(
+                                    propertyId);
+
+        } else {
+
+            // Owner flow
+            amenities =
+                    amenityService
+                            .getPropertyAmenities(
+                                    propertyId);
+        }
+
         if (amenities == null) {
             amenities = new ArrayList<>();
         }
 
+        // ========================================================
+        // 6. IMAGES
+        // ========================================================
 
-        /*
-         * 7. IMAGES
-         */
-        List<PropertyImageResponse> images =
-                propertyImageService.getImagesByProperty(propertyId);
+        List<PropertyImageResponse> images;
+
+        if (publicView) {
+
+            // Tenant / public flow
+            images =
+                    propertyImageService
+                            .getPublicImagesByProperty(
+                                    propertyId);
+
+        } else {
+
+            // Owner flow
+            images =
+                    propertyImageService
+                            .getImagesByProperty(
+                                    propertyId);
+        }
+
         if (images == null) {
             images = new ArrayList<>();
         }
 
+        // ========================================================
+        // 7. BUILD FINAL RESPONSE
+        // ========================================================
 
-        /*
-         * 8. BUILD FINAL RESPONSE
-         */
         PropertyDetailsResponse response =
                 new PropertyDetailsResponse();
 
         response.setProperty(property);
-
         response.setAddress(address);
-
         response.setBuildings(buildings);
-
         response.setAmenities(amenities);
-
         response.setImages(images);
-
 
         return response;
     }

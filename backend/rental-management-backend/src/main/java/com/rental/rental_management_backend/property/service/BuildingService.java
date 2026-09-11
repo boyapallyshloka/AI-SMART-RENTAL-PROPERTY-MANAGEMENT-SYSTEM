@@ -15,6 +15,11 @@ public interface BuildingService {
             Long propertyId
     );
 
+    // Public read method for tenants
+    List<BuildingResponse> getPublicBuildingsByProperty(
+            Long propertyId
+    );
+
     BuildingResponse getBuildingById(
             Long buildingId
     );

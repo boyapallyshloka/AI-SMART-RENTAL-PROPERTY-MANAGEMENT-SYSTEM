@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.User.exception;
 
 import java.time.LocalDateTime;
@@ -101,9 +102,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>>
     handleGeneralException(Exception ex) {
 
+        /*
+         * Print the actual exception and full stack trace
+         * in the STS Console for debugging.
+         */
+        ex.printStackTrace();
+
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred"
+                ex.getMessage()
         );
     }
 
@@ -139,3 +146,4 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 }
+

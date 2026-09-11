@@ -38,4 +38,5 @@ public interface AmenityService {
 
     List<AmenityResponse> getPropertyAmenities(
             Long propertyId);
+    List<AmenityResponse> getPublicPropertyAmenities(Long propertyId);
 }

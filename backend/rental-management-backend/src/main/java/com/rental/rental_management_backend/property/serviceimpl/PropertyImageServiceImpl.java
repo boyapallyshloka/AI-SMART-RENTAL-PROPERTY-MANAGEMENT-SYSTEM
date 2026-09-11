@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,7 +27,7 @@ import com.rental.rental_management_backend.property.repository.PropertyImageRep
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyImageService;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -451,5 +452,23 @@ public class PropertyImageServiceImpl implements PropertyImageService {
                 image.getUpdatedAt());
 
         return response;
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyImageResponse> getPublicImagesByProperty(
+            Long propertyId) {
+
+        Property property = propertyRepository
+                .findById(propertyId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Property not found with ID: "
+                                        + propertyId));
+
+        return propertyImageRepository
+                .findByProperty(property)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 }

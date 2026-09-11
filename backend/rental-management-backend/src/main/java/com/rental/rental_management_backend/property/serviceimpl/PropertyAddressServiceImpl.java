@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import org.springframework.security.core.Authentication;
@@ -12,6 +13,7 @@ import com.rental.rental_management_backend.property.dto.PropertyAddressRequest;
 import com.rental.rental_management_backend.property.dto.PropertyAddressResponse;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyAddress;
+import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyAddressService;
@@ -121,6 +123,11 @@ public class PropertyAddressServiceImpl
         addressRepository.delete(address);
     }
 
+    /*
+     * OWNER PROPERTY ACCESS
+     *
+     * Used only by owner management operations.
+     */
     private Property getOwnedProperty(Long propertyId) {
 
         User loggedInUser = getLoggedInUser();
@@ -139,6 +146,9 @@ public class PropertyAddressServiceImpl
                 );
     }
 
+    /*
+     * GET LOGGED-IN USER
+     */
     private User getLoggedInUser() {
 
         Authentication authentication =
@@ -165,6 +175,12 @@ public class PropertyAddressServiceImpl
                 );
     }
 
+    /*
+     * OWNER VALIDATION
+     *
+     * This is intentionally kept unchanged
+     * for owner management operations.
+     */
     private void validateOwner(User user) {
 
         if (user.getRole() != RoleType.PROPERTY_OWNER) {
@@ -175,6 +191,49 @@ public class PropertyAddressServiceImpl
         }
     }
 
+    /*
+     * PUBLIC ADDRESS READ
+     *
+     * Used when a TENANT views an AVAILABLE property.
+     *
+     * This method does NOT call getOwnedProperty()
+     * because a tenant does not own the property.
+     */
+    @Override
+    public PropertyAddressResponse getPublicAddressByPropertyId(
+            Long propertyId) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with id: "
+                                                + propertyId
+                                )
+                        );
+
+        if (property.getStatus() != PropertyStatus.AVAILABLE) {
+
+            throw new RuntimeException(
+                    "Property is not available for tenants"
+            );
+        }
+
+        PropertyAddress address =
+                addressRepository.findByProperty(property)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Address not found for this property"
+                                )
+                        );
+
+        return convertToResponse(address);
+    }
+
+    /*
+     * MAP REQUEST TO ENTITY
+     */
     private void mapRequestToEntity(
             PropertyAddressRequest request,
             PropertyAddress address) {
@@ -221,6 +280,9 @@ public class PropertyAddressServiceImpl
         );
     }
 
+    /*
+     * ENTITY TO RESPONSE
+     */
     private PropertyAddressResponse convertToResponse(
             PropertyAddress address) {
 

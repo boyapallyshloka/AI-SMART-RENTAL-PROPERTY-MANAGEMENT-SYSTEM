@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.service;
 
 import java.util.List;
@@ -14,6 +15,8 @@ public interface PropertyService {
 
     PropertyResponse getMyPropertyById(Long id);
 
+    PropertyResponse getPublicPropertyById(Long propertyId);
+
     PropertyResponse updateProperty(
             Long id,
             PropertyRequest request
@@ -25,4 +28,6 @@ public interface PropertyService {
             Long id,
             PropertyStatus status
     );
+
+    List<PropertyResponse> getAvailableProperties();
 }

@@ -16,4 +16,5 @@ public interface FloorService {
     FloorResponse updateFloor(Long floorId, FloorRequest request);
 
     void deleteFloor(Long floorId);
+    List<FloorResponse> getPublicFloorsByBuilding(Long buildingId);
 }

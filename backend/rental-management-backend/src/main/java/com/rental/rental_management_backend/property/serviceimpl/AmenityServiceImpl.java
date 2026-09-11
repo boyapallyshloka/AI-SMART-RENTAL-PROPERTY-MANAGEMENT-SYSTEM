@@ -369,4 +369,23 @@ public class AmenityServiceImpl implements AmenityService {
 
         return response;
     }
+    @Override
+    public List<AmenityResponse> getPublicPropertyAmenities(
+            Long propertyId) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with ID: "
+                                                + propertyId));
+
+        return propertyAmenityRepository
+                .findByProperty(property)
+                .stream()
+                .map(PropertyAmenity::getAmenity)
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 }

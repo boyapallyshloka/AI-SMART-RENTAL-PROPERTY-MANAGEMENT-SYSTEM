@@ -28,4 +28,5 @@ public interface PropertyImageService {
             Boolean isPrimary);
 
     void deleteImage(Long imageId);
+    List<PropertyImageResponse> getPublicImagesByProperty(Long propertyId);
 }

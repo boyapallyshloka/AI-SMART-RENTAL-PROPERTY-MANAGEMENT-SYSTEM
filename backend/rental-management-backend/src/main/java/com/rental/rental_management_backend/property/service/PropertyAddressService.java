@@ -20,4 +20,5 @@ public interface PropertyAddressService {
     );
 
     void deleteAddress(Long propertyId);
+    PropertyAddressResponse getPublicAddressByPropertyId(Long propertyId);
 }

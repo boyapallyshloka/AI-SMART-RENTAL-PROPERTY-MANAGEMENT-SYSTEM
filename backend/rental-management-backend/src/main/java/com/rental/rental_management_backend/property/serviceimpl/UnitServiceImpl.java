@@ -349,4 +349,19 @@ public class UnitServiceImpl implements UnitService {
 
         return response;
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<UnitResponse> getPublicUnitsByFloor(Long floorId) {
+
+        Floor floor = floorRepository.findById(floorId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Floor not found with ID: "
+                                + floorId));
+
+        return unitRepository.findByFloor(floor)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 }

@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.List;
@@ -51,27 +52,23 @@ public class PropertyServiceImpl implements PropertyService {
 
         property.setTotalArea(request.getTotalArea());
 
-        property.setFurnishingStatus(
-                request.getFurnishingStatus()
-        );
+        property.setFurnishingStatus(request.getFurnishingStatus());
 
-        property.setParkingAvailable(
-                request.getParkingAvailable()
-        );
+        property.setParkingAvailable(request.getParkingAvailable());
 
-        property.setYearBuilt(
-                request.getYearBuilt()
-        );
+        property.setYearBuilt(request.getYearBuilt());
 
         /*
          * Owner is taken from the authenticated JWT user.
          * Client cannot choose ownerId.
          */
+
         property.setOwner(owner);
 
         /*
          * Every newly created property starts as DRAFT.
          */
+
         property.setStatus(PropertyStatus.DRAFT);
 
         Property savedProperty =
@@ -113,6 +110,54 @@ public class PropertyServiceImpl implements PropertyService {
         return convertToResponse(property);
     }
 
+    /*
+     * GET ALL AVAILABLE PROPERTIES
+     *
+     * Used by tenants to browse properties
+     * that are currently available for rental.
+     */
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getAvailableProperties() {
+
+        return propertyRepository
+                .findByStatus(PropertyStatus.AVAILABLE)
+                .stream()
+                .map(this::convertToResponse)
+                .toList();
+    }
+
+    /*
+     * GET ONE AVAILABLE PROPERTY
+     *
+     * Used by tenants to view a specific
+     * available property.
+     */
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyResponse getPublicPropertyById(Long propertyId) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with id: "
+                                                + propertyId
+                                ));
+
+        if (property.getStatus() != PropertyStatus.AVAILABLE) {
+
+            throw new RuntimeException(
+                    "Property is not available for tenants"
+            );
+        }
+
+        return convertToResponse(property);
+    }
+
     @Override
     public PropertyResponse updateProperty(
             Long id,
@@ -130,38 +175,25 @@ public class PropertyServiceImpl implements PropertyService {
                                         "Property not found or you do not have permission"
                                 ));
 
-        property.setPropertyName(
-                request.getPropertyName()
-        );
+        property.setPropertyName(request.getPropertyName());
 
-        property.setPropertyType(
-                request.getPropertyType()
-        );
+        property.setPropertyType(request.getPropertyType());
 
-        property.setDescription(
-                request.getDescription()
-        );
+        property.setDescription(request.getDescription());
 
-        property.setTotalArea(
-                request.getTotalArea()
-        );
+        property.setTotalArea(request.getTotalArea());
 
-        property.setFurnishingStatus(
-                request.getFurnishingStatus()
-        );
+        property.setFurnishingStatus(request.getFurnishingStatus());
 
-        property.setParkingAvailable(
-                request.getParkingAvailable()
-        );
+        property.setParkingAvailable(request.getParkingAvailable());
 
-        property.setYearBuilt(
-                request.getYearBuilt()
-        );
+        property.setYearBuilt(request.getYearBuilt());
 
         /*
          * Owner and status are intentionally not changed
          * during normal property update.
          */
+
         Property updatedProperty =
                 propertyRepository.save(property);
 
