@@ -146,17 +146,29 @@ export default function UnitDetailsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!unit || !canManage) return
-    await deleteUnit(unit.unitId)
-    const targetBuildingId = unit.buildingId || unit.floor?.building?.buildingId
-    const targetFloorId = unit.floorId || unit.floor?.floorId
-    const backUrl =
-      targetBuildingId && targetFloorId
-        ? `${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`
-        : `${basePath}/buildings`
+    try {
+      await deleteUnit(unit.unitId)
+      const targetBId = unit.buildingId || unit.floor?.buildingId || unit.floor?.building?.buildingId
+      const targetFId = unit.floorId || unit.floor?.floorId
+      const backUrl =
+        targetBId && targetFId
+          ? `${basePath}/buildings/${targetBId}/floors/${targetFId}`
+          : unit.propertyId
+          ? `/owner/properties/${unit.propertyId}`
+          : `${basePath}/properties`
 
-    navigate(backUrl, {
-      state: { toast: `Unit "${unit.unitNumber}" was deleted.` },
-    })
+      navigate(backUrl, {
+        state: { toastMessage: `Unit "${unit.unitNumber}" was deleted.` },
+      })
+    } catch (err) {
+      console.error('Failed to delete unit:', err)
+      setErrorMessage(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete unit. Please try again.'
+      )
+      setIsDeleteModalOpen(false)
+    }
   }
 
   if (isLoading) {
@@ -233,16 +245,21 @@ export default function UnitDetailsPage() {
     )
   }
 
-  const floor = unit.floor
-  const building = floor?.building
-  const property = building?.property
+  const targetFloorId = unit.floorId || unit.floor?.floorId || unit.floor?.id
+  const targetFloorName = unit.floorName || unit.floor?.floorName || unit.floor?.name
+  const targetBuildingId = unit.buildingId || unit.floor?.buildingId || unit.floor?.building?.buildingId || unit.floor?.building?.id
+  const targetBuildingName = unit.buildingName || unit.floor?.buildingName || unit.floor?.building?.buildingName || unit.floor?.building?.name
+  const targetPropertyId = unit.propertyId || unit.floor?.building?.propertyId || unit.floor?.building?.property?.propertyId
+  const targetPropertyName = unit.propertyName || unit.floor?.building?.propertyName || unit.floor?.building?.property?.name
 
   const backDestination =
-    building?.buildingId && floor?.floorId
-      ? `${basePath}/buildings/${building.buildingId}/floors/${floor.floorId}`
-      : `${basePath}/buildings`
+    targetBuildingId && targetFloorId
+      ? `${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`
+      : targetPropertyId
+      ? `/owner/properties/${targetPropertyId}`
+      : `${basePath}/properties`
 
-  const backLabel = floor?.floorName ? `Back to ${floor.floorName}` : 'Back to Floor'
+  const backLabel = targetFloorName ? `Back to ${targetFloorName}` : 'Back to Floor'
 
   return (
     <DashboardLayout
@@ -266,6 +283,53 @@ export default function UnitDetailsPage() {
             </button>
           </div>
         )}
+
+        {/* Hierarchy Breadcrumbs */}
+        <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+          <Link
+            to="/owner/properties"
+            className="hover:text-[#315A7D] transition-colors"
+          >
+            Properties
+          </Link>
+          {targetPropertyId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/owner/properties/${targetPropertyId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetPropertyName || `Property #${targetPropertyId}`}
+              </Link>
+            </>
+          )}
+          {targetBuildingId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`${basePath}/buildings/${targetBuildingId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetBuildingName || `Building #${targetBuildingId}`}
+              </Link>
+            </>
+          )}
+          {targetBuildingId && targetFloorId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetFloorName || `Floor #${targetFloorId}`}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-[#243447] font-semibold">
+            Unit {unit.unitNumber}
+          </span>
+        </div>
 
         {/* Top Navigation & Action Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

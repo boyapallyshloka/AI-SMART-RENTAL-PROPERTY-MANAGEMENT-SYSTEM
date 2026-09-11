@@ -26,10 +26,6 @@ import {
 } from '../../api/buildingApi'
 import { getMyProperties } from '../../api/propertyApi'
 import {
-  getMockFloorsByBuildingId,
-  getMockUnitsByBuildingId,
-} from '../../utils/buildingUnitMockData'
-import {
   ROLES,
   isPropertyOwner,
   isPropertyManager,
@@ -393,9 +389,6 @@ export default function BuildingsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {filteredBuildings.map((building) => {
-              const floorsCount = getMockFloorsByBuildingId(building.buildingId).length
-              const unitsCount = getMockUnitsByBuildingId(building.buildingId).length
-
               return (
                 <div
                   key={building.buildingId}

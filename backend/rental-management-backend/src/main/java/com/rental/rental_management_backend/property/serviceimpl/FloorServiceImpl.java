@@ -298,8 +298,8 @@ public class FloorServiceImpl implements FloorService {
                 .getId()
                 .equals(owner.getId())) {
 
-            throw new RuntimeException(
-                    "You are not authorized to access this building");
+            throw new ResourceNotFoundException(
+                    "Building not found with ID: " + buildingId);
         }
 
         return building;
@@ -341,8 +341,8 @@ public class FloorServiceImpl implements FloorService {
                 .getId()
                 .equals(owner.getId())) {
 
-            throw new RuntimeException(
-                    "You are not authorized to access this floor");
+            throw new ResourceNotFoundException(
+                    "Floor not found with ID: " + floor.getFloorId());
         }
     }
 

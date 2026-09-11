@@ -435,6 +435,31 @@ export default function BuildingDetailsPage() {
           </div>
         )}
 
+        {/* Hierarchy Breadcrumbs */}
+        <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+          <Link
+            to="/owner/properties"
+            className="hover:text-[#315A7D] transition-colors"
+          >
+            Properties
+          </Link>
+          {(building.propertyId || building.property?.id) && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/owner/properties/${building.propertyId || building.property?.id}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {building.propertyName || building.property?.name || `Property #${building.propertyId || building.property?.id}`}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-[#243447] font-semibold">
+            {building.buildingName}
+          </span>
+        </div>
+
         {/* Back Navigation Bar & Action Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">

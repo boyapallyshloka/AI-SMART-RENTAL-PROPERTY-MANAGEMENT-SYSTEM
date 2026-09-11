@@ -13,6 +13,7 @@ export const ALLOWED_ADDRESS_REQUEST_FIELDS = [
   'addressLine1',
   'addressLine2',
   'area',
+  'areaType',
   'city',
   'state',
   'country',
@@ -21,10 +22,17 @@ export const ALLOWED_ADDRESS_REQUEST_FIELDS = [
   'longitude',
 ]
 
+export const AREA_TYPES = {
+  SUPER_BUILT_UP_AREA: 'SUPER_BUILT_UP_AREA',
+  BUILT_UP_AREA: 'BUILT_UP_AREA',
+  PLOT_AREA: 'PLOT_AREA',
+  CARPET_AREA: 'CARPET_AREA',
+}
+
 /**
  * Cleanly format PropertyAddressRequest payload matching Spring Boot DTO constraints:
  * - Maps UI fields: address -> addressLine1, zipCode -> pincode
- * - Preserves: addressLine1, addressLine2, area, city, state, country, pincode, latitude, longitude
+ * - Preserves: addressLine1, addressLine2, area, areaType, city, state, country, pincode, latitude, longitude
  * - Strictly OMITS: propertyId (must be in URL path only), addressId, and response metadata
  */
 export const formatAddressRequest = (data = {}) => {
@@ -44,6 +52,11 @@ export const formatAddressRequest = (data = {}) => {
   // area
   if (data.area != null && String(data.area).trim() !== '') {
     payload.area = String(data.area).trim()
+  }
+
+  // areaType (optional AreaType enum)
+  if (data.areaType != null && String(data.areaType).trim() !== '') {
+    payload.areaType = String(data.areaType).trim()
   }
 
   // city

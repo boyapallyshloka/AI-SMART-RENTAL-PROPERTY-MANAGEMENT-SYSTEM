@@ -202,57 +202,30 @@ export const formatUnitRequest = (data = {}) => {
   )
 }
 
-/**
- * Default implementation connects to real Spring Boot REST API for owner operations.
- * Mock fallback is preserved and can be toggled for testing.
- */
-let useMockFallback = false
-
-export const setUseMockUnits = (enabled) => {
-  useMockFallback = Boolean(enabled)
-}
-
-export const isUsingMockUnits = () => useMockFallback
-
 // POST /api/units
 export const createUnit = async (unitData) => {
   const payload = formatUnitRequest(unitData)
-  if (useMockFallback) {
-    return addMockUnit(unitData)
-  }
   return axiosClient.post('/units', payload)
 }
 
 // GET /api/units/floor/{floorId}
 export const getUnitsByFloor = async (floorId) => {
-  if (useMockFallback) {
-    return getMockUnitsByFloorId(floorId)
-  }
   return axiosClient.get(`/units/floor/${floorId}`)
 }
 
 // GET /api/units/{unitId}
 export const getUnitById = async (unitId) => {
-  if (useMockFallback) {
-    return getMockUnitById(unitId)
-  }
   return axiosClient.get(`/units/${unitId}`)
 }
 
 // PUT /api/units/{unitId}
 export const updateUnit = async (unitId, unitData) => {
   const payload = formatUnitRequest(unitData)
-  if (useMockFallback) {
-    return updateMockUnit(unitId, unitData)
-  }
   return axiosClient.put(`/units/${unitId}`, payload)
 }
 
 // DELETE /api/units/{unitId}
 export const deleteUnit = async (unitId) => {
-  if (useMockFallback) {
-    return deleteMockUnit(unitId)
-  }
   return axiosClient.delete(`/units/${unitId}`)
 }
 

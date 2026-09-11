@@ -229,10 +229,21 @@ export default function FloorDetailsPage() {
   // Delete Unit Handler
   const handleConfirmDeleteUnit = async () => {
     if (!unitDeleteTarget || !canManage) return
-    await deleteUnit(unitDeleteTarget.unitId)
-    await loadData()
-    showToast(`Unit "${unitDeleteTarget.unitNumber}" was deleted.`)
-    setUnitDeleteTarget(null)
+    try {
+      await deleteUnit(unitDeleteTarget.unitId)
+      await loadData()
+      showToast(`Unit "${unitDeleteTarget.unitNumber}" was deleted.`)
+      setUnitDeleteTarget(null)
+    } catch (err) {
+      console.error('Failed to delete unit:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to delete unit. Please try again.'
+      setErrorMessage(errorMsg)
+      setUnitDeleteTarget(null)
+    }
   }
 
   // Open Edit Floor Modal & refresh details
@@ -437,6 +448,38 @@ export default function FloorDetailsPage() {
             </button>
           </div>
         )}
+
+        {/* Hierarchy Breadcrumbs */}
+        <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+          <Link
+            to="/owner/properties"
+            className="hover:text-[#315A7D] transition-colors"
+          >
+            Properties
+          </Link>
+          {(floor.propertyId || building?.propertyId || building?.property?.id) && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/owner/properties/${floor.propertyId || building?.propertyId || building?.property?.id}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {propertyName || `Property #${floor.propertyId || building?.propertyId || building?.property?.id}`}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <Link
+            to={`${basePath}/buildings/${buildingId}`}
+            className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+          >
+            {buildingName}
+          </Link>
+          <span>/</span>
+          <span className="text-[#243447] font-semibold">
+            {floor.floorName}
+          </span>
+        </div>
 
         {/* Back Navigation Bar & Action Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

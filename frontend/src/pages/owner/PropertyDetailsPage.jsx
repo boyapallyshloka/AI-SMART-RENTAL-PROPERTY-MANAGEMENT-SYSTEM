@@ -14,6 +14,7 @@ import {
   createAddress,
   updateAddress,
   deleteAddress,
+  AREA_TYPES,
 } from '../../api/propertyAddressApi'
 import {
   getImagesByProperty,
@@ -29,8 +30,9 @@ import {
   createAmenity,
   deleteAmenity,
 } from '../../api/amenityApi'
-import { getBuildingsByProperty } from '../../api/buildingApi'
-import { StatusBadge, Button, EmptyState, Loader, Input } from '../../components/ui'
+import { getBuildingsByProperty, deleteBuilding } from '../../api/buildingApi'
+import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
+import { StatusBadge, Button, EmptyState, Loader, Input, Select } from '../../components/ui'
 import {
   ArrowLeft,
   Edit,
@@ -62,6 +64,22 @@ import {
 
 export { mapBackendPropertyToUi }
 
+const formatAreaType = (type) => {
+  if (!type) return ''
+  switch (type) {
+    case 'SUPER_BUILT_UP_AREA':
+      return 'Super Built-up Area'
+    case 'BUILT_UP_AREA':
+      return 'Built-up Area'
+    case 'PLOT_AREA':
+      return 'Plot Area'
+    case 'CARPET_AREA':
+      return 'Carpet Area'
+    default:
+      return type.replace(/_/g, ' ')
+  }
+}
+
 export default function PropertyDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -85,6 +103,7 @@ export default function PropertyDetailsPage() {
     addressLine1: '',
     addressLine2: '',
     area: '',
+    areaType: '',
     city: '',
     state: '',
     country: '',
@@ -116,6 +135,8 @@ export default function PropertyDetailsPage() {
   const [propertyBuildings, setPropertyBuildings] = useState([])
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(false)
   const [buildingsError, setBuildingsError] = useState(null)
+  const [buildingDeleteTarget, setBuildingDeleteTarget] = useState(null)
+  const [isDeletingBuilding, setIsDeletingBuilding] = useState(false)
 
   useEffect(() => {
     if (location.state?.toastMessage) {
@@ -243,6 +264,28 @@ export default function PropertyDetailsPage() {
     return loadProperty()
   }
 
+  const handleConfirmDeleteBuilding = async () => {
+    if (!buildingDeleteTarget || isDeletingBuilding) return
+    setIsDeletingBuilding(true)
+    setBuildingsError(null)
+    try {
+      await deleteBuilding(buildingDeleteTarget.buildingId)
+      setToastMessage(`Building "${buildingDeleteTarget.buildingName}" was deleted successfully.`)
+      setBuildingDeleteTarget(null)
+      await loadProperty()
+    } catch (err) {
+      console.error('Failed to delete building:', err)
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete building. Please try again.'
+      setBuildingsError(msg)
+      setBuildingDeleteTarget(null)
+    } finally {
+      setIsDeletingBuilding(false)
+    }
+  }
+
   useEffect(() => {
     loadProperty()
   }, [id])
@@ -303,6 +346,7 @@ export default function PropertyDetailsPage() {
       addressLine1: '',
       addressLine2: '',
       area: '',
+      areaType: '',
       city: '',
       state: '',
       country: '',
@@ -321,6 +365,7 @@ export default function PropertyDetailsPage() {
       addressLine1: addressData.addressLine1 || '',
       addressLine2: addressData.addressLine2 || '',
       area: addressData.area || '',
+      areaType: addressData.areaType || '',
       city: addressData.city || '',
       state: addressData.state || '',
       country: addressData.country || '',
@@ -367,17 +412,16 @@ export default function PropertyDetailsPage() {
     setIsSubmittingAddress(true)
     setAddressError(null)
     try {
-      let res
       if (addressData?.addressId) {
-        res = await updateAddress(id, addressForm)
+        await updateAddress(id, addressForm)
         setToastMessage('Property address updated successfully.')
       } else {
-        res = await createAddress(id, addressForm)
+        await createAddress(id, addressForm)
         setToastMessage('Property address created successfully.')
       }
-      const saved = res?.data || res
-      setAddressData(saved)
       setIsEditingAddress(false)
+      // Refresh property details from real backend Neon DB
+      await loadProperty()
       setTimeout(() => setToastMessage(''), 3000)
     } catch (err) {
       console.error('Failed to save address:', err)
@@ -402,9 +446,10 @@ export default function PropertyDetailsPage() {
     setAddressError(null)
     try {
       await deleteAddress(id)
-      setAddressData(null)
       setIsEditingAddress(false)
       setToastMessage('Property address deleted successfully.')
+      // Refresh property details from real backend Neon DB so address = null
+      await loadProperty()
       setTimeout(() => setToastMessage(''), 3000)
     } catch (err) {
       console.error('Failed to delete address:', err)
@@ -412,6 +457,7 @@ export default function PropertyDetailsPage() {
         err?.response?.data?.message ||
         err?.message ||
         'Failed to delete address. Please try again.'
+      setAddressError(errorMsg)
       alert(`Error: ${errorMsg}`)
     } finally {
       setIsDeletingAddress(false)
@@ -830,7 +876,7 @@ export default function PropertyDetailsPage() {
                       ]
                         .filter(Boolean)
                         .join(', ')
-                    : 'Address not specified'}
+                    : 'No address added'}
                 </span>
               </p>
             </div>
@@ -965,7 +1011,7 @@ export default function PropertyDetailsPage() {
                       isDeletingImageId === currentImage?.imageId ? (
                         <Loader size="xs" />
                       ) : (
-                        <Trash2 className="w-3 h-3 text-red-500" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       )
                     }
                   >
@@ -1041,7 +1087,7 @@ export default function PropertyDetailsPage() {
                 <div>
                   <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-[#315A7D]" />
-                    Property Location & Address
+                    Property Address
                   </h2>
                   <p className="text-xs text-[#5B6875] mt-0.5">
                     Official postal address and geographic coordinates
@@ -1057,6 +1103,7 @@ export default function PropertyDetailsPage() {
                           size="sm"
                           leftIcon={<Edit className="w-3.5 h-3.5" />}
                           onClick={handleOpenEditAddress}
+                          disabled={isDeletingAddress}
                         >
                           Edit Address
                         </Button>
@@ -1118,7 +1165,7 @@ export default function PropertyDetailsPage() {
                     <div className="sm:col-span-2">
                       <Input
                         label="Address Line 1"
-                        placeholder="e.g. 420 Ocean Boulevard, Building 4"
+                        placeholder="e.g. Plot 123"
                         value={addressForm.addressLine1}
                         onChange={(e) =>
                           setAddressForm((prev) => ({
@@ -1134,7 +1181,7 @@ export default function PropertyDetailsPage() {
                     <div className="sm:col-span-2">
                       <Input
                         label="Address Line 2 (Optional)"
-                        placeholder="e.g. Suite 500 / Apartment 3B"
+                        placeholder="e.g. Near Metro Station"
                         value={addressForm.addressLine2}
                         onChange={(e) =>
                           setAddressForm((prev) => ({
@@ -1146,8 +1193,8 @@ export default function PropertyDetailsPage() {
                     </div>
 
                     <Input
-                      label="Area / Neighborhood"
-                      placeholder="e.g. Downtown / Westside"
+                      label="Area"
+                      placeholder="e.g. Madhapur"
                       value={addressForm.area}
                       onChange={(e) =>
                         setAddressForm((prev) => ({
@@ -1159,9 +1206,27 @@ export default function PropertyDetailsPage() {
                       required
                     />
 
+                    <Select
+                      label="Area Type (Optional)"
+                      value={addressForm.areaType}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          areaType: e.target.value,
+                        }))
+                      }
+                      options={[
+                        { value: '', label: 'Select area type (optional)' },
+                        { value: 'SUPER_BUILT_UP_AREA', label: 'Super Built-up Area' },
+                        { value: 'BUILT_UP_AREA', label: 'Built-up Area' },
+                        { value: 'PLOT_AREA', label: 'Plot Area' },
+                        { value: 'CARPET_AREA', label: 'Carpet Area' },
+                      ]}
+                    />
+
                     <Input
                       label="City"
-                      placeholder="e.g. Santa Monica"
+                      placeholder="e.g. Hyderabad"
                       value={addressForm.city}
                       onChange={(e) =>
                         setAddressForm((prev) => ({
@@ -1174,8 +1239,8 @@ export default function PropertyDetailsPage() {
                     />
 
                     <Input
-                      label="State / Province"
-                      placeholder="e.g. California"
+                      label="State"
+                      placeholder="e.g. Telangana"
                       value={addressForm.state}
                       onChange={(e) =>
                         setAddressForm((prev) => ({
@@ -1189,7 +1254,7 @@ export default function PropertyDetailsPage() {
 
                     <Input
                       label="Country"
-                      placeholder="e.g. United States"
+                      placeholder="e.g. India"
                       value={addressForm.country}
                       onChange={(e) =>
                         setAddressForm((prev) => ({
@@ -1203,7 +1268,7 @@ export default function PropertyDetailsPage() {
 
                     <Input
                       label="Pincode (6 Digits)"
-                      placeholder="e.g. 904010"
+                      placeholder="e.g. 500081"
                       value={addressForm.pincode}
                       onChange={(e) =>
                         setAddressForm((prev) => ({
@@ -1215,10 +1280,10 @@ export default function PropertyDetailsPage() {
                       required
                     />
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                       <Input
                         label="Latitude (Optional)"
-                        placeholder="34.0195"
+                        placeholder="e.g. 17.4483"
                         value={addressForm.latitude}
                         onChange={(e) =>
                           setAddressForm((prev) => ({
@@ -1229,7 +1294,7 @@ export default function PropertyDetailsPage() {
                       />
                       <Input
                         label="Longitude (Optional)"
-                        placeholder="-118.4912"
+                        placeholder="e.g. 78.3915"
                         value={addressForm.longitude}
                         onChange={(e) =>
                           setAddressForm((prev) => ({
@@ -1276,17 +1341,34 @@ export default function PropertyDetailsPage() {
                 <div className="space-y-3 pt-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
-                      <p className="text-[#5B6875] font-medium mb-0.5">Street Address</p>
+                      <p className="text-[#5B6875] font-medium mb-0.5">Address Line 1</p>
                       <p className="font-semibold text-[#243447]">
                         {addressData.addressLine1}
-                        {addressData.addressLine2 ? `, ${addressData.addressLine2}` : ''}
                       </p>
                     </div>
 
+                    {addressData.addressLine2 ? (
+                      <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                        <p className="text-[#5B6875] font-medium mb-0.5">Address Line 2</p>
+                        <p className="font-semibold text-[#243447]">
+                          {addressData.addressLine2}
+                        </p>
+                      </div>
+                    ) : null}
+
                     <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
-                      <p className="text-[#5B6875] font-medium mb-0.5">Area / Neighborhood</p>
+                      <p className="text-[#5B6875] font-medium mb-0.5">Area</p>
                       <p className="font-semibold text-[#243447]">{addressData.area}</p>
                     </div>
+
+                    {addressData.areaType ? (
+                      <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                        <p className="text-[#5B6875] font-medium mb-0.5">Area Type</p>
+                        <p className="font-semibold text-[#243447]">
+                          {formatAreaType(addressData.areaType)}
+                        </p>
+                      </div>
+                    ) : null}
 
                     <div className="p-3 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                       <p className="text-[#5B6875] font-medium mb-0.5">City & State</p>
@@ -1307,23 +1389,29 @@ export default function PropertyDetailsPage() {
                     <div className="flex items-center gap-2 text-xs text-[#5B6875] px-1 pt-1">
                       <span className="font-medium text-[#243447]">GPS Coordinates:</span>
                       <span>
-                        {addressData.latitude ?? '—'}, {addressData.longitude ?? '—'}
+                        Latitude: {addressData.latitude ?? '—'}, Longitude: {addressData.longitude ?? '—'}
                       </span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-[#F7F8FA] border border-dashed border-[#D9E0E6] text-center space-y-2">
-                  <p className="text-xs text-[#5B6875]">
-                    No official address has been registered for this property yet.
-                  </p>
+                <div className="p-8 rounded-xl bg-[#F7F8FA] border border-dashed border-[#D9E0E6] text-center space-y-3">
+                  <div className="w-10 h-10 mx-auto rounded-full bg-[#EAF2F7] flex items-center justify-center text-[#315A7D]">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#243447]">No address added</h3>
+                    <p className="text-xs text-[#5B6875] mt-0.5 max-w-sm mx-auto">
+                      This property does not have a registered address yet.
+                    </p>
+                  </div>
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
                     leftIcon={<Plus className="w-3.5 h-3.5" />}
                     onClick={handleOpenAddAddress}
                   >
-                    Register Address
+                    Add Address
                   </Button>
                 </div>
               )}
@@ -1674,7 +1762,7 @@ export default function PropertyDetailsPage() {
                 </div>
 
                 <Link
-                  to={`/owner/buildings/new?propertyId=${id}`}
+                  to={`/owner/properties/${id}/buildings/new`}
                   state={{ propertyId: id, propertyName: property?.name }}
                 >
                   <Button
@@ -1803,7 +1891,7 @@ export default function PropertyDetailsPage() {
                         </div>
                       )}
 
-                      <div className="pt-1">
+                      <div className="pt-2 border-t border-[#D9E0E6]/60 flex items-center justify-between gap-2">
                         <Link
                           to={`/owner/buildings/${b.buildingId}`}
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315A7D] hover:text-[#254663] transition-colors"
@@ -1811,6 +1899,19 @@ export default function PropertyDetailsPage() {
                           <span>View Building Details</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          leftIcon={<Trash2 className="w-3 h-3 text-[#B94A48]" />}
+                          onClick={() =>
+                            setBuildingDeleteTarget({
+                              buildingId: b.buildingId,
+                              buildingName: b.buildingName,
+                            })
+                          }
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1826,7 +1927,7 @@ export default function PropertyDetailsPage() {
                     units for this property.
                   </p>
                   <Link
-                    to={`/owner/buildings/new?propertyId=${id}`}
+                    to={`/owner/properties/${id}/buildings/new`}
                     state={{ propertyId: id, propertyName: property?.name }}
                   >
                     <Button
@@ -1994,6 +2095,17 @@ export default function PropertyDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Building Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(buildingDeleteTarget)}
+        onClose={() => !isDeletingBuilding && setBuildingDeleteTarget(null)}
+        onConfirm={handleConfirmDeleteBuilding}
+        title="Delete Building"
+        itemName={buildingDeleteTarget?.buildingName}
+        consequenceMessage="This will permanently delete this building along with all of its registered floors and units."
+        isLoading={isDeletingBuilding}
+      />
     </DashboardLayout>
   )
 }

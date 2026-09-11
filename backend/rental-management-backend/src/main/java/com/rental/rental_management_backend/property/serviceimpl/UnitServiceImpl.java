@@ -284,8 +284,8 @@ public class UnitServiceImpl implements UnitService {
                 .getId()
                 .equals(owner.getId())) {
 
-            throw new RuntimeException(
-                    "You are not authorized to access this floor");
+            throw new ResourceNotFoundException(
+                    "Floor not found with ID: " + floor.getFloorId());
         }
     }
 

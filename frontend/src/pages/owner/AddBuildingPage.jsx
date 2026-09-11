@@ -220,17 +220,19 @@ export default function AddBuildingPage() {
         })
       } else {
         const created = await createBuilding(payload)
-        const newBuildingId = created?.buildingId || created?.data?.buildingId
-        if (newBuildingId) {
-          navigate(`/owner/buildings/${newBuildingId}`, {
-            state: { toastMessage: 'Building registered successfully.' },
-          })
-        } else if (formData.propertyId) {
+        if (formData.propertyId) {
           navigate(`/owner/properties/${formData.propertyId}`, {
-            state: { toastMessage: 'Building registered successfully.' },
+            state: { toastMessage: `Building "${payload.buildingName}" was registered successfully.` },
           })
         } else {
-          navigate('/owner/properties')
+          const newBuildingId = created?.data?.buildingId || created?.buildingId
+          if (newBuildingId) {
+            navigate(`/owner/buildings/${newBuildingId}`, {
+              state: { toastMessage: `Building "${payload.buildingName}" was registered successfully.` },
+            })
+          } else {
+            navigate('/owner/properties')
+          }
         }
       }
     } catch (err) {

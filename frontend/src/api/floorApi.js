@@ -104,57 +104,30 @@ export const formatFloorRequest = (data = {}) => {
   )
 }
 
-/**
- * Default implementation connects to real Spring Boot REST API for owner operations.
- * Mock fallback is preserved and can be toggled for testing.
- */
-let useMockFallback = false
-
-export const setUseMockFloors = (enabled) => {
-  useMockFallback = Boolean(enabled)
-}
-
-export const isUsingMockFloors = () => useMockFallback
-
 // POST /api/floors
 export const createFloor = async (floorData) => {
   const payload = formatFloorRequest(floorData)
-  if (useMockFallback) {
-    return addMockFloor(floorData)
-  }
   return axiosClient.post('/floors', payload)
 }
 
 // GET /api/floors/building/{buildingId}
 export const getFloorsByBuilding = async (buildingId) => {
-  if (useMockFallback) {
-    return getMockFloorsByBuildingId(buildingId)
-  }
   return axiosClient.get(`/floors/building/${buildingId}`)
 }
 
 // GET /api/floors/{floorId}
 export const getFloorById = async (floorId) => {
-  if (useMockFallback) {
-    return getMockFloorById(floorId)
-  }
   return axiosClient.get(`/floors/${floorId}`)
 }
 
 // PUT /api/floors/{floorId}
 export const updateFloor = async (floorId, floorData) => {
   const payload = formatFloorRequest(floorData)
-  if (useMockFallback) {
-    return updateMockFloor(floorId, floorData)
-  }
   return axiosClient.put(`/floors/${floorId}`, payload)
 }
 
 // DELETE /api/floors/{floorId}
 export const deleteFloor = async (floorId) => {
-  if (useMockFallback) {
-    return deleteMockFloor(floorId)
-  }
   return axiosClient.delete(`/floors/${floorId}`)
 }
 

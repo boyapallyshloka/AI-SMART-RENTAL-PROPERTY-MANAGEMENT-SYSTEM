@@ -259,8 +259,8 @@ public class BuildingServiceImpl implements BuildingService {
                 .getId()
                 .equals(owner.getId())) {
 
-            throw new RuntimeException(
-                    "You are not authorized to access this building");
+            throw new ResourceNotFoundException(
+                    "Building not found with ID: " + buildingId);
         }
 
         return building;

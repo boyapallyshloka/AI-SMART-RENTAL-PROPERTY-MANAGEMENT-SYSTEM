@@ -19,7 +19,6 @@ import {
 export const ALLOWED_BUILDING_FIELDS = [
   'buildingName',
   'totalFloors',
-  'totalUnits',
   'description',
   'propertyId',
 ]
@@ -28,14 +27,13 @@ export const ALLOWED_BUILDING_FIELDS = [
  * Formats and sanitizes BuildingRequest payload matching Spring Boot DTO constraints:
  * - buildingName: String (@NotBlank)
  * - totalFloors: Integer (@PositiveOrZero, optional)
- * - totalUnits: Integer (@PositiveOrZero, optional)
  * - description: String (optional)
  * - propertyId: Long (@NotNull)
  *
  * Strictly ensures:
  * - propertyId remains a flat number (never a nested property object)
  * - buildingId is strictly omitted from request bodies
- * - response and UI metadata (propertyName, createdAt, updatedAt, ownerId, etc.) are omitted
+ * - response and UI metadata (propertyName, createdAt, updatedAt, ownerId, totalUnits, etc.) are omitted
  * - numeric fields preserve actual numeric values without inventing arbitrary defaults
  */
 export const formatBuildingRequest = (data = {}) => {
@@ -50,12 +48,6 @@ export const formatBuildingRequest = (data = {}) => {
   const totalFloors =
     rawFloors !== undefined && rawFloors !== null && rawFloors !== ''
       ? Number(rawFloors)
-      : undefined
-
-  const rawUnits = data.totalUnits !== undefined ? data.totalUnits : data.units
-  const totalUnits =
-    rawUnits !== undefined && rawUnits !== null && rawUnits !== ''
-      ? Number(rawUnits)
       : undefined
 
   const description =
@@ -80,14 +72,14 @@ export const formatBuildingRequest = (data = {}) => {
   const payload = {
     buildingName: buildingName || undefined,
     totalFloors,
-    totalUnits,
     description,
     propertyId,
   }
 
-  // Strictly exclude UI and response-only fields
+  // Strictly exclude UI, entity, and response-only fields
   delete payload.buildingId
   delete payload.id
+  delete payload.totalUnits
   delete payload.propertyName
   delete payload.createdAt
   delete payload.updatedAt
@@ -99,57 +91,30 @@ export const formatBuildingRequest = (data = {}) => {
   )
 }
 
-/**
- * Default implementation preserves mock data for page stability until Phase 5 UI migration.
- * Can be toggled for real Spring Boot REST API integration.
- */
-let useMockFallback = false
-
-export const setUseMockBuildings = (enabled) => {
-  useMockFallback = Boolean(enabled)
-}
-
-export const isUsingMockBuildings = () => useMockFallback
-
 // POST /api/buildings
 export const createBuilding = async (buildingData) => {
   const payload = formatBuildingRequest(buildingData)
-  if (useMockFallback) {
-    return addMockBuilding(buildingData)
-  }
   return axiosClient.post('/buildings', payload)
 }
 
 // GET /api/buildings/property/{propertyId}
 export const getBuildingsByProperty = async (propertyId) => {
-  if (useMockFallback) {
-    return getMockBuildingsByPropertyId(propertyId)
-  }
   return axiosClient.get(`/buildings/property/${propertyId}`)
 }
 
 // GET /api/buildings/{buildingId}
 export const getBuildingById = async (buildingId) => {
-  if (useMockFallback) {
-    return getMockBuildingById(buildingId)
-  }
   return axiosClient.get(`/buildings/${buildingId}`)
 }
 
 // PUT /api/buildings/{buildingId}
 export const updateBuilding = async (buildingId, buildingData) => {
   const payload = formatBuildingRequest(buildingData)
-  if (useMockFallback) {
-    return updateMockBuilding(buildingId, buildingData)
-  }
   return axiosClient.put(`/buildings/${buildingId}`, payload)
 }
 
 // DELETE /api/buildings/{buildingId}
 export const deleteBuilding = async (buildingId) => {
-  if (useMockFallback) {
-    return deleteMockBuilding(buildingId)
-  }
   return axiosClient.delete(`/buildings/${buildingId}`)
 }
 
