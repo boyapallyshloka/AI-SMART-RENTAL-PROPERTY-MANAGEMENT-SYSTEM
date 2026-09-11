@@ -186,9 +186,19 @@ export function AuthProvider({ children }) {
 
   /**
    * Reset password via authApi gateway
+   * @param {string|Object} tokenOrData - { token, newPassword } or token string
+   * @param {string} [maybeNewPassword]
    */
-  const resetPassword = async (email, newPassword) => {
-    return authApi.resetPassword({ email, password: newPassword })
+  const resetPassword = async (tokenOrData, maybeNewPassword) => {
+    return authApi.resetPassword(tokenOrData, maybeNewPassword)
+  }
+
+  /**
+   * Change password via authApi gateway
+   * @param {Object} data - { currentPassword, newPassword }
+   */
+  const changePassword = async ({ currentPassword, newPassword }) => {
+    return authApi.changePassword({ currentPassword, newPassword })
   }
 
   const value = {
@@ -201,9 +211,11 @@ export function AuthProvider({ children }) {
     logout,
     forgotPassword,
     resetPassword,
+    changePassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+
 }
 
 export function useAuth() {

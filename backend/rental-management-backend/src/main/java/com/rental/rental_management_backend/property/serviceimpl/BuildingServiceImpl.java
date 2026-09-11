@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.BuildingRequest;
 import com.rental.rental_management_backend.property.dto.BuildingResponse;
 import com.rental.rental_management_backend.property.entity.Building;
@@ -51,7 +52,7 @@ public class BuildingServiceImpl implements BuildingService {
                         request.getPropertyId(),
                         owner)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Property not found or you do not have permission"));
 
         if (buildingRepository.existsByPropertyAndBuildingName(
@@ -97,7 +98,7 @@ public class BuildingServiceImpl implements BuildingService {
                         propertyId,
                         owner)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Property not found or you do not have permission"));
 
         return buildingRepository
@@ -235,7 +236,7 @@ public class BuildingServiceImpl implements BuildingService {
                 buildingRepository
                         .findById(buildingId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Building not found with ID: "
                                                 + buildingId));
 

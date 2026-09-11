@@ -276,7 +276,7 @@ export default function AddUnitPage() {
     return (
       <DashboardLayout
         defaultRole="owner"
-        activeItem="buildings"
+        activeItem="properties"
         pageTitle={isEditMode ? 'Loading Unit...' : 'Loading Floor Context...'}
       >
         <div className="flex items-center justify-center min-h-[350px]">
@@ -290,7 +290,7 @@ export default function AddUnitPage() {
     return (
       <DashboardLayout
         defaultRole="owner"
-        activeItem="buildings"
+        activeItem="properties"
         pageTitle="Record Not Found"
       >
         <div className="max-w-3xl mx-auto py-12 space-y-4">
@@ -303,9 +303,9 @@ export default function AddUnitPage() {
                 : `Target floor "${effectiveFloorId}" was not found.`
             }
             action={
-              <Link to="/owner/buildings">
+              <Link to="/owner/properties">
                 <Button variant="primary" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                  Back to Buildings
+                  Back to Properties
                 </Button>
               </Link>
             }
@@ -328,7 +328,7 @@ export default function AddUnitPage() {
   return (
     <DashboardLayout
       defaultRole="owner"
-      activeItem="buildings"
+      activeItem="properties"
       pageTitle={isEditMode ? `Edit Unit ${formData.unitNumber}` : 'Add New Unit'}
     >
       <div className="max-w-3xl mx-auto space-y-6">

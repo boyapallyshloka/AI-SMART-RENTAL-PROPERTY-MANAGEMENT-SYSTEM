@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.dto.BuildingDetailsResponse;
 import com.rental.rental_management_backend.property.dto.BuildingResponse;
@@ -65,7 +66,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
 
     @Override
-    @Transactional(readOnly = true)
     public PropertyDetailsResponse getPropertyDetails(Long propertyId) {
 
         /*
@@ -77,9 +77,16 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
         /*
          * 2. ADDRESS
+         * A property is allowed to exist without an address.
+         * If the address does not exist and the service throws
+         * ResourceNotFoundException, treat address as null.
          */
-        PropertyAddressResponse address =
-                propertyAddressService.getAddressByPropertyId(propertyId);
+        PropertyAddressResponse address = null;
+        try {
+            address = propertyAddressService.getAddressByPropertyId(propertyId);
+        } catch (ResourceNotFoundException ex) {
+            address = null;
+        }
 
 
         /*
@@ -91,50 +98,53 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         List<BuildingDetailsResponse> buildings =
                 new ArrayList<>();
 
+        if (buildingResponses != null) {
+            for (BuildingResponse building : buildingResponses) {
+                if (building == null) {
+                    continue;
+                }
 
-        /*
-         * 4. FLOORS
-         * 5. UNITS
-         */
-        for (BuildingResponse building : buildingResponses) {
+                BuildingDetailsResponse buildingDetails =
+                        new BuildingDetailsResponse();
 
-            BuildingDetailsResponse buildingDetails =
-                    new BuildingDetailsResponse();
-
-            buildingDetails.setBuilding(building);
-
-
-            List<FloorResponse> floorResponses =
-                    floorService.getFloorsByBuilding(
-                            building.getBuildingId()
-                    );
-
-            List<FloorDetailsResponse> floors =
-                    new ArrayList<>();
+                buildingDetails.setBuilding(building);
 
 
-            for (FloorResponse floor : floorResponses) {
-
-                FloorDetailsResponse floorDetails =
-                        new FloorDetailsResponse();
-
-                floorDetails.setFloor(floor);
-
-
-                List<UnitResponse> units =
-                        unitService.getUnitsByFloor(
-                                floor.getFloorId()
+                List<FloorResponse> floorResponses =
+                        floorService.getFloorsByBuilding(
+                                building.getBuildingId()
                         );
 
-                floorDetails.setUnits(units);
+                List<FloorDetailsResponse> floors =
+                        new ArrayList<>();
 
-                floors.add(floorDetails);
+                if (floorResponses != null) {
+                    for (FloorResponse floor : floorResponses) {
+                        if (floor == null) {
+                            continue;
+                        }
+
+                        FloorDetailsResponse floorDetails =
+                                new FloorDetailsResponse();
+
+                        floorDetails.setFloor(floor);
+
+
+                        List<UnitResponse> units =
+                                unitService.getUnitsByFloor(
+                                        floor.getFloorId()
+                                );
+
+                        floorDetails.setUnits(units != null ? units : new ArrayList<>());
+
+                        floors.add(floorDetails);
+                    }
+                }
+
+                buildingDetails.setFloors(floors);
+
+                buildings.add(buildingDetails);
             }
-
-
-            buildingDetails.setFloors(floors);
-
-            buildings.add(buildingDetails);
         }
 
 
@@ -143,6 +153,9 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          */
         List<AmenityResponse> amenities =
                 amenityService.getPropertyAmenities(propertyId);
+        if (amenities == null) {
+            amenities = new ArrayList<>();
+        }
 
 
         /*
@@ -150,6 +163,9 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          */
         List<PropertyImageResponse> images =
                 propertyImageService.getImagesByProperty(propertyId);
+        if (images == null) {
+            images = new ArrayList<>();
+        }
 
 
         /*

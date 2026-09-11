@@ -177,7 +177,10 @@ export default function BuildingDetailsPage() {
     try {
       await deleteBuilding(building.buildingId)
       setIsDeleteBuildingOpen(false)
-      navigate(`${basePath}/buildings`, {
+      const targetRedirect = isOwner && (building.propertyId || building.property?.id)
+        ? `/owner/properties/${building.propertyId || building.property?.id}`
+        : `${basePath}/buildings`
+      navigate(targetRedirect, {
         state: {
           toastMessage: `Building "${building.buildingName}" was deleted successfully.`,
         },
@@ -346,7 +349,7 @@ export default function BuildingDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Loading Building Details..."
       >
         <div className="max-w-3xl mx-auto py-24 flex flex-col items-center justify-center">
@@ -360,13 +363,13 @@ export default function BuildingDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Building Not Found"
       >
         <div className="space-y-6">
-          <Link to={`${basePath}/buildings`}>
+          <Link to={isOwner ? '/owner/properties' : `${basePath}/buildings`}>
             <Button size="sm" variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-              Back to Buildings
+              {isOwner ? 'Back to Properties' : 'Back to Buildings'}
             </Button>
           </Link>
           <EmptyState
@@ -374,9 +377,9 @@ export default function BuildingDetailsPage() {
             title="Building Not Found"
             description={`No building found matching ID "${buildingId}".`}
             action={
-              <Link to={`${basePath}/buildings`}>
+              <Link to={isOwner ? '/owner/properties' : `${basePath}/buildings`}>
                 <Button size="sm" variant="primary">
-                  View All Buildings
+                  {isOwner ? 'View Properties' : 'View All Buildings'}
                 </Button>
               </Link>
             }
@@ -396,7 +399,7 @@ export default function BuildingDetailsPage() {
   return (
     <DashboardLayout
       defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-      activeItem="buildings"
+      activeItem={isOwner ? 'properties' : 'buildings'}
       pageTitle={building.buildingName}
     >
       <div className="space-y-6">
@@ -435,9 +438,19 @@ export default function BuildingDetailsPage() {
         {/* Back Navigation Bar & Action Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link to={`${basePath}/buildings`}>
+            <Link
+              to={
+                isOwner && (building.propertyId || building.property?.id)
+                  ? `/owner/properties/${building.propertyId || building.property?.id}`
+                  : `${basePath}/buildings`
+              }
+            >
               <Button size="sm" variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                {isTenant ? 'Back to My Rental Property' : 'Back to Buildings'}
+                {isOwner && (building.propertyId || building.property?.id)
+                  ? `Back to Property: ${building.propertyName || building.property?.name || 'Property Details'}`
+                  : isTenant
+                  ? 'Back to My Rental Property'
+                  : 'Back to Buildings'}
               </Button>
             </Link>
             {isTenant && (

@@ -324,7 +324,7 @@ export default function FloorDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Loading Floor Details..."
       >
         <div className="max-w-3xl mx-auto py-24 flex flex-col items-center justify-center">
@@ -338,7 +338,7 @@ export default function FloorDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Error Loading Floor"
       >
         <div className="space-y-6">
@@ -368,7 +368,7 @@ export default function FloorDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Floor Not Found"
       >
         <div className="space-y-6">
@@ -402,7 +402,7 @@ export default function FloorDetailsPage() {
   return (
     <DashboardLayout
       defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-      activeItem="buildings"
+      activeItem={isOwner ? 'properties' : 'buildings'}
       pageTitle={`${floor.floorName} - ${buildingName}`}
     >
       <div className="space-y-6">

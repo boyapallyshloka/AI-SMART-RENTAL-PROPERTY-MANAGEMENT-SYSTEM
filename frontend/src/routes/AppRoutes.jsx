@@ -104,6 +104,7 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
       {/* Standalone UI Component Showcase */}
       <Route path="/ui-showcase" element={<UIShowcasePage />} />
@@ -128,6 +129,14 @@ export default function AppRoutes() {
                 <Route path="properties/add" element={<AddPropertyPage />} />
                 <Route path="properties/:id" element={<PropertyDetailsPage />} />
                 <Route path="properties/:id/edit" element={<EditPropertyPage />} />
+                <Route
+                  path="properties/:propertyId/buildings/new"
+                  element={
+                    <OwnerOnlyBuildingRoute>
+                      <AddBuildingPage />
+                    </OwnerOnlyBuildingRoute>
+                  }
+                />
                 <Route path="buildings" element={<BuildingsPage />} />
                 <Route
                   path="buildings/new"

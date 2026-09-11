@@ -1,29 +1,38 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { Button, Input, Select, Textarea, EmptyState, Loader } from '../../components/ui'
-import { ArrowLeft, Building, Save, AlertCircle, Plus } from 'lucide-react'
+import { ArrowLeft, Building, Building2, Save, AlertCircle, Plus } from 'lucide-react'
 import {
   getBuildingById,
   createBuilding,
   updateBuilding,
 } from '../../api/buildingApi'
-import { getMyProperties } from '../../api/propertyApi'
+import { getMyProperties, getPropertyById } from '../../api/propertyApi'
 
 export default function AddBuildingPage() {
-  const { buildingId } = useParams()
+  const { buildingId, propertyId: routePropertyId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const isEditMode = Boolean(buildingId)
+
+  // Extract propertyId and propertyName from query, state, or route params
   const queryPropertyId = searchParams.get('propertyId')
+  const statePropertyId = location.state?.propertyId || location.state?.property?.id
+  const statePropertyName = location.state?.propertyName || location.state?.property?.name
+  const initialPropertyId = String(routePropertyId || queryPropertyId || statePropertyId || '')
 
   const [properties, setProperties] = useState([])
+  const [propertyContext, setPropertyContext] = useState(
+    statePropertyName ? { name: statePropertyName, id: initialPropertyId } : null
+  )
   const [formData, setFormData] = useState({
     buildingName: '',
     totalFloors: '1',
     totalUnits: '0',
     description: '',
-    propertyId: queryPropertyId || '',
+    propertyId: initialPropertyId,
   })
   const [errors, setErrors] = useState({})
   const [isInitLoading, setIsInitLoading] = useState(true)
@@ -66,6 +75,12 @@ export default function AddBuildingPage() {
                 description: existing.description || '',
                 propertyId: String(bPropId),
               })
+              if (existing.propertyName || existing.property?.name) {
+                setPropertyContext({
+                  id: String(bPropId),
+                  name: existing.propertyName || existing.property?.name,
+                })
+              }
             } else {
               setNotFound(true)
             }
@@ -74,10 +89,10 @@ export default function AddBuildingPage() {
             if (isMounted) setNotFound(true)
           }
         } else {
-          // Add Mode: pre-select from query param or first property
-          const targetPropId = queryPropertyId
-            ? String(queryPropertyId)
-            : propsList.length > 0
+          // Add Mode: pre-select from resolved property ID or first property
+          const targetPropId = initialPropertyId
+            ? String(initialPropertyId)
+            : propsList.length === 1
             ? String(propsList[0].propertyId ?? propsList[0].id)
             : ''
 
@@ -85,6 +100,19 @@ export default function AddBuildingPage() {
             ...prev,
             propertyId: prev.propertyId || targetPropId,
           }))
+
+          if (targetPropId && !statePropertyName) {
+            const matched = propsList.find(
+              (p) => String(p.propertyId ?? p.id) === String(targetPropId)
+            )
+            if (matched) {
+              setPropertyContext({
+                id: targetPropId,
+                name: matched.propertyName ?? matched.name,
+                address: matched.city || matched.address?.city,
+              })
+            }
+          }
         }
       } catch (err) {
         console.error('Error loading initial building form data:', err)
@@ -101,7 +129,7 @@ export default function AddBuildingPage() {
     return () => {
       isMounted = false
     }
-  }, [buildingId, isEditMode, queryPropertyId])
+  }, [buildingId, isEditMode, initialPropertyId, statePropertyName])
 
   const validate = () => {
     const errs = {}
@@ -148,6 +176,27 @@ export default function AddBuildingPage() {
     }
   }
 
+  const targetProperty = properties.find(
+    (p) => String(p.propertyId ?? p.id) === String(formData.propertyId)
+  )
+  const targetPropertyName =
+    propertyContext?.name ||
+    targetProperty?.propertyName ||
+    targetProperty?.name ||
+    (formData.propertyId ? `Property #${formData.propertyId}` : '')
+
+  const targetPropertySubtitle =
+    propertyContext?.address ||
+    (targetProperty
+      ? [
+          targetProperty.addressLine1 || targetProperty.address?.addressLine1,
+          targetProperty.city || targetProperty.address?.city,
+          targetProperty.state || targetProperty.address?.state,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : '')
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setApiError(null)
@@ -166,14 +215,22 @@ export default function AddBuildingPage() {
 
       if (isEditMode) {
         await updateBuilding(buildingId, payload)
-        navigate(`/owner/buildings/${buildingId}`)
+        navigate(`/owner/buildings/${buildingId}`, {
+          state: { toastMessage: 'Building specifications updated successfully.' },
+        })
       } else {
         const created = await createBuilding(payload)
         const newBuildingId = created?.buildingId || created?.data?.buildingId
         if (newBuildingId) {
-          navigate(`/owner/buildings/${newBuildingId}`)
+          navigate(`/owner/buildings/${newBuildingId}`, {
+            state: { toastMessage: 'Building registered successfully.' },
+          })
+        } else if (formData.propertyId) {
+          navigate(`/owner/properties/${formData.propertyId}`, {
+            state: { toastMessage: 'Building registered successfully.' },
+          })
         } else {
-          navigate('/owner/buildings')
+          navigate('/owner/properties')
         }
       }
     } catch (err) {
@@ -192,11 +249,11 @@ export default function AddBuildingPage() {
     return (
       <DashboardLayout
         defaultRole="owner"
-        activeItem="buildings"
+        activeItem="properties"
         pageTitle={isEditMode ? 'Edit Building' : 'Add Building'}
       >
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
-          <Loader size="lg" text={isEditMode ? 'Loading building details...' : 'Loading properties...'} />
+          <Loader size="lg" text={isEditMode ? 'Loading building details...' : 'Loading property context...'} />
         </div>
       </DashboardLayout>
     )
@@ -206,7 +263,7 @@ export default function AddBuildingPage() {
     return (
       <DashboardLayout
         defaultRole="owner"
-        activeItem="buildings"
+        activeItem="properties"
         pageTitle="Building Not Found"
       >
         <div className="max-w-3xl mx-auto py-12 space-y-4">
@@ -215,9 +272,9 @@ export default function AddBuildingPage() {
             title="Building Not Found"
             description={`Could not locate a building with ID "${buildingId}".`}
             action={
-              <Link to="/owner/buildings">
+              <Link to="/owner/properties">
                 <Button variant="primary" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                  Back to Buildings
+                  Back to Properties
                 </Button>
               </Link>
             }
@@ -231,7 +288,7 @@ export default function AddBuildingPage() {
     return (
       <DashboardLayout
         defaultRole="owner"
-        activeItem="buildings"
+        activeItem="properties"
         pageTitle="Add Building"
       >
         <div className="max-w-3xl mx-auto py-12 space-y-4">
@@ -270,23 +327,68 @@ export default function AddBuildingPage() {
   return (
     <DashboardLayout
       defaultRole="owner"
-      activeItem="buildings"
+      activeItem="properties"
       pageTitle={isEditMode ? 'Edit Building' : 'Add Building'}
     >
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
-          <Link
-            to={isEditMode ? `/owner/buildings/${buildingId}` : '/owner/buildings'}
-            className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{isEditMode ? 'Back to Building Details' : 'Back to Buildings'}</span>
-          </Link>
-          <span>/</span>
-          <span className="text-[#243447] font-semibold">
-            {isEditMode ? 'Edit Building' : 'Add New Building'}
-          </span>
+        {/* Navigation Breadcrumbs & Back Link */}
+        <div className="space-y-2">
+          <div>
+            <Link
+              to={
+                isEditMode
+                  ? `/owner/buildings/${buildingId}`
+                  : formData.propertyId
+                  ? `/owner/properties/${formData.propertyId}`
+                  : '/owner/properties'
+              }
+              className="inline-flex items-center gap-1.5 text-xs text-[#5B6875] hover:text-[#315A7D] font-medium transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>
+                {isEditMode
+                  ? 'Back to Building Details'
+                  : targetPropertyName
+                  ? `Back to Property: ${targetPropertyName}`
+                  : 'Back to Properties'}
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+            <Link
+              to="/owner/properties"
+              className="hover:text-[#315A7D] transition-colors"
+            >
+              Properties
+            </Link>
+            {formData.propertyId && (
+              <>
+                <span>/</span>
+                <Link
+                  to={`/owner/properties/${formData.propertyId}`}
+                  className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                >
+                  {targetPropertyName || `Property #${formData.propertyId}`}
+                </Link>
+              </>
+            )}
+            {isEditMode && buildingId && (
+              <>
+                <span>/</span>
+                <Link
+                  to={`/owner/buildings/${buildingId}`}
+                  className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                >
+                  {formData.buildingName || 'Building Details'}
+                </Link>
+              </>
+            )}
+            <span>/</span>
+            <span className="text-[#243447] font-semibold">
+              {isEditMode ? 'Edit Building' : 'Add New Building'}
+            </span>
+          </div>
         </div>
 
         {/* Page Header */}
@@ -302,7 +404,7 @@ export default function AddBuildingPage() {
               <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
                 {isEditMode
                   ? 'Update building specifications, floor count, and property association.'
-                  : 'Register a residential tower, garden block, or commercial pavilion.'}
+                  : `Register a residential tower or block for ${targetPropertyName || 'your property'}.`}
               </p>
             </div>
           </div>
@@ -330,6 +432,46 @@ export default function AddBuildingPage() {
               Building Specifications
             </h2>
 
+            {/* Property Context (Requirement 3: Read-only context, not dropdown when known) */}
+            {formData.propertyId ? (
+              <div>
+                <label className="text-xs font-semibold text-[#243447] block mb-1.5">
+                  Property
+                </label>
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] text-xs">
+                  <div className="p-2 rounded-lg bg-white border border-[#D9E0E6] text-[#315A7D] shadow-2xs">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#243447] text-xs sm:text-sm">
+                      {targetPropertyName || `Property #${formData.propertyId}`}
+                    </p>
+                    {targetPropertySubtitle && (
+                      <p className="text-[11px] text-[#5B6875] mt-0.5">
+                        {targetPropertySubtitle}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <input type="hidden" name="propertyId" value={formData.propertyId} />
+              </div>
+            ) : (
+              <div>
+                <Select
+                  label="Associated Property"
+                  value={formData.propertyId}
+                  onChange={(e) => handleChange('propertyId', e.target.value)}
+                  options={propertyOptions}
+                  error={errors.propertyId}
+                  disabled={isEditMode}
+                  required
+                />
+                <p className="text-[11px] text-[#5B6875] mt-1">
+                  The master property portfolio to which this building belongs.
+                </p>
+              </div>
+            )}
+
             <div>
               <Input
                 label="Building Name"
@@ -339,23 +481,6 @@ export default function AddBuildingPage() {
                 error={errors.buildingName}
                 required
               />
-            </div>
-
-            <div>
-              <Select
-                label="Associated Property"
-                value={formData.propertyId}
-                onChange={(e) => handleChange('propertyId', e.target.value)}
-                options={propertyOptions}
-                error={errors.propertyId}
-                disabled={isEditMode}
-                required
-              />
-              <p className="text-[11px] text-[#5B6875] mt-1">
-                {isEditMode
-                  ? 'Building property association cannot be modified once created.'
-                  : 'The master property portfolio to which this building belongs.'}
-              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -401,7 +526,13 @@ export default function AddBuildingPage() {
               type="button"
               variant="outline"
               onClick={() =>
-                navigate(isEditMode ? `/owner/buildings/${buildingId}` : '/owner/buildings')
+                navigate(
+                  isEditMode
+                    ? `/owner/buildings/${buildingId}`
+                    : formData.propertyId
+                    ? `/owner/properties/${formData.propertyId}`
+                    : '/owner/properties'
+                )
               }
               disabled={isSubmitting}
             >

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.FloorRequest;
 import com.rental.rental_management_backend.property.dto.FloorResponse;
 import com.rental.rental_management_backend.property.entity.Building;
@@ -120,7 +121,7 @@ public class FloorServiceImpl implements FloorService {
                 floorRepository
                         .findById(floorId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Floor not found with ID: "
                                                 + floorId));
 
@@ -147,7 +148,7 @@ public class FloorServiceImpl implements FloorService {
                 floorRepository
                         .findById(floorId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Floor not found with ID: "
                                                 + floorId));
 
@@ -213,7 +214,7 @@ public class FloorServiceImpl implements FloorService {
                 floorRepository
                         .findById(floorId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Floor not found with ID: "
                                                 + floorId));
 
@@ -274,7 +275,7 @@ public class FloorServiceImpl implements FloorService {
                 buildingRepository
                         .findById(buildingId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Building not found with ID: "
                                                 + buildingId));
 

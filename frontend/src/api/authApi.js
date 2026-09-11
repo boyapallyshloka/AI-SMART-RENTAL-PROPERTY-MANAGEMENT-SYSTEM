@@ -224,34 +224,79 @@ export const logout = async () => {
 /**
  * Send password recovery instructions
  * Spring Boot Endpoint: POST /api/auth/forgot-password
+ * Request: { email: "user@example.com" }
+ * @param {string|{email: string}} emailOrData
+ * @returns {Promise<any>}
  */
-export const forgotPassword = async (email) => {
+export const forgotPassword = async (emailOrData) => {
+  const email =
+    typeof emailOrData === 'object' && emailOrData !== null
+      ? (emailOrData.email || '').trim().toLowerCase()
+      : String(emailOrData || '').trim().toLowerCase()
+
   if (useMockFallback) {
     return mockForgotPassword(email)
   }
   return axiosClient.post('/auth/forgot-password', { email })
 }
 
+
 /**
- * Set new account password
+ * Reset account password using token
  * Spring Boot Endpoint: POST /api/auth/reset-password
+ * Request: { token, newPassword }
+ * @param {string|{token: string, newPassword?: string, password?: string}} tokenOrData
+ * @param {string} [maybeNewPassword]
+ * @returns {Promise<any>}
  */
-export const resetPassword = async (data) => {
-  if (useMockFallback) {
-    return mockResetPassword(data.email, data.password)
+export const resetPassword = async (tokenOrData, maybeNewPassword) => {
+  let token = ''
+  let newPassword = ''
+
+  if (typeof tokenOrData === 'object' && tokenOrData !== null) {
+    token = tokenOrData.token || ''
+    newPassword = tokenOrData.newPassword || tokenOrData.password || ''
+  } else {
+    token = tokenOrData || ''
+    newPassword = maybeNewPassword || ''
   }
-  return axiosClient.post('/auth/reset-password', data)
+
+  token = String(token).trim()
+  newPassword = String(newPassword)
+
+  if (useMockFallback) {
+    return mockResetPassword(token, newPassword)
+  }
+  return axiosClient.post('/auth/reset-password', {
+    token,
+    newPassword,
+  })
+}
+
+/**
+ * Change authenticated user's account password
+ * Spring Boot Endpoint: PUT /api/auth/change-password
+ * Request: { currentPassword, newPassword }
+ * Response: String "Password changed successfully"
+ */
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  return axiosClient.put('/auth/change-password', {
+    currentPassword,
+    newPassword,
+  })
 }
 
 /**
  * Fetch authenticated user profile
- * Spring Boot Endpoint: GET /api/auth/me
+ * Spring Boot Endpoint: GET /api/users/me
  */
 export const getCurrentUser = async () => {
   if (useMockFallback) {
     const stored = localStorage.getItem('homesphere_user')
     return stored ? JSON.parse(stored) : null
   }
-  const data = await axiosClient.get('/auth/me')
+  const data = await axiosClient.get('/users/me')
   return normalizeLoginResponse(data)
 }
+
+

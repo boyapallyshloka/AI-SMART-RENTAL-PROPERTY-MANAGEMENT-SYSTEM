@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.UnitRequest;
 import com.rental.rental_management_backend.property.dto.UnitResponse;
 import com.rental.rental_management_backend.property.entity.Building;
@@ -109,7 +110,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit = unitRepository.findById(unitId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Unit not found with ID: "
                                 + unitId));
 
@@ -127,7 +128,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit = unitRepository.findById(unitId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Unit not found with ID: "
                                 + unitId));
 
@@ -187,7 +188,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit = unitRepository.findById(unitId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Unit not found with ID: "
                                 + unitId));
 
@@ -240,7 +241,7 @@ public class UnitServiceImpl implements UnitService {
 
         Floor floor = floorRepository.findById(floorId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Floor not found with ID: "
                                 + floorId));
 
@@ -314,8 +315,8 @@ public class UnitServiceImpl implements UnitService {
     private UnitResponse mapToResponse(Unit unit) {
 
         Floor floor = unit.getFloor();
-        Building building = floor.getBuilding();
-        Property property = building.getProperty();
+        Building building = floor != null ? floor.getBuilding() : null;
+        Property property = building != null ? building.getProperty() : null;
 
         UnitResponse response = new UnitResponse();
 
@@ -333,15 +334,15 @@ public class UnitServiceImpl implements UnitService {
         response.setStatus(unit.getStatus());
         response.setDescription(unit.getDescription());
 
-        response.setFloorId(floor.getFloorId());
-        response.setFloorName(floor.getFloorName());
-        response.setFloorNumber(floor.getFloorNumber());
+        response.setFloorId(floor != null ? floor.getFloorId() : null);
+        response.setFloorName(floor != null ? floor.getFloorName() : null);
+        response.setFloorNumber(floor != null ? floor.getFloorNumber() : null);
 
-        response.setBuildingId(building.getBuildingId());
-        response.setBuildingName(building.getBuildingName());
+        response.setBuildingId(building != null ? building.getBuildingId() : null);
+        response.setBuildingName(building != null ? building.getBuildingName() : null);
 
-        response.setPropertyId(property.getPropertyId());
-        response.setPropertyName(property.getPropertyName());
+        response.setPropertyId(property != null ? property.getPropertyId() : null);
+        response.setPropertyName(property != null ? property.getPropertyName() : null);
 
         response.setCreatedAt(unit.getCreatedAt());
         response.setUpdatedAt(unit.getUpdatedAt());

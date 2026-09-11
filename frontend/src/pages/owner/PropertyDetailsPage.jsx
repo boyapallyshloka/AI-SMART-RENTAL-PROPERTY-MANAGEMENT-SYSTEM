@@ -163,7 +163,23 @@ export default function PropertyDetailsPage() {
       setPropertyAmenities(rawAmenities)
 
       // 5. Buildings with nested Floors and Units
-      const rawBuildings = Array.isArray(data?.buildings) ? data.buildings : []
+      let rawBuildings = Array.isArray(data?.buildings) ? data.buildings : []
+      if (rawBuildings.length === 0 && id) {
+        try {
+          const bRes = await getBuildingsByProperty(id)
+          const bList = Array.isArray(bRes?.data)
+            ? bRes.data
+            : Array.isArray(bRes)
+            ? bRes
+            : []
+          if (bList.length > 0) {
+            rawBuildings = bList
+          }
+        } catch (bErr) {
+          console.warn('Fallback getBuildingsByProperty failed:', bErr)
+        }
+      }
+
       const parsedBuildings = rawBuildings.map((item) => {
         const b = item.building || item
         const rawFloors = Array.isArray(item.floors) ? item.floors : []
@@ -725,13 +741,16 @@ export default function PropertyDetailsPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Link to="/owner/buildings">
+            <Link
+              to={`/owner/buildings/new?propertyId=${id}`}
+              state={{ propertyId: id, propertyName: property.name }}
+            >
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<Building className="w-4 h-4 text-[#315A7D]" />}
+                leftIcon={<Plus className="w-4 h-4 text-[#315A7D]" />}
               >
-                View Buildings
+                Add Building
               </Button>
             </Link>
             <Link to={`/owner/properties/${property.id}/edit`}>
@@ -1641,12 +1660,12 @@ export default function PropertyDetailsPage() {
             </div>
 
             {/* Buildings & Structures */}
-            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm space-y-4">
+            <div id="buildings-section" className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D9E0E6] pb-3">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-[#315A7D]" />
                   <h2 className="text-base font-semibold text-[#243447]">
-                    Buildings & Structures
+                    Buildings
                   </h2>
                   <span className="text-xs text-[#5B6875] font-semibold">
                     ({propertyBuildings.length}{' '}
@@ -1654,7 +1673,10 @@ export default function PropertyDetailsPage() {
                   </span>
                 </div>
 
-                <Link to={`/owner/buildings/new?propertyId=${id}`}>
+                <Link
+                  to={`/owner/buildings/new?propertyId=${id}`}
+                  state={{ propertyId: id, propertyName: property?.name }}
+                >
                   <Button
                     variant="outline"
                     size="xs"
@@ -1797,19 +1819,22 @@ export default function PropertyDetailsPage() {
                 <div className="py-8 text-center rounded-xl border border-dashed border-[#D9E0E6] bg-[#F7F8FA]/50">
                   <Building2 className="w-8 h-8 text-[#315A7D]/40 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-[#243447]">
-                    No buildings registered yet
+                    No buildings added yet.
                   </p>
                   <p className="text-xs text-[#5B6875] max-w-xs mx-auto mt-1 mb-3">
                     Add buildings or towers to structure floors and individual
                     units for this property.
                   </p>
-                  <Link to={`/owner/buildings/new?propertyId=${id}`}>
+                  <Link
+                    to={`/owner/buildings/new?propertyId=${id}`}
+                    state={{ propertyId: id, propertyName: property?.name }}
+                  >
                     <Button
-                      variant="outline"
-                      size="xs"
-                      leftIcon={<Plus className="w-3.5 h-3.5 text-[#315A7D]" />}
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
                     >
-                      Add First Building
+                      Add Building
                     </Button>
                   </Link>
                 </div>
@@ -1914,13 +1939,17 @@ export default function PropertyDetailsPage() {
                 Quick Actions
               </h2>
               <div className="space-y-2">
-                <Link to={`/owner/buildings?propertyId=${property.id}`} className="block">
+                <Link
+                  to={`/owner/buildings/new?propertyId=${property.id}`}
+                  state={{ propertyId: property.id, propertyName: property.name }}
+                  className="block"
+                >
                   <Button
                     variant="outline"
                     className="w-full justify-start"
-                    leftIcon={<Building2 className="w-4 h-4 text-[#315A7D]" />}
+                    leftIcon={<Plus className="w-4 h-4 text-[#315A7D]" />}
                   >
-                    View Buildings ({propertyBuildings.length})
+                    Add Building ({propertyBuildings.length} active)
                   </Button>
                 </Link>
                 <Link to={`/owner/properties/${property.id}/edit`} className="block">

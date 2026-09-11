@@ -163,7 +163,7 @@ export default function UnitDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Loading Unit Details..."
       >
         <div className="flex items-center justify-center min-h-[300px]">
@@ -177,7 +177,7 @@ export default function UnitDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Error Loading Unit"
       >
         <div className="space-y-6">
@@ -207,7 +207,7 @@ export default function UnitDetailsPage() {
     return (
       <DashboardLayout
         defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-        activeItem="buildings"
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Unit Details"
       >
         <div className="space-y-6">
@@ -247,7 +247,7 @@ export default function UnitDetailsPage() {
   return (
     <DashboardLayout
       defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
-      activeItem="buildings"
+      activeItem={isOwner ? 'properties' : 'buildings'}
       pageTitle={`Unit ${unit.unitNumber}`}
     >
       <div className="space-y-6">

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react'
+import { Mail, ArrowLeft, CheckCircle2, KeyRound, AlertCircle } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   const { forgotPassword } = useAuth()
@@ -31,9 +31,17 @@ export default function ForgotPasswordPage() {
     if (!validate()) return
 
     setIsLoading(true)
+    setError('')
     try {
-      await forgotPassword(email)
+      await forgotPassword(email.trim().toLowerCase())
       setIsSubmitted(true)
+    } catch (err) {
+      console.error('Forgot password error:', err)
+      const errorMsg =
+        err?.message ||
+        err?.data?.message ||
+        'Unable to process password reset request. Please check your email and try again.'
+      setError(errorMsg)
     } finally {
       setIsLoading(false)
     }
@@ -54,18 +62,18 @@ export default function ForgotPasswordPage() {
               Check your inbox
             </h2>
             <p className="text-xs text-[#5B6875] mt-1 max-w-sm mx-auto">
-              We have dispatched a password reset link to{' '}
+              If an account with{' '}
               <span className="font-semibold text-[#243447]">
                 {email}
-              </span>
-              .
+              </span>{' '}
+              exists, password recovery instructions have been initiated.
             </p>
           </div>
 
           <div className="pt-2 space-y-2">
             <Link to="/reset-password">
               <Button variant="primary" className="w-full" leftIcon={<KeyRound className="w-4 h-4" />}>
-                Proceed to Reset Password Page (Demo)
+                Proceed to Reset Password Page
               </Button>
             </Link>
             <Link to="/login">
@@ -77,6 +85,13 @@ export default function ForgotPasswordPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {error && (
+            <div className="p-3.5 rounded-lg bg-[#FDF2F2] border border-[#F8D7DA] text-xs font-medium text-[#B94A48] flex items-center gap-2 shadow-2xs animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <Input
             label="Email Address"
             type="email"

@@ -119,6 +119,18 @@ export const updateUserStatus = async (id, status) => {
 }
 
 /**
+ * Fetch authenticated user's profile
+ * Spring Boot Endpoint: GET /api/users/me
+ * Access: Authenticated users of all roles
+ */
+export const getMyProfile = async () => {
+  return axiosClient.get('/users/me')
+}
+
+// Alias for getMyProfile
+export const getCurrentUser = getMyProfile
+
+/**
  * Maps Spring Boot UserResponse DTO to the shape expected by UI components
  * Backend fields:
  * - id -> id
@@ -150,6 +162,11 @@ export const mapBackendUserToUi = (user) => {
       })
     : 'Recently'
 
+  const avatarText =
+    ((firstName?.[0] || '') + (lastName?.[0] || '')) ||
+    name.slice(0, 2) ||
+    'U'
+
   return {
     ...user,
     id,
@@ -165,7 +182,12 @@ export const mapBackendUserToUi = (user) => {
     verificationStatus:
       status === 'ACTIVE' ? 'Verified' : status === 'PENDING' ? 'Pending' : status,
     joinDate,
+    avatarText: avatarText.toUpperCase(),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   }
 }
+
+export { changePassword, forgotPassword, resetPassword } from './authApi.js'
+
+

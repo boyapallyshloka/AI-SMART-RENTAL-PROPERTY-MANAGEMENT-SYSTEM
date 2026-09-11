@@ -34,7 +34,6 @@ import {
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'properties', label: 'Properties', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'buildings', label: 'Buildings', icon: <Building2 className="w-4 h-4" /> },
   { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" /> },
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },

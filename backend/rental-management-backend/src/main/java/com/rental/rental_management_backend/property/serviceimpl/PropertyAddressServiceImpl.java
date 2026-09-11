@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyAddressRequest;
 import com.rental.rental_management_backend.property.dto.PropertyAddressResponse;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -15,10 +16,10 @@ import com.rental.rental_management_backend.property.repository.PropertyAddressR
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyAddressService;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
+@Transactional(noRollbackFor = ResourceNotFoundException.class)
 public class PropertyAddressServiceImpl
         implements PropertyAddressService {
 
@@ -73,7 +74,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -91,7 +92,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -112,7 +113,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -132,7 +133,7 @@ public class PropertyAddressServiceImpl
                         loggedInUser
                 )
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Property not found or you do not have permission"
                         )
                 );
