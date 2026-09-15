@@ -386,4 +386,23 @@ public class FloorServiceImpl implements FloorService {
                 floor.getUpdatedAt()
         );
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<FloorResponse> getPublicFloorsByBuilding(
+            Long buildingId) {
+
+        Building building =
+                buildingRepository
+                        .findById(buildingId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Building not found with ID: "
+                                                + buildingId));
+
+        return floorRepository
+                .findByBuilding(building)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
 }

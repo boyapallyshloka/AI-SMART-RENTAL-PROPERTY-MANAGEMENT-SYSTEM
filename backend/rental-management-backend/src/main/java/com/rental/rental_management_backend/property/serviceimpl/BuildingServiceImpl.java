@@ -291,4 +291,23 @@ public class BuildingServiceImpl implements BuildingService {
                 building.getUpdatedAt()
         );
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<BuildingResponse> getPublicBuildingsByProperty(
+            Long propertyId) {
+
+        Property property = propertyRepository
+                .findById(propertyId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Property not found with id: " + propertyId
+                        )
+                );
+
+        return buildingRepository
+                .findByProperty(property)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
 }
