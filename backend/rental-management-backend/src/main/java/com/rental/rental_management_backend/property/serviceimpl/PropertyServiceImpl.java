@@ -84,14 +84,25 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     public List<PropertyResponse> getMyProperties() {
 
-        User owner = getLoggedInUser();
+        User user = getLoggedInUser();
 
-        validateOwner(owner);
+        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+            return propertyRepository.findByOwner(user)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
 
-        return propertyRepository.findByOwner(owner)
-                .stream()
-                .map(this::convertToResponse)
-                .toList();
+        if (user.getRole() == RoleType.TENANT) {
+            return propertyRepository.findByStatus(PropertyStatus.AVAILABLE)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
+
+        validateOwner(user);
+
+        return List.of();
     }
 
     @Override

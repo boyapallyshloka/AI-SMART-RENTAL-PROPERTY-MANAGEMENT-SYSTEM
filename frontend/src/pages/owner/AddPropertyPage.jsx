@@ -21,16 +21,22 @@ export default function AddPropertyPage() {
       const createdId = created?.propertyId || created?.id
       if (createdId) {
         navigate(`/owner/properties/${createdId}`, {
-          state: { toastMessage: 'Property published successfully.' },
+          state: {
+            toastMessage: `Property "${payload.propertyName || 'New Property'}" created successfully.`,
+          },
         })
       } else {
-        navigate('/owner/properties', {
-          state: { toastMessage: 'Property published successfully.' },
-        })
+        throw new Error('Property was created, but no valid property ID was returned by the server.')
       }
     } catch (err) {
       console.error('Failed to create property:', err)
+      const validationMsgs =
+        err?.data?.messages && typeof err.data.messages === 'object'
+          ? Object.values(err.data.messages).join('. ')
+          : null
       const errorMsg =
+        validationMsgs ||
+        err?.data?.message ||
         err?.response?.data?.message ||
         err?.message ||
         'Failed to publish property. Please check your inputs and try again.'

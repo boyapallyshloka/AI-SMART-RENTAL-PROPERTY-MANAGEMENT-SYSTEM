@@ -31,6 +31,7 @@ import {
   deleteAmenity,
 } from '../../api/amenityApi'
 import { getBuildingsByProperty, deleteBuilding } from '../../api/buildingApi'
+import { formatCurrency } from '../../utils/currency'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import { StatusBadge, Button, EmptyState, Loader, Input, Select } from '../../components/ui'
 import {
@@ -78,6 +79,15 @@ const formatAreaType = (type) => {
     default:
       return type.replace(/_/g, ' ')
   }
+}
+
+const resolveImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const backendBase = import.meta?.env?.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+    : 'http://localhost:8080'
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 export default function PropertyDetailsPage() {
@@ -957,7 +967,7 @@ export default function PropertyDetailsPage() {
             <div className="space-y-3">
               <div className="relative rounded-2xl overflow-hidden aspect-video md:aspect-[21/9] max-h-[460px] bg-slate-900 border border-[#D9E0E6]">
                 <img
-                  src={currentImage?.imageUrl}
+                  src={resolveImageUrl(currentImage?.imageUrl)}
                   alt={property.name}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
@@ -1037,7 +1047,7 @@ export default function PropertyDetailsPage() {
                       }`}
                     >
                       <img
-                        src={img.imageUrl}
+                        src={resolveImageUrl(img.imageUrl)}
                         alt={`Thumbnail ${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -1871,7 +1881,7 @@ export default function PropertyDetailsPage() {
                                             ? 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
                                             : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
                                         }`}
-                                        title={`Unit ${u.unitNumber} (${u.unitType || 'Unit'})${u.monthlyRent ? ` - ₹${Number(u.monthlyRent).toLocaleString('en-IN')}/mo` : ''}`}
+                                        title={`Unit ${u.unitNumber} (${u.unitType || 'Unit'})${u.monthlyRent ? ` - ${formatCurrency(u.monthlyRent)}/mo` : ''}`}
                                       >
                                         <span>Unit {u.unitNumber}</span>
                                         {u.unitType && (

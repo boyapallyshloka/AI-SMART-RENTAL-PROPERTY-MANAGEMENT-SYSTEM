@@ -31,6 +31,37 @@ export default function PropertyGrid({
   onToggleFavorite,
   isLoading = false,
 }) {
+  // Loading State handler
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#D9E0E6]">
+          <div className="h-6 w-48 bg-slate-200 rounded animate-pulse" />
+          <div className="h-6 w-32 bg-slate-200 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div
+              key={n}
+              className="rounded-lg border border-[#D9E0E6] bg-white overflow-hidden shadow-2xs animate-pulse"
+            >
+              <div className="aspect-[16/10] w-full bg-[#EAF2F7]" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
+                <div className="h-8 bg-slate-100 rounded w-full" />
+                <div className="flex justify-between pt-2 border-t border-[#D9E0E6]">
+                  <div className="h-3 bg-slate-200 rounded w-1/4" />
+                  <div className="h-3 bg-slate-100 rounded w-1/6" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // Empty State handler
   if (!isLoading && properties.length === 0) {
     return (
@@ -104,7 +135,7 @@ export default function PropertyGrid({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {properties.map((property) => (
           <PropertyCard
-            key={property.id}
+            key={property.propertyId ?? property.id}
             property={property}
             onSelect={onSelectProperty}
             isFavorite={favoriteIds.includes(property.id)}

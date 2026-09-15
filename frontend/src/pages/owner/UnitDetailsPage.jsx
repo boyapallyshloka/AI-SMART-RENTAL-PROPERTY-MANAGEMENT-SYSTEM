@@ -24,6 +24,7 @@ import {
   getUnitByIdForTenant,
   deleteUnit,
 } from '../../api/unitApi'
+import { formatCurrency } from '../../utils/currency'
 import { getTenantRentalContext } from '../../api/buildingApi'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -412,9 +413,9 @@ export default function UnitDetailsPage() {
               <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 Unit {unit.unitNumber}
               </h1>
-              {building && (
+              {(targetBuildingName || targetFloorName) && (
                 <p className="text-xs text-[#5B6875]">
-                  {building.buildingName} &bull; {floor?.floorName || `Floor ${floor?.floorNumber}`}
+                  {targetBuildingName} {targetBuildingName && targetFloorName ? '•' : ''} {targetFloorName}
                 </p>
               )}
             </div>
@@ -467,43 +468,51 @@ export default function UnitDetailsPage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              {property && (
+              {targetPropertyName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Property</p>
-                    <p className="font-bold text-sm text-[#243447] mt-0.5">{property.name}</p>
-                    <p className="text-[11px] text-[#5B6875]">{property.address}, {property.city}</p>
+                    <p className="font-bold text-sm text-[#243447] mt-0.5">{targetPropertyName}</p>
                   </div>
-                  <Building2 className="w-4 h-4 text-[#315A7D] shrink-0" />
+                  {targetPropertyId && (
+                    <Link
+                      to={`/owner/properties/${targetPropertyId}`}
+                      className="text-xs text-[#315A7D] font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <Building2 className="w-4 h-4 text-[#315A7D] shrink-0" />
+                    </Link>
+                  )}
                 </div>
               )}
 
-              {building && (
+              {targetBuildingName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Building</p>
-                    <p className="font-bold text-sm text-[#243447] mt-0.5">{building.buildingName}</p>
+                    <p className="font-bold text-sm text-[#243447] mt-0.5">{targetBuildingName}</p>
                   </div>
-                  <Link
-                    to={`${basePath}/buildings/${building.buildingId}`}
-                    className="text-xs text-[#315A7D] font-semibold hover:underline"
-                  >
-                    View Building
-                  </Link>
+                  {targetBuildingId && (
+                    <Link
+                      to={`${basePath}/buildings/${targetBuildingId}`}
+                      className="text-xs text-[#315A7D] font-semibold hover:underline"
+                    >
+                      View Building
+                    </Link>
+                  )}
                 </div>
               )}
 
-              {floor && (
+              {targetFloorName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Floor</p>
                     <p className="font-bold text-sm text-[#243447] mt-0.5">
-                      {floor.floorName} (Floor {floor.floorNumber})
+                      {targetFloorName} {unit.floorNumber != null ? `(Floor ${unit.floorNumber})` : ''}
                     </p>
                   </div>
-                  {building && (
+                  {targetBuildingId && targetFloorId && (
                     <Link
-                      to={`${basePath}/buildings/${building.buildingId}/floors/${floor.floorId}`}
+                      to={`${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`}
                       className="text-xs text-[#315A7D] font-semibold hover:underline"
                     >
                       View Floor
@@ -525,7 +534,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Monthly Rent</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ₹{Number(unit.monthlyRent ?? 0).toLocaleString('en-IN')}
+                  {formatCurrency(unit.monthlyRent)}
                   <span className="text-xs font-normal text-[#5B6875]">/mo</span>
                 </p>
               </div>
@@ -533,7 +542,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Security Deposit</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ₹{Number(unit.securityDeposit ?? 0).toLocaleString('en-IN')}
+                  {formatCurrency(unit.securityDeposit)}
                 </p>
               </div>
             </div>

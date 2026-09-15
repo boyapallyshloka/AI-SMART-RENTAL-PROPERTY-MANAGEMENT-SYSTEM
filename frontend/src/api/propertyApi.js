@@ -74,7 +74,11 @@ export const mapFurnishingStatusToBackend = (furnishing) => {
 export const mapParkingAvailableToBackend = (parking) => {
   if (typeof parking === 'boolean') return parking
   if (typeof parking === 'string') {
-    return parking.toLowerCase() !== 'none' && parking.trim() !== ''
+    const s = parking.trim().toLowerCase()
+    if (s === 'false' || s === 'no' || s === 'none' || s === '0' || s === '') {
+      return false
+    }
+    return true
   }
   return false
 }
@@ -112,7 +116,9 @@ export const buildPropertyRequestPayload = (data = {}) => {
     : (data.type ? mapPropertyTypeToBackend(data.type) : undefined)
 
   const description =
-    data.description != null ? String(data.description).trim() : undefined
+    data.description != null && String(data.description).trim() !== ''
+      ? String(data.description).trim()
+      : undefined
 
   const rawArea = data.totalArea != null ? data.totalArea : data.area
   const totalArea =
@@ -263,6 +269,18 @@ export const updatePropertyStatus = async (id, status) => {
 }
 
 /**
+ * Resolves relative image URLs (e.g. /uploads/property-images/...) to full backend URLs
+ */
+export const resolveImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const backendBase = import.meta?.env?.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+    : 'http://localhost:8080'
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+/**
  * Maps Spring Boot PropertyResponse to the shape expected by UI components
  * Backend fields:
  * - propertyId -> id, propertyId
@@ -360,6 +378,11 @@ export const mapBackendPropertyToUi = (prop) => {
         ? 1
         : 0,
     images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
+    imageUrl: prop.imageUrl
+      ? resolveImageUrl(prop.imageUrl)
+      : Array.isArray(prop.images) && prop.images[0]?.imageUrl
+      ? resolveImageUrl(prop.images[0].imageUrl)
+      : '',
     amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
     ownerId: prop.ownerId,
     ownerName: prop.ownerName,

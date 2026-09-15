@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -120,6 +121,16 @@ public class SecurityConfig {
                 .requestMatchers(
                         "/api/users/**"
                 ).hasRole("SUPER_ADMIN")
+
+                // =================================================
+                // PROPERTY LIST & DETAILS - OWNER & TENANT BROWSING
+                // =================================================
+
+                .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/owner/properties",
+                        "/api/owner/properties/*/details"
+                ).hasAnyRole("PROPERTY_OWNER", "TENANT")
 
                 // =================================================
                 // FUTURE PROPERTY OWNER APIs

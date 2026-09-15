@@ -12,10 +12,14 @@ import {
   Calendar,
   CheckCircle2,
 } from 'lucide-react'
+import { resolveImageUrl } from '../../api/propertyApi'
 
 /**
  * Enterprise PropertyCard Component for HomeSphere
  * Displays key details of a rental property for tenant browsing.
+ * Strictly adheres to backend Property contract:
+ * - monthlyRent, securityDeposit, bedrooms, bathrooms belong to Unit and are hidden when absent.
+ * - uses real backend image URLs and IDs.
  *
  * @param {Object} props
  * @param {Object} props.property
@@ -24,7 +28,7 @@ import {
  * @param {Function} [props.onToggleFavorite]
  */
 export default function PropertyCard({
-  property,
+  property = {},
   onSelect,
   isFavorite: controlledFavorite,
   onToggleFavorite,
@@ -34,25 +38,41 @@ export default function PropertyCard({
 
   const {
     id,
+    propertyId,
     name,
+    propertyName,
     propertyType,
+    type,
     city,
     location,
+    address,
     monthlyRent,
     bedrooms,
     bathrooms,
     area,
+    totalArea,
     furnishing,
+    furnishingStatus,
     parking,
+    parkingAvailable,
+    yearBuilt,
+    status,
     availabilityStatus,
     imageUrl,
+    images,
+    deposit,
+    securityDeposit,
     aiMatchScore,
   } = property
+
+  const realId = propertyId ?? id
+  const displayName = propertyName || name || 'Unnamed Property'
+  const displayType = (propertyType || type || 'APARTMENT').replace(/_/g, ' ')
 
   const handleFavoriteClick = (e) => {
     e.stopPropagation()
     if (onToggleFavorite) {
-      onToggleFavorite(id)
+      onToggleFavorite(realId)
     } else {
       setInternalFavorite(!internalFavorite)
     }
@@ -64,14 +84,48 @@ export default function PropertyCard({
     }
   }
 
-  // Format currency
-  const formattedRent = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(monthlyRent)
+  // Real image resolution
+  const rawImg = imageUrl || (Array.isArray(images) && images[0]?.imageUrl) || ''
+  const resolvedImg =
+    resolveImageUrl(rawImg) ||
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
 
-  const isAvailableNow = availabilityStatus === 'Available Now'
+  // Availability / Status: derived from real backend status
+  const rawStatus = status || availabilityStatus || ''
+  const isAvailable = rawStatus === 'AVAILABLE' || rawStatus === 'Available Now'
+  const displayStatus = rawStatus
+    ? rawStatus === 'AVAILABLE'
+      ? 'Available'
+      : rawStatus.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : null
+
+  // Unit-level financials: only formatted if actually present on the object
+  const hasRent = monthlyRent !== undefined && monthlyRent !== null
+  const formattedRent = hasRent
+    ? new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0,
+      }).format(monthlyRent)
+    : null
+  const depVal = deposit ?? securityDeposit
+
+  // Real specifications
+  const displayArea = totalArea ?? area
+  const hasBeds = bedrooms !== undefined && bedrooms !== null
+  const hasBaths = bathrooms !== undefined && bathrooms !== null
+  const hasArea = displayArea !== undefined && displayArea !== null && Number(displayArea) > 0
+  const hasYear = yearBuilt !== undefined && yearBuilt !== null
+  const displayLocation = location || address || city || ''
+
+  // Furnishing and Parking
+  const displayFurnishing = furnishingStatus || furnishing
+  const displayParking =
+    parkingAvailable != null
+      ? parkingAvailable
+        ? 'Parking Available'
+        : 'No Parking'
+      : parking
 
   return (
     <div
@@ -81,8 +135,8 @@ export default function PropertyCard({
       {/* Property Image Container */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#EAF2F7]">
         <img
-          src={imageUrl}
-          alt={name}
+          src={resolvedImg}
+          alt={displayName}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-102"
           onError={(e) => {
@@ -93,21 +147,25 @@ export default function PropertyCard({
 
         {/* Top Floating Badges */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 z-10">
-          {/* Availability Status Badge */}
-          <div
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium backdrop-blur-xs ${
-              isAvailableNow
-                ? 'bg-white text-[#2A583B] border border-[#C6DEC8] shadow-2xs'
-                : 'bg-white text-[#8A5B16] border border-[#F4E2B6] shadow-2xs'
-            }`}
-          >
-            {isAvailableNow ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-            ) : (
-              <Calendar className="w-3.5 h-3.5 text-[#B7791F]" />
-            )}
-            <span>{availabilityStatus}</span>
-          </div>
+          {/* Availability Status Badge (only when real status exists) */}
+          {displayStatus ? (
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium backdrop-blur-xs ${
+                isAvailable
+                  ? 'bg-white text-[#2A583B] border border-[#C6DEC8] shadow-2xs'
+                  : 'bg-white text-[#8A5B16] border border-[#F4E2B6] shadow-2xs'
+              }`}
+            >
+              {isAvailable ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+              ) : (
+                <Calendar className="w-3.5 h-3.5 text-[#B7791F]" />
+              )}
+              <span>{displayStatus}</span>
+            </div>
+          ) : (
+            <div />
+          )}
 
           {/* Favorite Toggle Button */}
           <button
@@ -127,78 +185,97 @@ export default function PropertyCard({
         {/* Bottom Property Type Pill */}
         <div className="absolute bottom-2.5 left-2.5">
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#315A7D] text-white text-[11px] font-medium capitalize shadow-2xs">
-            {propertyType}
+            {displayType}
           </span>
         </div>
       </div>
 
       {/* Content Section */}
       <div className="flex flex-1 flex-col p-4 space-y-3">
-        {/* Rent & Price */}
-        <div className="flex items-baseline justify-between">
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-bold tracking-tight text-[#315A7D]">
-              {formattedRent}
-            </span>
-            <span className="text-xs text-[#5B6875] font-medium">/ month</span>
+        {/* Rent & Price - strictly hidden when monthlyRent is not present on property */}
+        {hasRent && (
+          <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-bold tracking-tight text-[#315A7D]">
+                {formattedRent}
+              </span>
+              <span className="text-xs text-[#5B6875] font-medium">/ month</span>
+            </div>
+            {depVal != null && (
+              <span className="text-[11px] text-[#5B6875] bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded-md">
+                Dep: ₹{Number(depVal).toLocaleString('en-IN')}
+              </span>
+            )}
           </div>
-          {property.deposit && (
-            <span className="text-[11px] text-[#5B6875] bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded-md">
-              Dep: ₹{Number(property.deposit).toLocaleString('en-IN')}
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Title and Location */}
         <div>
           <h3 className="font-semibold text-sm sm:text-base text-[#243447] line-clamp-1 group-hover:text-[#315A7D] transition-colors">
-            {name}
+            {displayName}
           </h3>
-          <p className="flex items-center gap-1 text-xs text-[#5B6875] mt-0.5 line-clamp-1">
-            <MapPin className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-            <span>{location || city}</span>
-          </p>
+          {displayLocation && (
+            <p className="flex items-center gap-1 text-xs text-[#5B6875] mt-0.5 line-clamp-1">
+              <MapPin className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+              <span>{displayLocation}</span>
+            </p>
+          )}
         </div>
 
-        {/* Key Features Grid (Beds, Baths, Sqft) */}
-        <div className="grid grid-cols-3 gap-1.5 py-2 border-y border-[#D9E0E6] text-xs text-[#5B6875]">
-          <div className="flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
-            <Bed className="w-3.5 h-3.5 text-[#5B6875]" />
-            <span className="font-medium text-[#243447]">
-              {bedrooms === 0 ? 'Studio' : `${bedrooms} Beds`}
-            </span>
-          </div>
+        {/* Key Features Grid - displays real specifications without fabricating beds/baths */}
+        {(hasBeds || hasBaths || hasArea || hasYear) && (
+          <div className="flex flex-wrap items-center gap-1.5 py-2 border-y border-[#D9E0E6] text-xs text-[#5B6875]">
+            {hasBeds && (
+              <div className="flex-1 min-w-[70px] flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
+                <Bed className="w-3.5 h-3.5 text-[#5B6875]" />
+                <span className="font-medium text-[#243447]">
+                  {bedrooms === 0 ? 'Studio' : `${bedrooms} Beds`}
+                </span>
+              </div>
+            )}
 
-          <div className="flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
-            <Bath className="w-3.5 h-3.5 text-[#5B6875]" />
-            <span className="font-medium text-[#243447]">{bathrooms} Baths</span>
-          </div>
+            {hasBaths && (
+              <div className="flex-1 min-w-[70px] flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
+                <Bath className="w-3.5 h-3.5 text-[#5B6875]" />
+                <span className="font-medium text-[#243447]">{bathrooms} Baths</span>
+              </div>
+            )}
 
-          <div className="flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
-            <Maximize2 className="w-3.5 h-3.5 text-[#5B6875]" />
-            <span className="font-medium text-[#243447]">{area} sqft</span>
-          </div>
-        </div>
+            {hasArea && (
+              <div className="flex-1 min-w-[70px] flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
+                <Maximize2 className="w-3.5 h-3.5 text-[#5B6875]" />
+                <span className="font-medium text-[#243447]">{displayArea} sqft</span>
+              </div>
+            )}
 
-        {/* Secondary Details & Visually Secondary AI Match Score */}
+            {hasYear && !hasBeds && (
+              <div className="flex-1 min-w-[70px] flex items-center gap-1.5 justify-center bg-[#F7F8FA] py-1.5 px-2 rounded-md">
+                <Calendar className="w-3.5 h-3.5 text-[#5B6875]" />
+                <span className="font-medium text-[#243447]">Built {yearBuilt}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Secondary Details & Optional AI Match Score */}
         <div className="flex items-center justify-between gap-2 pt-0.5">
-          <div className="flex items-center gap-1.5 text-[11px] text-[#5B6875]">
-            {furnishing && (
-              <span className="inline-flex items-center gap-1 bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded">
+          <div className="flex items-center gap-1.5 text-[11px] text-[#5B6875] flex-wrap">
+            {displayFurnishing && displayFurnishing !== 'UNFURNISHED' && (
+              <span className="inline-flex items-center gap-1 bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded capitalize">
                 <Sofa className="w-3 h-3 text-[#5B6875]" />
-                {furnishing}
+                {displayFurnishing.replace(/_/g, ' ').toLowerCase()}
               </span>
             )}
-            {parking && (
+            {displayParking && displayParking !== 'None' && displayParking !== 'No Parking' && (
               <span className="inline-flex items-center gap-1 bg-[#F7F8FA] border border-[#D9E0E6] px-2 py-0.5 rounded">
                 <Car className="w-3 h-3 text-[#5B6875]" />
-                {parking}
+                {displayParking}
               </span>
             )}
           </div>
 
-          {/* Secondary AI Match Score: discreet, non-dominating badge */}
-          {aiMatchScore !== undefined && (
+          {/* AI Match Score - only rendered when real score exists */}
+          {aiMatchScore !== undefined && aiMatchScore !== null && (
             <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#EAF2F7] text-[#315A7D] border border-[#315A7D]/30 shrink-0">
               <Sparkles className="w-3 h-3 text-[#315A7D]" />
               <span>{aiMatchScore}% Match</span>
@@ -214,7 +291,7 @@ export default function PropertyCard({
           </span>
 
           <span className="text-[10px] text-[#5B6875] font-mono">
-            {id}
+            #{realId}
           </span>
         </div>
       </div>
