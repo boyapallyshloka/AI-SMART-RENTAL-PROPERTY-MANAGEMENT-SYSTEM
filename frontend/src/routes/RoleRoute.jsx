@@ -2,12 +2,13 @@ import React from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Loader from '../components/ui/Loader'
+import { ROLES, normalizeRole, getDashboardPath } from '../utils/roles'
 
 /**
- * Route wrapper that enforces role-based access
- * Allows managers to access owner routes temporarily per requirements
+ * Route wrapper that enforces role-based access using Spring Boot backend roles
+ * Allows managers to access owner routes per requirements
  * @param {Object} props
- * @param {'owner' | 'tenant' | 'manager' | string[]} props.allowedRole
+ * @param {string | string[]} props.allowedRole
  * @param {React.ReactNode} [props.children]
  */
 export default function RoleRoute({ allowedRole, children }) {
@@ -25,19 +26,17 @@ export default function RoleRoute({ allowedRole, children }) {
     return <Navigate to="/login" replace />
   }
 
-  // Manager is permitted on owner routes temporarily
-  const isAllowed = Array.isArray(allowedRole)
-    ? allowedRole.includes(user.role) || (allowedRole.includes('owner') && user.role === 'manager')
-    : user.role === allowedRole || (allowedRole === 'owner' && user.role === 'manager')
+  const allowedList = (Array.isArray(allowedRole) ? allowedRole : [allowedRole]).map(normalizeRole)
+  const canonicalUserRole = normalizeRole(user.role)
+
+  // Manager is permitted on owner routes
+  const isAllowed =
+    allowedList.includes(canonicalUserRole) ||
+    (allowedList.includes(ROLES.PROPERTY_OWNER) && canonicalUserRole === ROLES.PROPERTY_MANAGER)
 
   if (!isAllowed) {
     // Redirect unauthorized user to their respective valid dashboard
-    const fallbackPath =
-      user.role === 'admin' || user.role === 'superadmin'
-        ? '/admin/dashboard'
-        : user.role === 'owner' || user.role === 'manager'
-        ? '/owner/dashboard'
-        : '/tenant/dashboard'
+    const fallbackPath = getDashboardPath(canonicalUserRole)
     return <Navigate to={fallbackPath} replace />
   }
 

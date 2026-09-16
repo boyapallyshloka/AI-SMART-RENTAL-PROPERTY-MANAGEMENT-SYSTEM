@@ -19,7 +19,7 @@ import {
   RotateCcw,
   FileCheck,
   Building2,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Eye,
   Info,
@@ -232,7 +232,7 @@ export default function ApplicationsPage() {
 
                       {/* Monthly Income */}
                       <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
-                        ${Number(app.monthlyIncome || 0).toLocaleString()}
+                        ₹{Number(app.monthlyIncome || 0).toLocaleString('en-IN')}
                         <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
                       </td>
 

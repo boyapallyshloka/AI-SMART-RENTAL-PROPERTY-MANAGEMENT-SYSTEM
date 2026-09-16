@@ -20,7 +20,7 @@ import {
   RotateCcw,
   Building2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   User,
   CheckCircle2,
 } from 'lucide-react'
@@ -245,12 +245,12 @@ export default function AgreementsPage() {
 
                       {/* Monthly Rent */}
                       <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                        ${Number(agr.monthlyRent || 0).toLocaleString()}/mo
+                        ₹{Number(agr.monthlyRent || 0).toLocaleString('en-IN')}/mo
                       </td>
 
                       {/* Security Deposit */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                        ${Number(agr.securityDeposit || 0).toLocaleString()}
+                        ₹{Number(agr.securityDeposit || 0).toLocaleString('en-IN')}
                       </td>
 
                       {/* Status */}

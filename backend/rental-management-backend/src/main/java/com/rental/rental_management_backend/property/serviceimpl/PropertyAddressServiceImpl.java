@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import org.springframework.security.core.Authentication;
@@ -7,23 +8,27 @@ import org.springframework.stereotype.Service;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyAddressRequest;
 import com.rental.rental_management_backend.property.dto.PropertyAddressResponse;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyAddress;
+import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyAddressService;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
+@Transactional(noRollbackFor = ResourceNotFoundException.class)
 public class PropertyAddressServiceImpl
         implements PropertyAddressService {
 
     private final PropertyAddressRepository addressRepository;
+
     private final PropertyRepository propertyRepository;
+
     private final UserRepository userRepository;
 
     public PropertyAddressServiceImpl(
@@ -44,6 +49,7 @@ public class PropertyAddressServiceImpl
         Property property = getOwnedProperty(propertyId);
 
         if (addressRepository.existsByProperty(property)) {
+
             throw new RuntimeException(
                     "Address already exists for this property"
             );
@@ -70,7 +76,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -88,7 +94,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -109,7 +115,7 @@ public class PropertyAddressServiceImpl
         PropertyAddress address =
                 addressRepository.findByProperty(property)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Address not found for this property"
                                 )
                         );
@@ -117,6 +123,11 @@ public class PropertyAddressServiceImpl
         addressRepository.delete(address);
     }
 
+    /*
+     * OWNER PROPERTY ACCESS
+     *
+     * Used only by owner management operations.
+     */
     private Property getOwnedProperty(Long propertyId) {
 
         User loggedInUser = getLoggedInUser();
@@ -129,12 +140,15 @@ public class PropertyAddressServiceImpl
                         loggedInUser
                 )
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Property not found or you do not have permission"
                         )
                 );
     }
 
+    /*
+     * GET LOGGED-IN USER
+     */
     private User getLoggedInUser() {
 
         Authentication authentication =
@@ -161,6 +175,12 @@ public class PropertyAddressServiceImpl
                 );
     }
 
+    /*
+     * OWNER VALIDATION
+     *
+     * This is intentionally kept unchanged
+     * for owner management operations.
+     */
     private void validateOwner(User user) {
 
         if (user.getRole() != RoleType.PROPERTY_OWNER) {
@@ -171,6 +191,49 @@ public class PropertyAddressServiceImpl
         }
     }
 
+    /*
+     * PUBLIC ADDRESS READ
+     *
+     * Used when a TENANT views an AVAILABLE property.
+     *
+     * This method does NOT call getOwnedProperty()
+     * because a tenant does not own the property.
+     */
+    @Override
+    public PropertyAddressResponse getPublicAddressByPropertyId(
+            Long propertyId) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with id: "
+                                                + propertyId
+                                )
+                        );
+
+        if (property.getStatus() != PropertyStatus.AVAILABLE) {
+
+            throw new RuntimeException(
+                    "Property is not available for tenants"
+            );
+        }
+
+        PropertyAddress address =
+                addressRepository.findByProperty(property)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Address not found for this property"
+                                )
+                        );
+
+        return convertToResponse(address);
+    }
+
+    /*
+     * MAP REQUEST TO ENTITY
+     */
     private void mapRequestToEntity(
             PropertyAddressRequest request,
             PropertyAddress address) {
@@ -183,15 +246,30 @@ public class PropertyAddressServiceImpl
                 request.getAddressLine2()
         );
 
-        address.setArea(request.getArea());
+        address.setArea(
+                request.getArea()
+        );
 
-        address.setCity(request.getCity());
+        // M1: Area Type
+        address.setAreaType(
+                request.getAreaType()
+        );
 
-        address.setState(request.getState());
+        address.setCity(
+                request.getCity()
+        );
 
-        address.setCountry(request.getCountry());
+        address.setState(
+                request.getState()
+        );
 
-        address.setPincode(request.getPincode());
+        address.setCountry(
+                request.getCountry()
+        );
+
+        address.setPincode(
+                request.getPincode()
+        );
 
         address.setLatitude(
                 request.getLatitude()
@@ -202,6 +280,9 @@ public class PropertyAddressServiceImpl
         );
     }
 
+    /*
+     * ENTITY TO RESPONSE
+     */
     private PropertyAddressResponse convertToResponse(
             PropertyAddress address) {
 
@@ -225,15 +306,30 @@ public class PropertyAddressServiceImpl
                 address.getAddressLine2()
         );
 
-        response.setArea(address.getArea());
+        response.setArea(
+                address.getArea()
+        );
 
-        response.setCity(address.getCity());
+        // M1: Area Type
+        response.setAreaType(
+                address.getAreaType()
+        );
 
-        response.setState(address.getState());
+        response.setCity(
+                address.getCity()
+        );
 
-        response.setCountry(address.getCountry());
+        response.setState(
+                address.getState()
+        );
 
-        response.setPincode(address.getPincode());
+        response.setCountry(
+                address.getCountry()
+        );
+
+        response.setPincode(
+                address.getPincode()
+        );
 
         response.setLatitude(
                 address.getLatitude()

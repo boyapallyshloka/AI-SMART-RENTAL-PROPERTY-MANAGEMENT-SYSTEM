@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getMockProperties } from '../../utils/ownerPropertyMockData'
+import { getMyProperties, mapBackendPropertyToUi } from '../../api/propertyApi'
 import { getStoredApplications } from '../../utils/applicationMockData'
 import { addAgreement } from '../../utils/agreementMockData'
 import {
@@ -15,7 +15,7 @@ import {
   FileText,
   Building2,
   User,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Clock,
   CheckCircle2,
@@ -51,23 +51,43 @@ export default function CreateAgreementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    const propList = getMockProperties()
-    const appList = getStoredApplications()
+    let isMounted = true
 
-    setProperties(propList)
-    setApplicants(appList)
+    const loadData = async () => {
+      let propList = []
+      try {
+        const res = await getMyProperties()
+        const raw = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+        propList = raw.map(mapBackendPropertyToUi)
+      } catch (err) {
+        console.error('Failed to load owner properties for agreement:', err)
+      }
 
-    // Pre-populate with first property & tenant if available
-    if (propList.length > 0) {
-      setSelectedPropertyId(propList[0].id)
-      setUnit('Unit #302')
-      setMonthlyRent(String(propList[0].rent || 3400))
-      setSecurityDeposit(String(propList[0].rent || 3400))
+      if (!isMounted) return
+
+      const appList = getStoredApplications()
+
+      setProperties(propList)
+      setApplicants(appList)
+
+      // Pre-populate with first property & tenant if available
+      if (propList.length > 0) {
+        setSelectedPropertyId(propList[0].id)
+        setUnit('Unit #101')
+        setMonthlyRent(String(propList[0].monthlyRent || propList[0].rent || ''))
+        setSecurityDeposit(String(propList[0].securityDeposit || propList[0].deposit || ''))
+      }
+
+      if (appList.length > 0) {
+        setTenantName(appList[0].applicantName)
+        setTenantEmail(appList[0].email || '')
+      }
     }
 
-    if (appList.length > 0) {
-      setTenantName(appList[0].applicantName)
-      setTenantEmail(appList[0].email || '')
+    loadData()
+
+    return () => {
+      isMounted = false
     }
   }, [])
 
@@ -105,7 +125,7 @@ export default function CreateAgreementPage() {
 
   const propertyOptions = properties.map((p) => ({
     value: String(p.id),
-    label: `${p.name} (${p.city}, ${p.state})`,
+    label: p.city && p.state ? `${p.name} (${p.city}, ${p.state})` : p.name,
   }))
 
   const applicantOptions = [
@@ -300,27 +320,27 @@ export default function CreateAgreementPage() {
           {/* Section 3: Financial Terms & Rent Schedule */}
           <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
             <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-              <DollarSign className="w-4 h-4 text-[#3F7D58]" />
+              <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
               3. Financial Terms
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Monthly Rent ($)"
+                  label="Monthly Rent (₹)"
                   type="number"
                   placeholder="e.g. 3400"
                   value={monthlyRent}
                   onChange={(e) => setMonthlyRent(e.target.value)}
                   error={errors.monthlyRent}
-                  leftIcon={<DollarSign className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
                   required
                 />
               </div>
 
               <div>
                 <Input
-                  label="Security Deposit ($)"
+                  label="Security Deposit (₹)"
                   type="number"
                   placeholder="e.g. 3400"
                   value={securityDeposit}

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { Button, StatusBadge, EmptyState } from '../../components/ui'
+import { Button, StatusBadge, EmptyState, Loader } from '../../components/ui'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import {
   Home,
   ArrowLeft,
-  DollarSign,
+  IndianRupee,
   Bed,
   Bath,
   Pencil,
@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Sparkles,
   Search,
+  AlertCircle,
 } from 'lucide-react'
 import {
   getUnitById,
@@ -23,17 +24,25 @@ import {
   getUnitByIdForTenant,
   deleteUnit,
 } from '../../api/unitApi'
+import { formatCurrency } from '../../utils/currency'
 import { getTenantRentalContext } from '../../api/buildingApi'
 import { useAuth } from '../../context/AuthContext'
+import {
+  ROLES,
+  isPropertyOwner,
+  isPropertyManager,
+  isTenant as isTenantRole,
+} from '../../utils/roles'
 
 export default function UnitDetailsPage() {
   const { unitId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
 
-  const isOwner = user?.role === 'owner'
-  const isTenant = user?.role === 'tenant'
-  const isManager = user?.role === 'manager'
+  const isOwner = isPropertyOwner(user?.role)
+  const isTenant = isTenantRole(user?.role)
+  const isManager = isPropertyManager(user?.role)
   const canManage = isOwner
   const basePath = isTenant ? '/tenant' : '/owner'
 
@@ -41,10 +50,22 @@ export default function UnitDetailsPage() {
   const isCurrentRentedUnit = isTenant && String(unitId) === String(myRental?.currentUnitId)
 
   const [unit, setUnit] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
   const [toastMessage, setToastMessage] = useState('')
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
+  useEffect(() => {
+    const incomingToast = location.state?.toastMessage || location.state?.toast
+    if (incomingToast) {
+      setToastMessage(incomingToast)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
   const loadUnit = async () => {
+    setIsLoading(true)
+    setErrorMessage('')
     try {
       let u = null
       if (isTenant) {
@@ -54,11 +75,69 @@ export default function UnitDetailsPage() {
       } else if (isManager) {
         u = await getUnitByIdForManager(unitId)
       } else {
-        u = await getUnitById(unitId)
+        const res = await getUnitById(unitId)
+        const raw = res?.data ?? res ?? null
+        if (raw) {
+          const uFloorId = raw.floorId ?? raw.floor?.floorId ?? raw.floor?.id
+          const uFloorName = raw.floorName ?? raw.floor?.floorName ?? raw.floor?.name
+          const uFloorNumber = raw.floorNumber ?? raw.floor?.floorNumber ?? raw.floor?.number
+          const uBuildingId = raw.buildingId ?? raw.floor?.building?.buildingId ?? raw.floor?.building?.id
+          const uBuildingName = raw.buildingName ?? raw.floor?.building?.buildingName ?? raw.floor?.building?.name
+          const uPropertyId = raw.propertyId ?? raw.floor?.building?.property?.propertyId ?? raw.floor?.building?.property?.id
+          const uPropertyName = raw.propertyName ?? raw.floor?.building?.property?.name ?? raw.floor?.building?.property?.propertyName
+
+          u = {
+            ...raw,
+            id: raw.unitId ?? raw.id,
+            unitId: raw.unitId ?? raw.id,
+            unitNumber: raw.unitNumber ?? raw.number ?? '',
+            unitType: raw.unitType ?? raw.type ?? 'APARTMENT',
+            status: raw.status ?? 'VACANT',
+            monthlyRent: Number(raw.monthlyRent ?? raw.rent ?? 0),
+            securityDeposit: Number(raw.securityDeposit ?? raw.deposit ?? 0),
+            area: Number(raw.area ?? 0),
+            bedrooms: Number(raw.bedrooms ?? 0),
+            bathrooms: Number(raw.bathrooms ?? 0),
+            description: raw.description ?? '',
+            floorId: uFloorId,
+            floorName: uFloorName,
+            floorNumber: uFloorNumber,
+            buildingId: uBuildingId,
+            buildingName: uBuildingName,
+            propertyId: uPropertyId,
+            propertyName: uPropertyName,
+            floor: raw.floor ?? (uFloorId ? {
+              floorId: uFloorId,
+              id: uFloorId,
+              floorName: uFloorName,
+              floorNumber: uFloorNumber,
+              building: raw.floor?.building ?? (uBuildingId ? {
+                buildingId: uBuildingId,
+                id: uBuildingId,
+                buildingName: uBuildingName,
+                property: raw.floor?.building?.property ?? (uPropertyId ? {
+                  propertyId: uPropertyId,
+                  id: uPropertyId,
+                  name: uPropertyName,
+                  propertyName: uPropertyName,
+                } : null),
+              } : null),
+            } : null),
+          }
+        }
       }
       setUnit(u)
     } catch (err) {
       console.error('Error loading unit:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to load unit details. Please try again.'
+      setErrorMessage(errorMsg)
+      setUnit(null)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -68,22 +147,80 @@ export default function UnitDetailsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!unit || !canManage) return
-    await deleteUnit(unit.unitId)
-    const backUrl =
-      unit.floor?.building?.buildingId && unit.floor?.floorId
-        ? `${basePath}/buildings/${unit.floor.building.buildingId}/floors/${unit.floor.floorId}`
-        : `${basePath}/buildings`
+    try {
+      await deleteUnit(unit.unitId)
+      const targetBId = unit.buildingId || unit.floor?.buildingId || unit.floor?.building?.buildingId
+      const targetFId = unit.floorId || unit.floor?.floorId
+      const backUrl =
+        targetBId && targetFId
+          ? `${basePath}/buildings/${targetBId}/floors/${targetFId}`
+          : unit.propertyId
+          ? `/owner/properties/${unit.propertyId}`
+          : `${basePath}/properties`
 
-    navigate(backUrl, {
-      state: { toast: `Unit "${unit.unitNumber}" was deleted.` },
-    })
+      navigate(backUrl, {
+        state: { toastMessage: `Unit "${unit.unitNumber}" was deleted.` },
+      })
+    } catch (err) {
+      console.error('Failed to delete unit:', err)
+      setErrorMessage(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete unit. Please try again.'
+      )
+      setIsDeleteModalOpen(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <DashboardLayout
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+        activeItem={isOwner ? 'properties' : 'buildings'}
+        pageTitle="Loading Unit Details..."
+      >
+        <div className="flex items-center justify-center min-h-[300px]">
+          <Loader text="Loading unit details..." />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <DashboardLayout
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+        activeItem={isOwner ? 'properties' : 'buildings'}
+        pageTitle="Error Loading Unit"
+      >
+        <div className="space-y-6">
+          <Link to={`${basePath}/buildings`}>
+            <Button size="sm" variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+              Back to Buildings
+            </Button>
+          </Link>
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 text-center space-y-4 shadow-2xs">
+            <div className="w-12 h-12 rounded-full bg-[#FDF2F2] flex items-center justify-center text-[#B94A48] mx-auto border border-[#F8D7DA]">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#243447]">Failed to Load Unit</h3>
+              <p className="text-xs text-[#5B6875] mt-1">{errorMessage}</p>
+            </div>
+            <Button size="sm" variant="primary" onClick={loadUnit}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   if (!unit) {
     return (
       <DashboardLayout
-        defaultRole={isTenant ? 'tenant' : 'owner'}
-        activeItem="buildings"
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+        activeItem={isOwner ? 'properties' : 'buildings'}
         pageTitle="Unit Details"
       >
         <div className="space-y-6">
@@ -109,21 +246,26 @@ export default function UnitDetailsPage() {
     )
   }
 
-  const floor = unit.floor
-  const building = floor?.building
-  const property = building?.property
+  const targetFloorId = unit.floorId || unit.floor?.floorId || unit.floor?.id
+  const targetFloorName = unit.floorName || unit.floor?.floorName || unit.floor?.name
+  const targetBuildingId = unit.buildingId || unit.floor?.buildingId || unit.floor?.building?.buildingId || unit.floor?.building?.id
+  const targetBuildingName = unit.buildingName || unit.floor?.buildingName || unit.floor?.building?.buildingName || unit.floor?.building?.name
+  const targetPropertyId = unit.propertyId || unit.floor?.building?.propertyId || unit.floor?.building?.property?.propertyId
+  const targetPropertyName = unit.propertyName || unit.floor?.building?.propertyName || unit.floor?.building?.property?.name
 
   const backDestination =
-    building?.buildingId && floor?.floorId
-      ? `${basePath}/buildings/${building.buildingId}/floors/${floor.floorId}`
-      : `${basePath}/buildings`
+    targetBuildingId && targetFloorId
+      ? `${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`
+      : targetPropertyId
+      ? `/owner/properties/${targetPropertyId}`
+      : `${basePath}/properties`
 
-  const backLabel = floor?.floorName ? `Back to ${floor.floorName}` : 'Back to Floor'
+  const backLabel = targetFloorName ? `Back to ${targetFloorName}` : 'Back to Floor'
 
   return (
     <DashboardLayout
-      defaultRole={isTenant ? 'tenant' : 'owner'}
-      activeItem="buildings"
+      defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+      activeItem={isOwner ? 'properties' : 'buildings'}
       pageTitle={`Unit ${unit.unitNumber}`}
     >
       <div className="space-y-6">
@@ -142,6 +284,53 @@ export default function UnitDetailsPage() {
             </button>
           </div>
         )}
+
+        {/* Hierarchy Breadcrumbs */}
+        <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+          <Link
+            to="/owner/properties"
+            className="hover:text-[#315A7D] transition-colors"
+          >
+            Properties
+          </Link>
+          {targetPropertyId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/owner/properties/${targetPropertyId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetPropertyName || `Property #${targetPropertyId}`}
+              </Link>
+            </>
+          )}
+          {targetBuildingId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`${basePath}/buildings/${targetBuildingId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetBuildingName || `Building #${targetBuildingId}`}
+              </Link>
+            </>
+          )}
+          {targetBuildingId && targetFloorId && (
+            <>
+              <span>/</span>
+              <Link
+                to={`${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`}
+                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+              >
+                {targetFloorName || `Floor #${targetFloorId}`}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-[#243447] font-semibold">
+            Unit {unit.unitNumber}
+          </span>
+        </div>
 
         {/* Top Navigation & Action Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -224,9 +413,9 @@ export default function UnitDetailsPage() {
               <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 Unit {unit.unitNumber}
               </h1>
-              {building && (
+              {(targetBuildingName || targetFloorName) && (
                 <p className="text-xs text-[#5B6875]">
-                  {building.buildingName} &bull; {floor?.floorName || `Floor ${floor?.floorNumber}`}
+                  {targetBuildingName} {targetBuildingName && targetFloorName ? '•' : ''} {targetFloorName}
                 </p>
               )}
             </div>
@@ -279,43 +468,51 @@ export default function UnitDetailsPage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              {property && (
+              {targetPropertyName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Property</p>
-                    <p className="font-bold text-sm text-[#243447] mt-0.5">{property.name}</p>
-                    <p className="text-[11px] text-[#5B6875]">{property.address}, {property.city}</p>
+                    <p className="font-bold text-sm text-[#243447] mt-0.5">{targetPropertyName}</p>
                   </div>
-                  <Building2 className="w-4 h-4 text-[#315A7D] shrink-0" />
+                  {targetPropertyId && (
+                    <Link
+                      to={`/owner/properties/${targetPropertyId}`}
+                      className="text-xs text-[#315A7D] font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <Building2 className="w-4 h-4 text-[#315A7D] shrink-0" />
+                    </Link>
+                  )}
                 </div>
               )}
 
-              {building && (
+              {targetBuildingName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Building</p>
-                    <p className="font-bold text-sm text-[#243447] mt-0.5">{building.buildingName}</p>
+                    <p className="font-bold text-sm text-[#243447] mt-0.5">{targetBuildingName}</p>
                   </div>
-                  <Link
-                    to={`${basePath}/buildings/${building.buildingId}`}
-                    className="text-xs text-[#315A7D] font-semibold hover:underline"
-                  >
-                    View Building
-                  </Link>
+                  {targetBuildingId && (
+                    <Link
+                      to={`${basePath}/buildings/${targetBuildingId}`}
+                      className="text-xs text-[#315A7D] font-semibold hover:underline"
+                    >
+                      View Building
+                    </Link>
+                  )}
                 </div>
               )}
 
-              {floor && (
+              {targetFloorName && (
                 <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70 flex items-center justify-between">
                   <div>
                     <p className="text-[#5B6875] font-medium">Floor</p>
                     <p className="font-bold text-sm text-[#243447] mt-0.5">
-                      {floor.floorName} (Floor {floor.floorNumber})
+                      {targetFloorName} {unit.floorNumber != null ? `(Floor ${unit.floorNumber})` : ''}
                     </p>
                   </div>
-                  {building && (
+                  {targetBuildingId && targetFloorId && (
                     <Link
-                      to={`${basePath}/buildings/${building.buildingId}/floors/${floor.floorId}`}
+                      to={`${basePath}/buildings/${targetBuildingId}/floors/${targetFloorId}`}
                       className="text-xs text-[#315A7D] font-semibold hover:underline"
                     >
                       View Floor
@@ -329,7 +526,7 @@ export default function UnitDetailsPage() {
           {/* Section 3: Rental & Financials */}
           <div className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs space-y-4">
             <div className="flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-              <DollarSign className="w-4 h-4 text-[#315A7D]" />
+              <IndianRupee className="w-4 h-4 text-[#315A7D]" />
               <h2 className="font-semibold text-sm text-[#243447]">Rental &amp; Financials</h2>
             </div>
 
@@ -337,7 +534,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Monthly Rent</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ${unit.monthlyRent.toLocaleString()}
+                  {formatCurrency(unit.monthlyRent)}
                   <span className="text-xs font-normal text-[#5B6875]">/mo</span>
                 </p>
               </div>
@@ -345,7 +542,7 @@ export default function UnitDetailsPage() {
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Security Deposit</p>
                 <p className="font-bold text-base text-[#243447] mt-0.5">
-                  ${unit.securityDeposit.toLocaleString()}
+                  {formatCurrency(unit.securityDeposit)}
                 </p>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Home,
@@ -13,7 +13,6 @@ import {
   Sparkles,
   Search,
   X,
-  ArrowLeftRight,
   Users,
   ShieldCheck,
   History,
@@ -22,17 +21,28 @@ import {
   Bot,
 } from 'lucide-react'
 import NavItem from './NavItem'
-import { getPendingApplicationsCount } from '../../utils/applicationMockData'
 import { useScout } from '../../context/ScoutContext'
+import { getMyProperties } from '../../api/propertyApi'
+import {
+  ROLES,
+  isSuperAdmin,
+  isTenant,
+  isPropertyManager,
+  isPropertyOwner,
+  getPortalName,
+} from '../../utils/roles'
+
+const MANAGER_MENU = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+]
 
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'properties', label: 'Properties', icon: <Building2 className="w-4 h-4" />, badge: '12' },
-  { id: 'buildings', label: 'Buildings', icon: <Building2 className="w-4 h-4" />, badge: '4' },
-  { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" />, badge: '3' },
+  { id: 'properties', label: 'Properties', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" /> },
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
-  { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" />, badge: '2' },
+  { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ai-insights', label: 'AI Insights', icon: <Sparkles className="w-4 h-4 text-[#315A7D]" /> },
 ]
@@ -41,7 +51,7 @@ const TENANT_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'buildings', label: 'My Rental Property', icon: <Building2 className="w-4 h-4" /> },
   { id: 'find-properties', label: 'Find Properties', icon: <Search className="w-4 h-4" /> },
-  { id: 'my-applications', label: 'My Applications', icon: <FileCheck className="w-4 h-4" />, badge: '1' },
+  { id: 'my-applications', label: 'My Applications', icon: <FileCheck className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
   { id: 'agreement', label: 'Agreement', icon: <FileText className="w-4 h-4" /> },
@@ -50,7 +60,7 @@ const TENANT_MENU = [
 const ADMIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
-  { id: 'owner-verification', label: 'Owner Verification', icon: <ShieldCheck className="w-4 h-4" />, badge: '3' },
+  { id: 'owner-verification', label: 'Owner Verification', icon: <ShieldCheck className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'audit-logs', label: 'Audit Logs', icon: <History className="w-4 h-4" /> },
   { id: 'ai-monitoring', label: 'AI Monitoring', icon: <Activity className="w-4 h-4 text-[#315A7D]" /> },
@@ -60,24 +70,46 @@ const ADMIN_MENU = [
 /**
  * Enterprise Sidebar Component for HomeSphere
  * @param {Object} props
- * @param {'owner' | 'tenant'} props.role
+ * @param {string} props.role
  * @param {string} props.activeItem
  * @param {(item: string) => void} props.onSelect
  * @param {boolean} props.isOpen
  * @param {() => void} props.onClose
- * @param {(newRole: 'owner' | 'tenant') => void} props.onRoleChange
  */
 export default function Sidebar({
-  role = 'owner',
+  role = ROLES.PROPERTY_OWNER,
   activeItem = 'dashboard',
   onSelect,
   isOpen = false,
   onClose,
-  onRoleChange,
 }) {
   const navigate = useNavigate()
   const { openScout } = useScout()
-  const pendingAppsCount = getPendingApplicationsCount()
+  const [propertyCount, setPropertyCount] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+    if (isPropertyOwner(role)) {
+      getMyProperties()
+        .then((res) => {
+          if (!isMounted) return
+          const list = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+            ? res.data
+            : (res?.data?.content || [])
+          setPropertyCount(list.length)
+        })
+        .catch(() => {
+          if (isMounted) setPropertyCount(null)
+        })
+    } else {
+      setPropertyCount(null)
+    }
+    return () => {
+      isMounted = false
+    }
+  }, [role])
 
   const handleOpenScout = () => {
     if (onClose) onClose()
@@ -85,24 +117,25 @@ export default function Sidebar({
   }
 
   const dynamicOwnerMenu = OWNER_MENU.map((item) => {
-    if (item.id === 'applications') {
-      return { ...item, badge: pendingAppsCount > 0 ? String(pendingAppsCount) : '0' }
+    if (item.id === 'properties' && propertyCount !== null && propertyCount > 0) {
+      return { ...item, badge: String(propertyCount) }
     }
     return item
   })
 
-  const menuItems =
-    role === 'admin' || role === 'superadmin'
-      ? ADMIN_MENU
-      : role === 'tenant'
-      ? TENANT_MENU
-      : dynamicOwnerMenu
+  const menuItems = isSuperAdmin(role)
+    ? ADMIN_MENU
+    : isTenant(role)
+    ? TENANT_MENU
+    : isPropertyManager(role)
+    ? MANAGER_MENU
+    : dynamicOwnerMenu
 
   const handleItemClick = (id) => {
     if (onSelect) onSelect(id)
     if (onClose) onClose()
 
-    if (role === 'admin' || role === 'superadmin') {
+    if (isSuperAdmin(role)) {
       if (id === 'dashboard') navigate('/admin/dashboard')
       else if (id === 'users') navigate('/admin/users')
       else if (id === 'owner-verification') navigate('/admin/owner-verification')
@@ -110,7 +143,9 @@ export default function Sidebar({
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
       else if (id === 'settings' || id === 'system-settings') navigate('/admin/system-settings')
-    } else if (role === 'owner' || role === 'manager') {
+    } else if (isPropertyManager(role)) {
+      if (id === 'dashboard') navigate('/manager/dashboard')
+    } else if (isPropertyOwner(role)) {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
       else if (id === 'buildings') navigate('/owner/buildings')
@@ -120,7 +155,7 @@ export default function Sidebar({
       else if (id === 'maintenance') navigate('/owner/maintenance')
       else if (id === 'reports') navigate('/owner/reports')
       else if (id === 'ai-insights') navigate('/owner/ai-insights')
-    } else if (role === 'tenant') {
+    } else if (isTenant(role)) {
       if (id === 'dashboard') navigate('/tenant/dashboard')
       else if (id === 'buildings' || id === 'my-rental') navigate('/tenant/buildings')
       else if (id === 'find-properties' || id === 'browse') navigate('/tenant/find-properties')
@@ -177,26 +212,13 @@ export default function Sidebar({
 
         {/* Role Indicator Banner */}
         <div className="px-4 pt-3 pb-1">
-          <div className="flex items-center justify-between p-2.5 rounded-md bg-[#EAF2F7] border border-[#D9E0E6] text-xs">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-[#5B6875] block tracking-wider">
-                Portal View
-              </span>
-              <span className="font-semibold text-[#243447] capitalize">
-                {role} Portal
-              </span>
-            </div>
-            {onRoleChange && (
-              <button
-                type="button"
-                onClick={() => onRoleChange(role === 'owner' ? 'tenant' : 'owner')}
-                title="Switch portal view"
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-white text-[#315A7D] border border-[#D9E0E6] font-medium text-[11px] hover:bg-[#D9E6F0] transition-colors"
-              >
-                <ArrowLeftRight className="w-3 h-3" />
-                <span>Switch</span>
-              </button>
-            )}
+          <div className="p-2.5 rounded-md bg-[#EAF2F7] border border-[#D9E0E6] text-xs">
+            <span className="text-[10px] uppercase font-bold text-[#5B6875] block tracking-wider">
+              Portal View
+            </span>
+            <span className="font-semibold text-[#243447]">
+              {getPortalName(role)}
+            </span>
           </div>
         </div>
 

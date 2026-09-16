@@ -1,7 +1,8 @@
 import React from 'react'
-import { Menu, ArrowLeftRight } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import UserMenu from './UserMenu'
+import { ROLES } from '../../utils/roles'
 
 /**
  * Enterprise Topbar Component for HomeSphere Dashboard
@@ -9,15 +10,13 @@ import UserMenu from './UserMenu'
  *
  * @param {Object} props
  * @param {() => void} props.onMenuClick
- * @param {'owner' | 'tenant'} props.role
- * @param {(newRole: 'owner' | 'tenant') => void} [props.onRoleChange]
+ * @param {string} [props.role]
  * @param {string} [props.title='Dashboard']
  * @param {React.ReactNode} [props.actions]
  */
 export default function Topbar({
   onMenuClick,
-  role = 'owner',
-  onRoleChange,
+  role = ROLES.PROPERTY_OWNER,
   title = 'Dashboard',
   actions,
 }) {
@@ -44,22 +43,8 @@ export default function Topbar({
         </div>
       </div>
 
-      {/* Right section: Role switcher, Notifications, User Profile, Custom Actions */}
+      {/* Right section: Notifications, User Profile, Custom Actions */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Role Switcher Pill */}
-        {onRoleChange && (
-          <button
-            type="button"
-            onClick={() => onRoleChange(role === 'owner' ? 'tenant' : 'owner')}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#D9E0E6] bg-[#EAF2F7] text-[#243447] hover:bg-[#D9E6F0] transition-colors text-xs font-medium"
-            title="Toggle between Owner and Tenant views"
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5 text-[#5B6875]" />
-            <span className="hidden md:inline">Viewing as:</span>
-            <span className="capitalize font-semibold">{role}</span>
-          </button>
-        )}
-
         {actions}
 
         {/* Notification Bell */}

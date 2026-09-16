@@ -3,6 +3,8 @@ package com.rental.rental_management_backend.property.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.rental.rental_management_backend.property.enums.AreaType;
+
 public class PropertyAddressResponse {
 
     private Long addressId;
@@ -14,6 +16,8 @@ public class PropertyAddressResponse {
     private String addressLine2;
 
     private String area;
+
+    private AreaType areaType;
 
     private String city;
 
@@ -72,6 +76,14 @@ public class PropertyAddressResponse {
 
     public void setArea(String area) {
         this.area = area;
+    }
+
+    public AreaType getAreaType() {
+        return areaType;
+    }
+
+    public void setAreaType(AreaType areaType) {
+        this.areaType = areaType;
     }
 
     public String getCity() {

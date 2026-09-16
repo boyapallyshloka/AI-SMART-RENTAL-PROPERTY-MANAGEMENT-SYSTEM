@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -43,33 +45,30 @@ public class PropertyServiceImpl implements PropertyService {
         Property property = new Property();
 
         property.setPropertyName(request.getPropertyName());
+
         property.setPropertyType(request.getPropertyType());
+
         property.setDescription(request.getDescription());
+
         property.setTotalArea(request.getTotalArea());
-        property.setBedrooms(request.getBedrooms());
-        property.setBathrooms(request.getBathrooms());
-        property.setFurnishingStatus(
-                request.getFurnishingStatus()
-        );
-        property.setParkingAvailable(
-                request.getParkingAvailable()
-        );
-        property.setMonthlyRent(
-                request.getMonthlyRent()
-        );
-        property.setSecurityDeposit(
-                request.getSecurityDeposit()
-        );
+
+        property.setFurnishingStatus(request.getFurnishingStatus());
+
+        property.setParkingAvailable(request.getParkingAvailable());
+
+        property.setYearBuilt(request.getYearBuilt());
 
         /*
          * Owner is taken from the authenticated JWT user.
          * Client cannot choose ownerId.
          */
+
         property.setOwner(owner);
 
         /*
          * Every newly created property starts as DRAFT.
          */
+
         property.setStatus(PropertyStatus.DRAFT);
 
         Property savedProperty =
@@ -82,14 +81,25 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     public List<PropertyResponse> getMyProperties() {
 
-        User owner = getLoggedInUser();
+        User user = getLoggedInUser();
 
-        validateOwner(owner);
+        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+            return propertyRepository.findByOwner(user)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
 
-        return propertyRepository.findByOwner(owner)
-                .stream()
-                .map(this::convertToResponse)
-                .toList();
+        if (user.getRole() == RoleType.TENANT) {
+            return propertyRepository.findByStatus(PropertyStatus.AVAILABLE)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
+
+        validateOwner(user);
+
+        return List.of();
     }
 
     @Override
@@ -104,9 +114,57 @@ public class PropertyServiceImpl implements PropertyService {
                 propertyRepository
                         .findByPropertyIdAndOwner(id, owner)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Property not found or you do not have permission"
                                 ));
+
+        return convertToResponse(property);
+    }
+
+    /*
+     * GET ALL AVAILABLE PROPERTIES
+     *
+     * Used by tenants to browse properties
+     * that are currently available for rental.
+     */
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getAvailableProperties() {
+
+        return propertyRepository
+                .findByStatus(PropertyStatus.AVAILABLE)
+                .stream()
+                .map(this::convertToResponse)
+                .toList();
+    }
+
+    /*
+     * GET ONE AVAILABLE PROPERTY
+     *
+     * Used by tenants to view a specific
+     * available property.
+     */
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyResponse getPublicPropertyById(Long propertyId) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with id: "
+                                                + propertyId
+                                ));
+
+        if (property.getStatus() != PropertyStatus.AVAILABLE) {
+
+            throw new RuntimeException(
+                    "Property is not available for tenants"
+            );
+        }
 
         return convertToResponse(property);
     }
@@ -124,54 +182,29 @@ public class PropertyServiceImpl implements PropertyService {
                 propertyRepository
                         .findByPropertyIdAndOwner(id, owner)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Property not found or you do not have permission"
                                 ));
 
-        property.setPropertyName(
-                request.getPropertyName()
-        );
+        property.setPropertyName(request.getPropertyName());
 
-        property.setPropertyType(
-                request.getPropertyType()
-        );
+        property.setPropertyType(request.getPropertyType());
 
-        property.setDescription(
-                request.getDescription()
-        );
+        property.setDescription(request.getDescription());
 
-        property.setTotalArea(
-                request.getTotalArea()
-        );
+        property.setTotalArea(request.getTotalArea());
 
-        property.setBedrooms(
-                request.getBedrooms()
-        );
+        property.setFurnishingStatus(request.getFurnishingStatus());
 
-        property.setBathrooms(
-                request.getBathrooms()
-        );
+        property.setParkingAvailable(request.getParkingAvailable());
 
-        property.setFurnishingStatus(
-                request.getFurnishingStatus()
-        );
-
-        property.setParkingAvailable(
-                request.getParkingAvailable()
-        );
-
-        property.setMonthlyRent(
-                request.getMonthlyRent()
-        );
-
-        property.setSecurityDeposit(
-                request.getSecurityDeposit()
-        );
+        property.setYearBuilt(request.getYearBuilt());
 
         /*
          * Owner and status are intentionally not changed
          * during normal property update.
          */
+
         Property updatedProperty =
                 propertyRepository.save(property);
 
@@ -189,7 +222,7 @@ public class PropertyServiceImpl implements PropertyService {
                 propertyRepository
                         .findByPropertyIdAndOwner(id, owner)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Property not found or you do not have permission"
                                 ));
 
@@ -206,6 +239,7 @@ public class PropertyServiceImpl implements PropertyService {
         validateOwner(owner);
 
         if (status == null) {
+
             throw new RuntimeException(
                     "Property status is required"
             );
@@ -215,7 +249,7 @@ public class PropertyServiceImpl implements PropertyService {
                 propertyRepository
                         .findByPropertyIdAndOwner(id, owner)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResourceNotFoundException(
                                         "Property not found or you do not have permission"
                                 ));
 
@@ -287,14 +321,6 @@ public class PropertyServiceImpl implements PropertyService {
                 property.getTotalArea()
         );
 
-        response.setBedrooms(
-                property.getBedrooms()
-        );
-
-        response.setBathrooms(
-                property.getBathrooms()
-        );
-
         response.setFurnishingStatus(
                 property.getFurnishingStatus()
         );
@@ -303,12 +329,8 @@ public class PropertyServiceImpl implements PropertyService {
                 property.getParkingAvailable()
         );
 
-        response.setMonthlyRent(
-                property.getMonthlyRent()
-        );
-
-        response.setSecurityDeposit(
-                property.getSecurityDeposit()
+        response.setYearBuilt(
+                property.getYearBuilt()
         );
 
         response.setStatus(

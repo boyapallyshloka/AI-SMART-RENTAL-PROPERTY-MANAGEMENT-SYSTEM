@@ -16,7 +16,7 @@ import {
 import {
   Search,
   RotateCcw,
-  DollarSign,
+  IndianRupee,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -139,7 +139,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#243447] tracking-tight">
-                ${totalCollected.toLocaleString()}
+                ₹{totalCollected.toLocaleString('en-IN')}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Paid invoices this period
@@ -159,7 +159,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#B7791F] tracking-tight">
-                ${pendingRent.toLocaleString()}
+                ₹{pendingRent.toLocaleString('en-IN')}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Awaiting tenant settlement
@@ -179,7 +179,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#B94A48] tracking-tight">
-                ${overdueRent.toLocaleString()}
+                ₹{overdueRent.toLocaleString('en-IN')}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Requires payment follow-up
@@ -321,7 +321,7 @@ export default function PaymentsPage() {
 
                       {/* Amount */}
                       <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                        ${Number(inv.amount || 0).toLocaleString()}
+                        ₹{Number(inv.amount || 0).toLocaleString('en-IN')}
                       </td>
 
                       {/* Status */}

@@ -14,7 +14,7 @@ import {
   Download,
   Building2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Clock,
   Shield,
   User,
@@ -165,7 +165,7 @@ export default function TenantAgreementPage() {
                     Monthly Rent
                   </span>
                   <span className="text-xl font-bold text-[#315A7D]">
-                    ${Number(agreement.monthlyRent || 0).toLocaleString()}
+                    ₹{Number(agreement.monthlyRent || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[11px] text-[#5B6875] block mt-0.5">
                     Due {agreement.rentDueDay || '1st of the month'}
@@ -177,7 +177,7 @@ export default function TenantAgreementPage() {
                     Security Deposit
                   </span>
                   <span className="text-xl font-bold text-[#243447]">
-                    ${Number(agreement.securityDeposit || 0).toLocaleString()}
+                    ₹{Number(agreement.securityDeposit || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[11px] text-[#3F7D58] font-medium block mt-0.5">
                     Refundable Escrow
@@ -237,7 +237,7 @@ export default function TenantAgreementPage() {
             {/* Financial Schedule & Term Details */}
             <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
               <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-                <DollarSign className="w-4 h-4 text-[#3F7D58]" />
+                <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
                 Contract Terms & Rent Schedule
               </h3>
 

@@ -18,7 +18,7 @@ import {
 const DEFAULT_SETTINGS = {
   platformName: 'HomeSphere Real Estate Systems',
   supportEmail: 'support@homesphere.com',
-  defaultCurrency: 'USD',
+  defaultCurrency: 'INR',
   rentRemindersEnabled: true,
   overdueAlertsEnabled: true,
   agreementExpiryRemindersEnabled: true,
@@ -32,6 +32,7 @@ export default function SystemSettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   const currencyOptions = [
+    { value: 'INR', label: 'INR (₹) - Indian Rupee' },
     { value: 'USD', label: 'USD ($) - US Dollar' },
     { value: 'EUR', label: 'EUR (€) - Euro' },
     { value: 'GBP', label: 'GBP (£) - British Pound' },

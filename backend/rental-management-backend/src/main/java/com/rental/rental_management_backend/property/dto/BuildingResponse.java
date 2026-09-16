@@ -8,11 +8,9 @@ public class BuildingResponse {
 
     private String buildingName;
 
-    private Integer totalFloors;
-
-    private Integer totalUnits;
-
     private String description;
+
+    private Integer totalFloors;
 
     private Long propertyId;
 
@@ -23,6 +21,26 @@ public class BuildingResponse {
     private LocalDateTime updatedAt;
 
     public BuildingResponse() {
+    }
+
+    public BuildingResponse(
+            Long buildingId,
+            String buildingName,
+            String description,
+            Integer totalFloors,
+            Long propertyId,
+            String propertyName,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
+
+        this.buildingId = buildingId;
+        this.buildingName = buildingName;
+        this.description = description;
+        this.totalFloors = totalFloors;
+        this.propertyId = propertyId;
+        this.propertyName = propertyName;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getBuildingId() {
@@ -41,28 +59,20 @@ public class BuildingResponse {
         this.buildingName = buildingName;
     }
 
-    public Integer getTotalFloors() {
-        return totalFloors;
-    }
-
-    public void setTotalFloors(Integer totalFloors) {
-        this.totalFloors = totalFloors;
-    }
-
-    public Integer getTotalUnits() {
-        return totalUnits;
-    }
-
-    public void setTotalUnits(Integer totalUnits) {
-        this.totalUnits = totalUnits;
-    }
-
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Integer getTotalFloors() {
+        return totalFloors;
+    }
+
+    public void setTotalFloors(Integer totalFloors) {
+        this.totalFloors = totalFloors;
     }
 
     public Long getPropertyId() {

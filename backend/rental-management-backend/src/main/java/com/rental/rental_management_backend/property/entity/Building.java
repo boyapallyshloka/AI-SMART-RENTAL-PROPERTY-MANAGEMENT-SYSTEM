@@ -2,9 +2,19 @@ package com.rental.rental_management_backend.property.entity;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
 
 @Entity
 @Table(
@@ -26,33 +36,24 @@ public class Building {
     @Column(name = "building_name", nullable = false, length = 100)
     private String buildingName;
 
-    @PositiveOrZero(message = "Total floors cannot be negative")
-    @Column(name = "total_floors")
-    private Integer totalFloors;
-
-    @PositiveOrZero(message = "Total units cannot be negative")
-    @Column(name = "total_units")
-    private Integer totalUnits;
-
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "total_floors")
+    private Integer totalFloors;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "property_id",
-        nullable = false
-    )
+    @JoinColumn(name = "property_id", nullable = false)
     private Property property;
 
-    @Column(
-        name = "created_at",
-        nullable = false,
-        updatable = false
-    )
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public Building() {
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -63,9 +64,6 @@ public class Building {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    public Building() {
     }
 
     public Long getBuildingId() {
@@ -84,28 +82,20 @@ public class Building {
         this.buildingName = buildingName;
     }
 
-    public Integer getTotalFloors() {
-        return totalFloors;
-    }
-
-    public void setTotalFloors(Integer totalFloors) {
-        this.totalFloors = totalFloors;
-    }
-
-    public Integer getTotalUnits() {
-        return totalUnits;
-    }
-
-    public void setTotalUnits(Integer totalUnits) {
-        this.totalUnits = totalUnits;
-    }
-
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Integer getTotalFloors() {
+        return totalFloors;
+    }
+
+    public void setTotalFloors(Integer totalFloors) {
+        this.totalFloors = totalFloors;
     }
 
     public Property getProperty() {

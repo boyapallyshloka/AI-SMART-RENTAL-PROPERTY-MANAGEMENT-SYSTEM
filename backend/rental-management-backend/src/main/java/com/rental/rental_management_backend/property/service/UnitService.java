@@ -21,4 +21,5 @@ public interface UnitService {
             UnitRequest request);
 
     void deleteUnit(Long unitId);
+    List<UnitResponse> getPublicUnitsByFloor(Long floorId);
 }

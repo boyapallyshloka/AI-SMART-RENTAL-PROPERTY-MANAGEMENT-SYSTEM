@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.controller;
 
 import java.util.List;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.enums.PropertyStatus;
+import com.rental.rental_management_backend.property.service.PropertyDetailsService;
 import com.rental.rental_management_backend.property.service.PropertyService;
 
 import jakarta.validation.Valid;
@@ -29,11 +32,17 @@ public class PropertyController {
 
     private final PropertyService propertyService;
 
+    private final PropertyDetailsService propertyDetailsService;
+
+
     public PropertyController(
-            PropertyService propertyService) {
+            PropertyService propertyService,
+            PropertyDetailsService propertyDetailsService) {
 
         this.propertyService = propertyService;
+        this.propertyDetailsService = propertyDetailsService;
     }
+
 
     /*
      * CREATE PROPERTY
@@ -50,16 +59,19 @@ public class PropertyController {
                 .body(response);
     }
 
+
     /*
-     * GET LOGGED-IN OWNER'S PROPERTIES
+     * GET LOGGED-IN OWNER'S PROPERTIES OR AVAILABLE PROPERTIES FOR TENANT
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'TENANT')")
     public ResponseEntity<List<PropertyResponse>> getMyProperties() {
 
         return ResponseEntity.ok(
                 propertyService.getMyProperties()
         );
     }
+
 
     /*
      * GET ONE PROPERTY OF LOGGED-IN OWNER
@@ -72,6 +84,30 @@ public class PropertyController {
                 propertyService.getMyPropertyById(id)
         );
     }
+
+
+    /*
+     * GET COMPLETE PROPERTY DETAILS
+     *
+     * Returns:
+     * Property
+     * Address
+     * Buildings
+     * Floors
+     * Units
+     * Amenities
+     * Images
+     */
+    @GetMapping("/{id}/details")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'TENANT')")
+    public ResponseEntity<PropertyDetailsResponse> getPropertyDetails(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                propertyDetailsService.getPropertyDetails(id)
+        );
+    }
+
 
     /*
      * UPDATE PROPERTY
@@ -89,6 +125,7 @@ public class PropertyController {
         );
     }
 
+
     /*
      * DELETE PROPERTY
      */
@@ -102,6 +139,7 @@ public class PropertyController {
                 "Property deleted successfully"
         );
     }
+
 
     /*
      * UPDATE PROPERTY STATUS
@@ -119,3 +157,4 @@ public class PropertyController {
         );
     }
 }
+

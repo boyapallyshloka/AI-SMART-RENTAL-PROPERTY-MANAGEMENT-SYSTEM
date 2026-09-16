@@ -10,7 +10,7 @@ import {
   MapPin,
   Sparkles,
   ArrowRight,
-  DollarSign,
+  IndianRupee,
   Bed,
   Bath,
   CheckCircle2,
@@ -198,9 +198,9 @@ export default function FindPropertiesPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-[#EAF2F7]" />
+                <IndianRupee className="w-4 h-4 text-[#EAF2F7]" />
                 <span>
-                  From <strong className="text-white font-semibold">$1,450</strong>/mo
+                  From <strong className="text-white font-semibold">₹1,450</strong>/mo
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -333,10 +333,10 @@ export default function FindPropertiesPage() {
                 onChange={(e) => setMaxRent(e.target.value)}
                 options={[
                   { value: 'all', label: 'Any Budget' },
-                  { value: '2000', label: 'Under $2,000 / mo' },
-                  { value: '2800', label: 'Under $2,800 / mo' },
-                  { value: '3500', label: 'Under $3,500 / mo' },
-                  { value: '4000', label: 'Under $4,000 / mo' },
+                  { value: '2000', label: 'Under ₹2,000 / mo' },
+                  { value: '2800', label: 'Under ₹2,800 / mo' },
+                  { value: '3500', label: 'Under ₹3,500 / mo' },
+                  { value: '4000', label: 'Under ₹4,000 / mo' },
                 ]}
               />
             </div>
@@ -432,14 +432,14 @@ export default function FindPropertiesPage() {
                           <div>
                             <span className="text-xs text-[#5B6875]">Monthly Rent</span>
                             <div className="text-lg font-bold text-[#243447]">
-                              ${unit.monthlyRent.toLocaleString()}
+                              ₹{Number(unit.monthlyRent).toLocaleString('en-IN')}
                               <span className="text-xs font-normal text-[#5B6875]">/mo</span>
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-[11px] text-[#5B6875]">Deposit</span>
                             <div className="text-xs font-semibold text-[#5B6875]">
-                              ${unit.securityDeposit.toLocaleString()}
+                              ₹{Number(unit.securityDeposit).toLocaleString('en-IN')}
                             </div>
                           </div>
                         </div>
@@ -548,7 +548,7 @@ export default function FindPropertiesPage() {
                         </div>
                         <div className="px-3.5 py-2 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-center">
                           <p className="text-[10px] uppercase font-semibold text-[#5B6875]">Rent From</p>
-                          <p className="text-lg font-bold text-[#243447]">${p.minRent.toLocaleString()}</p>
+                          <p className="text-lg font-bold text-[#243447]">₹{Number(p.minRent).toLocaleString('en-IN')}</p>
                         </div>
                         <Button
                           size="sm"

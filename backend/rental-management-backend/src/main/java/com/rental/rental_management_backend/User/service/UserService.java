@@ -13,6 +13,22 @@ import com.rental.rental_management_backend.User.enums.UserStatus;
 public interface UserService {
 
     // Authentication
+	// Authentication
+
+	
+
+	void changePassword(
+	        Long id,
+	        String currentPassword,
+	        String newPassword
+	);
+
+	void forgotPassword(String email);
+
+	void resetPassword(
+	        String token,
+	        String newPassword
+	);
 
     UserResponse registerUser(RegisterRequest request);
 
@@ -52,4 +68,5 @@ public interface UserService {
     // Delete
 
     void deleteUser(Long id);
+    UserResponse getMyProfile(String email);
 }

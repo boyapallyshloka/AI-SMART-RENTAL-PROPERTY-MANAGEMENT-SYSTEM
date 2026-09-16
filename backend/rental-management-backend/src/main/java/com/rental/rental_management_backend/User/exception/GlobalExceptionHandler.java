@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.User.exception;
 
 import java.time.LocalDateTime;
@@ -6,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -20,6 +22,16 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.NOT_FOUND,
                 ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleAccessDenied(AccessDeniedException ex) {
+
+        return buildResponse(
+                HttpStatus.FORBIDDEN,
+                "Access denied: you do not have permission to perform this action"
         );
     }
 
@@ -86,13 +98,36 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleMaxUploadSizeExceeded(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "File size exceeds the allowed limit (maximum 10 MB)"
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>>
     handleGeneralException(Exception ex) {
 
+<<<<<<< HEAD
+=======
+        /*
+         * Print the actual exception and full stack trace
+         * in the STS Console for debugging.
+         */
+>>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
+        ex.printStackTrace();
+
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred"
+<<<<<<< HEAD
+                "An unexpected error occurred: " + ex.getMessage()
+=======
+                ex.getMessage()
+>>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         );
     }
 
@@ -128,3 +163,4 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 }
+

@@ -1,22 +1,45 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Lock, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Lock, CheckCircle2, ArrowRight, AlertCircle, KeyRound } from 'lucide-react'
 
 export default function ResetPasswordPage() {
   const { resetPassword } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const params = useParams()
 
+  // Extract reset token from URL query params or route params
+  const urlToken = (
+    params?.token ||
+    searchParams.get('token') ||
+    searchParams.get('resetToken') ||
+    searchParams.get('code') ||
+    ''
+  ).trim()
+
+  const [token, setToken] = useState(urlToken)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState({})
+  const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
+  useEffect(() => {
+    if (urlToken) {
+      setToken(urlToken)
+    }
+  }, [urlToken])
+
   const validate = () => {
     const errs = {}
+
+    if (!token.trim()) {
+      errs.token = 'Reset token is required'
+    }
 
     if (!password) {
       errs.password = 'New password is required'
@@ -39,9 +62,22 @@ export default function ResetPasswordPage() {
     if (!validate()) return
 
     setIsLoading(true)
+    setErrorMessage('')
     try {
-      await resetPassword('user@example.com', password)
+      await resetPassword({
+        token: token.trim(),
+        newPassword: password,
+      })
       setIsSuccess(true)
+    } catch (err) {
+      console.error('Reset password error:', err)
+      const rawMsg =
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === 'string' ? err.response.data : null) ||
+        err?.data?.message ||
+        err?.message ||
+        'Unable to reset password. Please check your reset link or token and try again.'
+      setErrorMessage(typeof rawMsg === 'string' ? rawMsg : 'Unable to reset password. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -76,6 +112,34 @@ export default function ResetPasswordPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {errorMessage && (
+            <div className="p-3.5 rounded-lg bg-[#FDF2F2] border border-[#F8D7DA] text-xs font-medium text-[#B94A48] flex items-center gap-2 shadow-2xs animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {urlToken ? (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#F0FDF4] border border-[#DCFCE7] rounded-lg text-xs text-[#166534]">
+              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+              <span>Reset token verified from link</span>
+            </div>
+          ) : (
+            <Input
+              label="Reset Token"
+              type="text"
+              placeholder="Paste reset token from email"
+              value={token}
+              onChange={(e) => {
+                setToken(e.target.value)
+                if (errors.token) setErrors((prev) => ({ ...prev, token: '' }))
+              }}
+              error={errors.token}
+              leftIcon={<KeyRound className="w-4 h-4" />}
+              required
+            />
+          )}
+
           <Input
             label="New Password"
             type="password"
@@ -128,3 +192,4 @@ export default function ResetPasswordPage() {
     </AuthLayout>
   )
 }
+

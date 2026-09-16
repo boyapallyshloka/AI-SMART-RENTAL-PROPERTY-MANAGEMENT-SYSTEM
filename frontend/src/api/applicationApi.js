@@ -2,37 +2,107 @@ import axiosClient from './axiosClient'
 
 /**
  * Rental Applications API Service (Spring Boot Integration)
- * Note: These are placeholder signatures for future backend integration.
+ * Base Controller: RentalApplicationController (/api/rental-applications)
  */
 
-// TODO: Replace with Spring Boot rental applications list endpoint (e.g. GET /applications)
-export const getApplications = async (params) => {
-  // return axiosClient.get('/applications', { params })
-  throw new Error('TODO: Connect to Spring Boot backend /applications')
+/**
+ * Canonical application statuses matching backend RentalApplicationStatus enum
+ */
+export const APPLICATION_STATUSES = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+  CANCELLED: 'CANCELLED',
 }
 
-// TODO: Replace with Spring Boot application details endpoint (e.g. GET /applications/{id})
-export const getApplicationById = async (id) => {
-  // return axiosClient.get(`/applications/${id}`)
-  throw new Error(`TODO: Connect to Spring Boot backend /applications/${id}`)
+/**
+ * TENANT - Create a new rental application
+ * Endpoint: POST /api/rental-applications
+ * Payload contract: { unitId: Long (required), preferredMoveInDate: LocalDate (YYYY-MM-DD), message: String }
+ *
+ * @param {Object} applicationData
+ * @param {number|string} applicationData.unitId
+ * @param {string} [applicationData.preferredMoveInDate]
+ * @param {string} [applicationData.message]
+ * @returns {Promise<Object>} RentalApplicationResponse
+ */
+export const createApplication = async ({ unitId, preferredMoveInDate, message }) => {
+  const payload = {
+    unitId: Number(unitId),
+    preferredMoveInDate: preferredMoveInDate || null,
+    message: message && message.trim() ? message.trim() : null,
+  }
+  return await axiosClient.post('/rental-applications', payload)
 }
 
-// TODO: Replace with Spring Boot submit application endpoint (e.g. POST /applications)
-export const submitApplication = async (applicationData) => {
-  // return axiosClient.post('/applications', applicationData)
-  throw new Error('TODO: Connect to Spring Boot backend /applications')
+// Alias for createApplication for backward compatibility
+export const submitApplication = createApplication
+
+/**
+ * TENANT - Retrieve rental applications submitted by the currently authenticated tenant
+ * Endpoint: GET /api/rental-applications/me
+ *
+ * @returns {Promise<Array<Object>>} List of RentalApplicationResponse
+ */
+export const getMyApplications = async () => {
+  return await axiosClient.get('/rental-applications/me')
 }
 
-// TODO: Replace with Spring Boot decision/status endpoint (e.g. PATCH /applications/{id}/status)
-export const updateApplicationStatus = async (id, status) => {
-  // return axiosClient.patch(`/applications/${id}/status`, { status })
-  throw new Error(`TODO: Connect to Spring Boot backend /applications/${id}/status`)
+// Alias for getMyApplications for backward compatibility
+export const getApplications = getMyApplications
+
+/**
+ * Retrieve a specific rental application by ID
+ * Endpoint: GET /api/rental-applications/{applicationId}
+ *
+ * @param {number|string} applicationId
+ * @returns {Promise<Object>} RentalApplicationResponse
+ */
+export const getApplicationById = async (applicationId) => {
+  return await axiosClient.get(`/rental-applications/${applicationId}`)
 }
 
-// TODO: Replace with Spring Boot document upload endpoint (e.g. POST /applications/{id}/documents)
-export const uploadApplicationDocument = async (id, formData) => {
-  // return axiosClient.post(`/applications/${id}/documents`, formData, {
-  //   headers: { 'Content-Type': 'multipart/form-data' },
-  // })
-  throw new Error(`TODO: Connect to Spring Boot backend /applications/${id}/documents`)
+/**
+ * TENANT - Withdraw a pending rental application
+ * Endpoint: PATCH /api/rental-applications/{applicationId}/withdraw
+ *
+ * @param {number|string} applicationId
+ * @returns {Promise<void>} 204 No Content
+ */
+export const withdrawApplication = async (applicationId) => {
+  return await axiosClient.patch(`/rental-applications/${applicationId}/withdraw`)
+}
+
+/**
+ * OWNER / MANAGER - Retrieve applications for a specific unit
+ * Endpoint: GET /api/rental-applications/unit/{unitId}
+ *
+ * @param {number|string} unitId
+ * @returns {Promise<Array<Object>>} List of RentalApplicationResponse
+ */
+export const getApplicationsForUnit = async (unitId) => {
+  return await axiosClient.get(`/rental-applications/unit/${unitId}`)
+}
+
+/**
+ * OWNER / MANAGER - Review an application (Approve or Reject)
+ * Endpoint: PATCH /api/rental-applications/{applicationId}/review
+ *
+ * @param {number|string} applicationId
+ * @param {Object} reviewData
+ * @param {'APPROVED'|'REJECTED'} reviewData.status
+ * @param {string} [reviewData.rejectionReason]
+ * @returns {Promise<Object>} RentalApplicationResponse
+ */
+export const reviewApplication = async (applicationId, { status, rejectionReason }) => {
+  return await axiosClient.patch(`/rental-applications/${applicationId}/review`, {
+    status,
+    rejectionReason: rejectionReason || null,
+  })
+}
+
+// Alias for updateApplicationStatus
+export const updateApplicationStatus = async (applicationId, status, rejectionReason) => {
+  return await reviewApplication(applicationId, { status, rejectionReason })
 }
