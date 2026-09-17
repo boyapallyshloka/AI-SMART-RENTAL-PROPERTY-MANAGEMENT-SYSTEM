@@ -6,7 +6,7 @@ FastAPI service for tenant payment-risk prediction.
 
 from typing import Any, Dict
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -15,13 +15,12 @@ from .inference import predict_payment_risk
 
 
 # ============================================================
-# FASTAPI APPLICATION
+# FASTAPI ROUTER
 # ============================================================
 
-app = FastAPI(
-    title="Avenue360 M4 Payment Risk API",
-    description="AI service for tenant payment-risk analysis.",
-    version="1.0.0",
+router = APIRouter(
+    prefix="/m4",
+    tags=["M4"],
 )
 
 
@@ -29,7 +28,6 @@ app = FastAPI(
 # STANDARD VALIDATION ERROR HANDLER
 # ============================================================
 
-@app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError
@@ -115,7 +113,7 @@ class PaymentRiskResponse(BaseModel):
 # HEALTH CHECK
 # ============================================================
 
-@app.get("/health")
+@router.get("/health")
 def health() -> Dict[str, Any]:
 
     return {
@@ -129,7 +127,7 @@ def health() -> Dict[str, Any]:
 # PREDICT PAYMENT RISK
 # ============================================================
 
-@app.post(
+@router.post(
     "/predict-payment-risk",
     response_model=PaymentRiskResponse,
 )
