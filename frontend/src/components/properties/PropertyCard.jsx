@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle2,
+  Building2,
 } from 'lucide-react'
 import { resolveImageUrl } from '../../api/propertyApi'
 
@@ -34,6 +35,7 @@ export default function PropertyCard({
   onToggleFavorite,
 }) {
   const [internalFavorite, setInternalFavorite] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const isFav = controlledFavorite !== undefined ? controlledFavorite : internalFavorite
 
   const {
@@ -86,9 +88,7 @@ export default function PropertyCard({
 
   // Real image resolution
   const rawImg = imageUrl || (Array.isArray(images) && images[0]?.imageUrl) || ''
-  const resolvedImg =
-    resolveImageUrl(rawImg) ||
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
+  const resolvedImg = resolveImageUrl(rawImg)
 
   // Availability / Status: derived from real backend status
   const rawStatus = status || availabilityStatus || ''
@@ -134,16 +134,27 @@ export default function PropertyCard({
     >
       {/* Property Image Container */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#EAF2F7]">
-        <img
-          src={resolvedImg}
-          alt={displayName}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-102"
-          onError={(e) => {
-            e.target.src =
-              'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
-          }}
-        />
+        {resolvedImg && !imageError ? (
+          <img
+            src={resolvedImg}
+            alt={displayName}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-102"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center bg-[#F7F8FA] p-4 text-center select-none">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF2F7] text-[#315A7D] mb-2 shadow-2xs border border-[#D9E0E6]">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-semibold text-[#243447]">
+              No Preview Available
+            </span>
+            <span className="text-[10px] text-[#5B6875] mt-0.5 max-w-[160px] truncate">
+              {displayName}
+            </span>
+          </div>
+        )}
 
         {/* Top Floating Badges */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 z-10">
