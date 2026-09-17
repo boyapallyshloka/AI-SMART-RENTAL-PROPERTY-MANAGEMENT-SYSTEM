@@ -96,9 +96,9 @@ export default function PropertyDetailsPage({
 
     try {
       const data = await getPropertyDetails(activeId)
-      if (data) {
+      if (data && data.property) {
         setDetails({
-          property: data.property || {},
+          property: data.property,
           address: data.address || null,
           images: Array.isArray(data.images) ? data.images : [],
           amenities: Array.isArray(data.amenities) ? data.amenities : [],
@@ -123,8 +123,9 @@ export default function PropertyDetailsPage({
   }, [activeId, propFromProps])
 
   useEffect(() => {
+    setActiveImageIndex(0)
     loadDetails()
-  }, [loadDetails])
+  }, [loadDetails, activeId])
 
   // Real image list resolved via resolveImageUrl
   const imageList = useMemo(() => {
@@ -177,11 +178,11 @@ export default function PropertyDetailsPage({
   // Helper for Status Badge Styling
   const getPropertyStatusBadge = (status) => {
     const norm = String(status || '').toUpperCase()
-    if (norm === 'ACTIVE') {
+    if (norm === 'ACTIVE' || norm === 'AVAILABLE') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
           <Check className="w-3 h-3" />
-          Active
+          {norm === 'AVAILABLE' ? 'Available' : 'Active'}
         </span>
       )
     }
@@ -410,6 +411,10 @@ export default function PropertyDetailsPage({
                   src={imageList[activeImageIndex] || imageList[0]}
                   alt={`${property.propertyName} preview`}
                   className="h-full w-full object-cover transition-all duration-300"
+                  onError={(e) => {
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
+                  }}
                 />
                 <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-md bg-[#243447]/80 text-white text-xs font-medium backdrop-blur-xs">
                   Photo {activeImageIndex + 1} of {imageList.length}
@@ -434,6 +439,10 @@ export default function PropertyDetailsPage({
                         src={img}
                         alt={`Thumbnail ${idx + 1}`}
                         className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.target.src =
+                            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
+                        }}
                       />
                     </button>
                   ))}

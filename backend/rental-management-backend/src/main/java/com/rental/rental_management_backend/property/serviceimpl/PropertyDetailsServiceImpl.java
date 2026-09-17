@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.ArrayList;
@@ -19,7 +20,6 @@ import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse
 import com.rental.rental_management_backend.property.dto.PropertyImageResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.dto.UnitResponse;
-<<<<<<< HEAD
 import com.rental.rental_management_backend.property.entity.Building;
 import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -36,8 +36,6 @@ import com.rental.rental_management_backend.property.repository.PropertyAmenityR
 import com.rental.rental_management_backend.property.repository.PropertyImageRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
-=======
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
 import com.rental.rental_management_backend.property.service.AmenityService;
 import com.rental.rental_management_backend.property.service.BuildingService;
 import com.rental.rental_management_backend.property.service.FloorService;
@@ -58,7 +56,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
     private final AmenityService amenityService;
     private final PropertyImageService propertyImageService;
 
-<<<<<<< HEAD
     private final PropertyRepository propertyRepository;
     private final PropertyAddressRepository propertyAddressRepository;
     private final BuildingRepository buildingRepository;
@@ -67,8 +64,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
     private final PropertyAmenityRepository propertyAmenityRepository;
     private final PropertyImageRepository propertyImageRepository;
 
-=======
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
     public PropertyDetailsServiceImpl(
             PropertyService propertyService,
             PropertyAddressService propertyAddressService,
@@ -101,18 +96,10 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         this.propertyImageRepository = propertyImageRepository;
     }
 
-<<<<<<< HEAD
-=======
-    // ============================================================
-    // OWNER PROPERTY DETAILS
-    // ============================================================
-
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
     @Override
     @Transactional(readOnly = true)
     public PropertyDetailsResponse getPropertyDetails(Long propertyId) {
 
-<<<<<<< HEAD
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -125,6 +112,12 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         }
 
         return getPropertyDetailsForOwner(propertyId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyDetailsResponse getPublicPropertyDetails(Long propertyId) {
+        return getPropertyDetailsForTenant(propertyId);
     }
 
     /**
@@ -141,197 +134,47 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         /*
          * 2. ADDRESS
          */
-=======
-        PropertyResponse property =
-                propertyService.getMyPropertyById(propertyId);
-
-        return buildPropertyDetailsResponse(
-                propertyId,
-                property,
-                false
-        );
-    }
-
-    // ============================================================
-    // PUBLIC / TENANT PROPERTY DETAILS
-    // ============================================================
-
-    @Override
-    @Transactional(readOnly = true)
-    public PropertyDetailsResponse getPublicPropertyDetails(
-            Long propertyId) {
-
-        PropertyResponse property =
-                propertyService.getPublicPropertyById(propertyId);
-
-        return buildPropertyDetailsResponse(
-                propertyId,
-                property,
-                true
-        );
-    }
-
-    // ============================================================
-    // BUILD COMPLETE PROPERTY DETAILS
-    // ============================================================
-
-    private PropertyDetailsResponse buildPropertyDetailsResponse(
-            Long propertyId,
-            PropertyResponse property,
-            boolean publicView) {
-
-        // ========================================================
-        // 1. ADDRESS
-        // ========================================================
-
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         PropertyAddressResponse address = null;
-
         try {
-
-            if (publicView) {
-
-                // Tenant / public flow
-                address =
-                        propertyAddressService
-                                .getPublicAddressByPropertyId(
-                                        propertyId);
-
-            } else {
-
-                // Owner flow
-                address =
-                        propertyAddressService
-                                .getAddressByPropertyId(
-                                        propertyId);
-            }
-
+            address = propertyAddressService.getAddressByPropertyId(propertyId);
         } catch (ResourceNotFoundException ex) {
-
-            // Address is optional.
-            // If no address exists, continue with address = null.
             address = null;
         }
 
-<<<<<<< HEAD
         /*
          * 3. BUILDINGS
          */
         List<BuildingResponse> buildingResponses =
                 buildingService.getBuildingsByProperty(propertyId);
-=======
-        // ========================================================
-        // 2. BUILDINGS
-        // ========================================================
-
-        List<BuildingResponse> buildingResponses;
-
-        if (publicView) {
-
-            // Tenant / public flow
-            buildingResponses =
-                    buildingService
-                            .getPublicBuildingsByProperty(
-                                    propertyId);
-
-        } else {
-
-            // Owner flow
-            buildingResponses =
-                    buildingService
-                            .getBuildingsByProperty(
-                                    propertyId);
-        }
-
-        if (buildingResponses == null) {
-            buildingResponses = new ArrayList<>();
-        }
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
 
         List<BuildingDetailsResponse> buildings =
                 new ArrayList<>();
 
-        // ========================================================
-        // 3. FLOORS
-        // 4. UNITS
-        // ========================================================
-
-        for (BuildingResponse building : buildingResponses) {
-
-            if (building == null) {
-                continue;
-            }
-
-            BuildingDetailsResponse buildingDetails =
-                    new BuildingDetailsResponse();
-
-            buildingDetails.setBuilding(building);
-
-            // ----------------------------------------------------
-            // FLOORS
-            // ----------------------------------------------------
-
-            List<FloorResponse> floorResponses;
-
-            if (publicView) {
-
-                // Tenant / public flow
-                floorResponses =
-                        floorService
-                                .getPublicFloorsByBuilding(
-                                        building.getBuildingId());
-
-            } else {
-
-                // Owner flow
-                floorResponses =
-                        floorService
-                                .getFloorsByBuilding(
-                                        building.getBuildingId());
-            }
-
-            if (floorResponses == null) {
-                floorResponses = new ArrayList<>();
-            }
-
-            List<FloorDetailsResponse> floors =
-                    new ArrayList<>();
-
-            // ----------------------------------------------------
-            // UNITS
-            // ----------------------------------------------------
-
-            for (FloorResponse floor : floorResponses) {
-
-                if (floor == null) {
+        if (buildingResponses != null) {
+            for (BuildingResponse building : buildingResponses) {
+                if (building == null) {
                     continue;
                 }
 
-                FloorDetailsResponse floorDetails =
-                        new FloorDetailsResponse();
+                BuildingDetailsResponse buildingDetails =
+                        new BuildingDetailsResponse();
 
-                floorDetails.setFloor(floor);
+                buildingDetails.setBuilding(building);
 
-<<<<<<< HEAD
                 List<FloorResponse> floorResponses =
                         floorService.getFloorsByBuilding(
                                 building.getBuildingId()
                         );
-=======
-                List<UnitResponse> units;
 
-                if (publicView) {
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
+                List<FloorDetailsResponse> floors =
+                        new ArrayList<>();
 
-                    // Tenant / public flow
-                    units =
-                            unitService
-                                    .getPublicUnitsByFloor(
-                                            floor.getFloorId());
+                if (floorResponses != null) {
+                    for (FloorResponse floor : floorResponses) {
+                        if (floor == null) {
+                            continue;
+                        }
 
-                } else {
-
-<<<<<<< HEAD
                         FloorDetailsResponse floorDetails =
                                 new FloorDetailsResponse();
 
@@ -346,109 +189,35 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
                         floors.add(floorDetails);
                     }
-=======
-                    // Owner flow
-                    units =
-                            unitService
-                                    .getUnitsByFloor(
-                                            floor.getFloorId());
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
                 }
 
-                if (units == null) {
-                    units = new ArrayList<>();
-                }
+                buildingDetails.setFloors(floors);
 
-                floorDetails.setUnits(units);
-
-                floors.add(floorDetails);
+                buildings.add(buildingDetails);
             }
-
-            buildingDetails.setFloors(floors);
-
-            buildings.add(buildingDetails);
         }
 
-<<<<<<< HEAD
         /*
          * 6. AMENITIES
          */
         List<AmenityResponse> amenities =
                 amenityService.getPropertyAmenities(propertyId);
-=======
-        // ========================================================
-        // 5. AMENITIES
-        // ========================================================
-
-        List<AmenityResponse> amenities;
-
-        if (publicView) {
-
-            // Tenant / public flow
-            amenities =
-                    amenityService
-                            .getPublicPropertyAmenities(
-                                    propertyId);
-
-        } else {
-
-            // Owner flow
-            amenities =
-                    amenityService
-                            .getPropertyAmenities(
-                                    propertyId);
-        }
-
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         if (amenities == null) {
             amenities = new ArrayList<>();
         }
 
-<<<<<<< HEAD
         /*
          * 7. IMAGES
          */
         List<PropertyImageResponse> images =
                 propertyImageService.getImagesByProperty(propertyId);
-=======
-        // ========================================================
-        // 6. IMAGES
-        // ========================================================
-
-        List<PropertyImageResponse> images;
-
-        if (publicView) {
-
-            // Tenant / public flow
-            images =
-                    propertyImageService
-                            .getPublicImagesByProperty(
-                                    propertyId);
-
-        } else {
-
-            // Owner flow
-            images =
-                    propertyImageService
-                            .getImagesByProperty(
-                                    propertyId);
-        }
-
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         if (images == null) {
             images = new ArrayList<>();
         }
 
-<<<<<<< HEAD
         /*
          * 8. BUILD FINAL RESPONSE
          */
-=======
-        // ========================================================
-        // 7. BUILD FINAL RESPONSE
-        // ========================================================
-
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         PropertyDetailsResponse response =
                 new PropertyDetailsResponse();
 
@@ -458,7 +227,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         response.setAmenities(amenities);
         response.setImages(images);
 
-<<<<<<< HEAD
         return response;
     }
 
@@ -648,8 +416,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         response.setPropertyName(property != null ? property.getPropertyName() : null);
         response.setCreatedAt(image.getCreatedAt());
         response.setUpdatedAt(image.getUpdatedAt());
-=======
->>>>>>> 18adac67e442380d340ed6c4dadc0aaa600c3ffb
         return response;
     }
 }

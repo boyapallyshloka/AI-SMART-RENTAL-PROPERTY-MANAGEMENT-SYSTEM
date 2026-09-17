@@ -1,9 +1,9 @@
-fastapi
-uvicorn
-pandas
-numpy
+fastapi==0.141.1
+uvicorn==0.52.4
+pandas==3.0.5
+numpy==2.4.0
 matplotlib
 seaborn
-scikit-learn
-joblib
-xgboost
+scikit-learn==1.9.0
+joblib==1.6.0
+xgboost==3.4.1
