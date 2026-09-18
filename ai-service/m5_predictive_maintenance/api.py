@@ -1,22 +1,19 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
-from inference import predict_maintenance
+from .inference import predict_maintenance
 
 
 # ============================================================
-# FASTAPI APPLICATION
+# APIRouter
 # ============================================================
 
-app = FastAPI(
-    title="M5 Predictive Maintenance API",
-    description=(
-        "AI/ML service for predictive maintenance in the "
-        "Smart Rental System"
-    ),
-    version="1.0.0"
+router = APIRouter(
+    prefix="/m5",
+    tags=["Predictive Maintenance"]
 )
 
 
@@ -24,7 +21,6 @@ app = FastAPI(
 # STANDARD VALIDATION ERROR HANDLER
 # ============================================================
 
-@app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError
@@ -56,6 +52,8 @@ async def validation_exception_handler(
 
 class MaintenancePredictionRequest(BaseModel):
 
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     property_age_years: float = Field(ge=0)
     size_sqft: float = Field(gt=0)
     bedrooms_bhk: float = Field(ge=0)
@@ -82,10 +80,52 @@ class MaintenancePredictionRequest(BaseModel):
 
 
 # ============================================================
-# HEALTH CHECK
+# RESPONSE SCHEMAS & ERROR HELPER
 # ============================================================
 
-@app.get("/health")
+class MaintenanceRisk(BaseModel):
+    prediction: int
+    probability: float
+    risk_level: str
+
+
+class ModelInfo(BaseModel):
+    risk_model: str
+    count_model: str
+    cost_model: str
+
+
+class MaintenancePredictionResponse(BaseModel):
+    success: bool = True
+    maintenance_risk: MaintenanceRisk
+    next_month_maintenance_count: float
+    next_month_maintenance_cost: float
+    model_info: ModelInfo
+    modelVersion: str = "v1.0"
+
+
+class ErrorResponse(BaseModel):
+    success: bool = False
+    errorCode: str
+    message: str
+
+
+def error_response(status_code: int, error_code: str, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "errorCode": error_code,
+            "message": message
+        }
+    )
+
+
+# ============================================================
+# HEALTH & ROOT CHECKS
+# ============================================================
+
+@router.get("/health")
 def health():
 
     return {
@@ -94,11 +134,27 @@ def health():
     }
 
 
+@router.get("/")
+def root():
+
+    return {
+        "message": "Avenue360 M5 Predictive Maintenance API is running",
+        "model_version": "v1.0"
+    }
+
+
 # ============================================================
 # PREDICT MAINTENANCE
 # ============================================================
 
-@app.post("/predict-maintenance")
+@router.post(
+    "/predict-maintenance",
+    response_model=MaintenancePredictionResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    }
+)
 def predict(request: MaintenancePredictionRequest):
 
     try:
@@ -107,37 +163,39 @@ def predict(request: MaintenancePredictionRequest):
             request.model_dump()
         )
 
-        return result
+        return MaintenancePredictionResponse(
+            success=True,
+            modelVersion="v1.0",
+            **result
+        )
 
     except ValueError as e:
 
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "success": False,
-                "errorCode": "INVALID_INPUT",
-                "message": str(e)
-            }
+        return error_response(
+            400,
+            "INVALID_INPUT",
+            str(e)
         )
 
-    except FileNotFoundError as e:
+    except (FileNotFoundError, RuntimeError) as e:
 
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "MODEL_NOT_FOUND",
-                "message": str(e)
-            }
+        if "not found" in str(e).lower() or isinstance(e, FileNotFoundError):
+            return error_response(
+                500,
+                "MODEL_NOT_FOUND",
+                "Model artifact not found. Please ensure the pipeline has been trained."
+            )
+
+        return error_response(
+            500,
+            "PREDICTION_ERROR",
+            "Unable to generate maintenance prediction."
         )
 
-    except Exception as e:
+    except Exception:
 
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "PREDICTION_ERROR",
-                "message": str(e)
-            }
+        return error_response(
+            500,
+            "PREDICTION_ERROR",
+            "Unable to generate maintenance prediction."
         )

@@ -9,8 +9,10 @@ This module exposes only an APIRouter.
 
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from .inference import predict
 
@@ -21,7 +23,7 @@ from .inference import predict
 
 router = APIRouter(
     prefix="/m6",
-    tags=["M6"],
+    tags=["Property profitability prediction"],
 )
 
 
@@ -37,7 +39,7 @@ class ProfitabilityPredictionRequest(BaseModel):
     during M6 model training.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
 
     city: str = Field(..., min_length=1)
 
@@ -84,10 +86,11 @@ class ProfitabilityPredictionResponse(BaseModel):
     Successful M6 prediction response.
     """
 
-    success: bool
+    success: bool = True
     predicted_next_month_profit: float
     profitability_label: int
-    profitability_probability: float | None
+    profitability_probability: float | None = None
+    modelVersion: str = "1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -104,22 +107,62 @@ class ErrorResponse(BaseModel):
     message: str
 
 
+def error_response(status_code: int, error_code: str, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "errorCode": error_code,
+            "message": message,
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Health & Root endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "module": "M6_PROFITABILITY_PREDICTION",
+        "service": "m6-profitability-prediction",
+    }
+
+
+@router.get("/")
+def root():
+    return {
+        "message": "Avenue360 M6 Property Profitability Prediction API is running",
+        "model_version": "1.0",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Prediction endpoint
 # ---------------------------------------------------------------------------
 
 @router.post(
+    "/predict-profitability",
+    response_model=ProfitabilityPredictionResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+@router.post(
     "/predict",
     response_model=ProfitabilityPredictionResponse,
     responses={
         400: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    include_in_schema=False,
 )
 def predict_profitability(
     request: ProfitabilityPredictionRequest,
-) -> ProfitabilityPredictionResponse:
+) -> Any:
     """
     Predict next-month property profitability.
 
@@ -147,44 +190,33 @@ def predict_profitability(
             profitability_probability=result[
                 "profitability_probability"
             ],
+            modelVersion="1.0",
         )
 
     except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "success": False,
-                "errorCode": "MODEL_NOT_FOUND",
-                "message": "M6 model artifacts could not be found.",
-            },
+        return error_response(
+            500,
+            "MODEL_NOT_FOUND",
+            "M6 model artifacts could not be found. Please ensure the pipeline has been trained.",
         )
 
     except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "success": False,
-                "errorCode": "INVALID_INPUT",
-                "message": str(exc),
-            },
+        return error_response(
+            400,
+            "INVALID_INPUT",
+            str(exc),
         )
 
     except RuntimeError:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "PREDICTION_ERROR",
-                "message": "M6 prediction could not be completed.",
-            },
+        return error_response(
+            500,
+            "PREDICTION_ERROR",
+            "M6 prediction could not be completed.",
         )
 
     except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "INTERNAL_ERROR",
-                "message": "An internal error occurred while processing the prediction.",
-            },
+        return error_response(
+            500,
+            "INTERNAL_ERROR",
+            "An internal error occurred while processing the prediction.",
         )

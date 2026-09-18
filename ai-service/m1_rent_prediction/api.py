@@ -1,21 +1,27 @@
-from fastapi import FastAPI, Request
+import sys
+from fastapi import APIRouter, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
-from predict import predict_rent
+from . import preprocessing
+sys.modules.setdefault("preprocessing", preprocessing)
+
+from .predict import predict_rent
 
 
-app = FastAPI(
-    title="Avenue360 M1 Rent Prediction API",
-    description="AI service for rental price prediction",
-    version="1.0.0"
+router = APIRouter(
+    prefix="/m1",
+    tags=["Rent Prediction"]
 )
 
 MODEL_VERSION = "v1.0"
 
 
 class PropertyInput(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     city: str
     area_locality: str
     area_type: str
@@ -68,7 +74,8 @@ def error_response(status_code: int, error_code: str, message: str):
             "message": message
         }
     )
-@app.exception_handler(RequestValidationError)
+
+
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError
@@ -86,7 +93,18 @@ async def validation_exception_handler(
             "message": f"{location}: {message}"
         }
     )
-@app.get("/")
+
+
+@router.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "module": "M1_RENT_PREDICTION",
+        "service": "m1-rent-prediction"
+    }
+
+
+@router.get("/")
 def root():
     return {
         "message": "Avenue360 M1 Rent Prediction API is running",
@@ -94,7 +112,7 @@ def root():
     }
 
 
-@app.post(
+@router.post(
     "/predict-rent",
     response_model=RentPredictionResponse
 )

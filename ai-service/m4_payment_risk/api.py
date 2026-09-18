@@ -6,10 +6,11 @@ FastAPI service for tenant payment-risk prediction.
 
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from .inference import predict_payment_risk
 
@@ -20,7 +21,7 @@ from .inference import predict_payment_risk
 
 router = APIRouter(
     prefix="/m4",
-    tags=["M4"],
+    tags=["Tenant payment risk analysis"],
 )
 
 
@@ -60,6 +61,8 @@ async def validation_exception_handler(
 class PaymentRiskRequest(BaseModel):
     """Request schema for M4 payment-risk prediction."""
 
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     monthly_income: float = Field(..., ge=0)
     historical_invoice_count: float = Field(..., ge=0)
     late_payment_count: float = Field(..., ge=0)
@@ -94,32 +97,61 @@ class PaymentRiskRequest(BaseModel):
 
 
 # ============================================================
-# RESPONSE SCHEMA
+# RESPONSE SCHEMAS & ERROR HELPER
 # ============================================================
 
 class PaymentRiskResponse(BaseModel):
     """Response schema for M4 prediction."""
 
-    success: bool
-    module: str
+    success: bool = True
+    module: str = "M4_PAYMENT_RISK"
     risk_label: int
-    risk_probability: float | None
+    risk_probability: float | None = None
     risk_status: str
     model: str
-    model_version: str
+    model_version: str = "M4-v1.0"
+    modelVersion: str = "M4-v1.0"
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response."""
+
+    success: bool = False
+    errorCode: str
+    message: str
+
+
+def error_response(status_code: int, error_code: str, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "errorCode": error_code,
+            "message": message
+        }
+    )
 
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH & ROOT CHECKS
 # ============================================================
 
 @router.get("/health")
 def health() -> Dict[str, Any]:
 
     return {
-        "success": True,
+        "status": "healthy",
         "module": "M4_PAYMENT_RISK",
-        "status": "UP",
+        "service": "m4-payment-risk",
+    }
+
+
+@router.get("/")
+def root() -> Dict[str, Any]:
+
+    return {
+        "message": "Avenue360 M4 Payment Risk API is running",
+        "model_version": "M4-v1.0"
     }
 
 
@@ -130,10 +162,14 @@ def health() -> Dict[str, Any]:
 @router.post(
     "/predict-payment-risk",
     response_model=PaymentRiskResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    }
 )
 def predict_payment_risk_endpoint(
     request: PaymentRiskRequest,
-) -> PaymentRiskResponse:
+) -> Any:
 
     try:
 
@@ -144,38 +180,30 @@ def predict_payment_risk_endpoint(
         return PaymentRiskResponse(
             success=True,
             module="M4_PAYMENT_RISK",
+            modelVersion=result.get("model_version", "M4-v1.0"),
             **result,
         )
 
     except ValueError as e:
 
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "success": False,
-                "errorCode": "INVALID_INPUT",
-                "message": str(e)
-            }
+        return error_response(
+            400,
+            "INVALID_INPUT",
+            str(e)
         )
 
-    except FileNotFoundError as e:
+    except FileNotFoundError:
 
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "MODEL_NOT_FOUND",
-                "message": str(e)
-            }
+        return error_response(
+            500,
+            "MODEL_NOT_FOUND",
+            "Model artifact not found. Please ensure the pipeline has been trained."
         )
 
-    except Exception as e:
+    except Exception:
 
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "errorCode": "PREDICTION_ERROR",
-                "message": str(e)
-            }
+        return error_response(
+            500,
+            "PREDICTION_ERROR",
+            "Unable to generate payment risk prediction."
         )

@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from .api import router
+try:
+    from .api import router
+except ImportError:
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from m6_profitability_prediction.api import router
 
 
 app = FastAPI()

@@ -4,7 +4,8 @@ import logging
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
@@ -25,12 +26,14 @@ except ImportError:
 
 router = APIRouter(
     prefix="/m3",
-    tags=["M3"]
+    tags=["Rental Demand prediction"]
 )
 
 
 
 class DemandRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     city: str = Field(..., description="City name (e.g. Bangalore, Mumbai)")
     area_locality: str = Field(..., description="Area or locality name")
     month: int = Field(..., ge=1, le=12, description="Target calendar month (1-12)")
@@ -115,6 +118,15 @@ async def general_exception_handler(request: Request, exc: Exception):
             "message": "An internal server error occurred while processing the request."
         }
     )
+
+
+@router.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "module": "M3_RENTAL_DEMAND",
+        "service": "m3-rental-demand"
+    }
 
 
 @router.get("/")

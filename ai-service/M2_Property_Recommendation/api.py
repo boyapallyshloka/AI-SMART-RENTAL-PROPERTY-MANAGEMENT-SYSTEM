@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
-from recommend import (
+from .recommend import (
     load_data,
     load_tenant_preferences,
     load_properties,
@@ -13,10 +14,9 @@ from recommend import (
 )
 
 
-app = FastAPI(
-    title="Avenue360 M2 Property Recommendation API",
-    description="AI service for property recommendations",
-    version="1.0.0"
+router = APIRouter(
+    prefix="/m2",
+    tags=["Property Recommendation"]
 )
 
 MODEL_VERSION = "v1.0"
@@ -27,8 +27,18 @@ MODEL_VERSION = "v1.0"
 # ============================================================
 
 class RecommendationRequest(BaseModel):
-    tenantId: str = Field(min_length=1)
-    topN: int = Field(gt=0)
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    tenant_id: str = Field(..., min_length=1)
+    top_n: int = Field(..., gt=0)
+
+    @property
+    def tenantId(self) -> str:
+        return self.tenant_id
+
+    @property
+    def topN(self) -> int:
+        return self.top_n
 
 
 # ============================================================
@@ -82,10 +92,9 @@ def error_response(
 
 
 # ============================================================
-# FastAPI Validation Error Handler
+# Validation Error Handler
 # ============================================================
 
-@app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError
@@ -110,10 +119,19 @@ async def validation_exception_handler(
 
 
 # ============================================================
-# Root Endpoint
+# Root / Health Endpoints
 # ============================================================
 
-@app.get("/")
+@router.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "module": "M2_PROPERTY_RECOMMENDATION",
+        "service": "m2-property-recommendation"
+    }
+
+
+@router.get("/")
 def root():
     return {
         "message": "Avenue360 M2 Property Recommendation API is running",
@@ -125,7 +143,7 @@ def root():
 # Recommendation Endpoint
 # ============================================================
 
-@app.post(
+@router.post(
     "/recommend-properties",
     response_model=RecommendationResponse
 )
