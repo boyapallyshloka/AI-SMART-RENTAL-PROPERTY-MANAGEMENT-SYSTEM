@@ -27,9 +27,14 @@ import {
   ROLES,
   isSuperAdmin,
   isTenant,
-  isOwnerOrManager,
+  isPropertyManager,
+  isPropertyOwner,
   getPortalName,
 } from '../../utils/roles'
+
+const MANAGER_MENU = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+]
 
 const OWNER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -84,7 +89,7 @@ export default function Sidebar({
 
   useEffect(() => {
     let isMounted = true
-    if (isOwnerOrManager(role)) {
+    if (isPropertyOwner(role)) {
       getMyProperties()
         .then((res) => {
           if (!isMounted) return
@@ -122,6 +127,8 @@ export default function Sidebar({
     ? ADMIN_MENU
     : isTenant(role)
     ? TENANT_MENU
+    : isPropertyManager(role)
+    ? MANAGER_MENU
     : dynamicOwnerMenu
 
   const handleItemClick = (id) => {
@@ -136,7 +143,9 @@ export default function Sidebar({
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
       else if (id === 'settings' || id === 'system-settings') navigate('/admin/system-settings')
-    } else if (isOwnerOrManager(role)) {
+    } else if (isPropertyManager(role)) {
+      if (id === 'dashboard') navigate('/manager/dashboard')
+    } else if (isPropertyOwner(role)) {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
       else if (id === 'buildings') navigate('/owner/buildings')

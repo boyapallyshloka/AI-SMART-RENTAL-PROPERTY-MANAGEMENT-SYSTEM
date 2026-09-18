@@ -98,6 +98,16 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleMaxUploadSizeExceeded(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "File size exceeds the allowed limit (maximum 10 MB)"
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>>
     handleGeneralException(Exception ex) {

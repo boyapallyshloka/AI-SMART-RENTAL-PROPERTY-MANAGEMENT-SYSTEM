@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyImageResponse;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyImage;
@@ -68,8 +70,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         Property property = propertyRepository
                 .findByPropertyIdAndOwner(propertyId, owner)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Property not found or you are not the owner"));
+                        new ResourceNotFoundException(
+                                "Property not found or you do not have permission"));
 
         String imageUrl = saveFile(file, propertyId);
 
@@ -117,8 +119,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         Property property = propertyRepository
                 .findByPropertyIdAndOwner(propertyId, owner)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Property not found or you are not the owner"));
+                        new ResourceNotFoundException(
+                                "Property not found or you do not have permission"));
 
         return propertyImageRepository
                 .findByProperty(property)
@@ -139,7 +141,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new RuntimeException("Image not found"));
+                        new ResourceNotFoundException("Image not found with ID: " + imageId));
 
         validateOwnership(image.getProperty(), owner);
 
@@ -162,7 +164,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new RuntimeException("Image not found"));
+                        new ResourceNotFoundException("Image not found with ID: " + imageId));
 
         Property property = image.getProperty();
 
@@ -226,7 +228,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new RuntimeException("Image not found"));
+                        new ResourceNotFoundException("Image not found with ID: " + imageId));
 
         validateOwnership(image.getProperty(), owner);
 
@@ -337,7 +339,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         if (file == null || file.isEmpty()) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Please select an image file");
         }
 
@@ -350,7 +352,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
                 || contentType.equalsIgnoreCase("image/jpg")
                 || contentType.equalsIgnoreCase("image/webp"))) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Only JPG, JPEG, PNG and WEBP images are allowed");
         }
 
@@ -362,7 +364,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         if (file.getSize() > maxSize) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Image size must not exceed 5 MB");
         }
     }
@@ -381,7 +383,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         if (authentication == null
                 || !authentication.isAuthenticated()) {
 
-            throw new RuntimeException(
+            throw new AccessDeniedException(
                     "User is not authenticated");
         }
 
@@ -391,7 +393,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         return userRepository
                 .findByEmail(email)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Authenticated user not found"));
     }
 
@@ -409,7 +411,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
                         .getId()
                         .equals(owner.getId())) {
 
-            throw new RuntimeException(
+            throw new AccessDeniedException(
                     "You are not authorized to access this image");
         }
     }

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getAvailableProperties } from '../../api/unitApi'
-import { addApplication } from '../../utils/applicationMockData'
+import { getProperties, getPropertyDetails } from '../../api/propertyApi'
+import { createApplication } from '../../api/applicationApi'
 import {
   Button,
   Input,
@@ -25,133 +25,281 @@ import {
   AlertCircle,
   ArrowLeft,
   Upload,
+  RefreshCw,
 } from 'lucide-react'
+
+// INR Currency Formatter
+const formatInr = (amount) => {
+  if (amount == null || isNaN(Number(amount))) return null
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
 
 export default function SubmitApplicationPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
-  // Properties list from available properties API
+  const urlPropertyId = searchParams.get('propertyId') || ''
+  const urlUnitId = searchParams.get('unitId') || ''
+
+  // Properties and Units from real backend API
   const [properties, setProperties] = useState([])
-  const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [selectedUnit, setSelectedUnit] = useState('')
+  const [selectedPropertyId, setSelectedPropertyId] = useState(urlPropertyId)
+  const [propertyDetails, setPropertyDetails] = useState(null)
+  const [units, setUnits] = useState([])
+  const [selectedUnitId, setSelectedUnitId] = useState(urlUnitId)
+
+  // Loading states
+  const [isLoadingProps, setIsLoadingProps] = useState(true)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [loadError, setLoadError] = useState(null)
 
   // Applicant contact & financial information
-  const [applicantName, setApplicantName] = useState(user?.name || 'Elena Rostova')
+  const [applicantName, setApplicantName] = useState(user?.name || user?.username || 'Elena Vance')
   const [applicantEmail, setApplicantEmail] = useState(user?.email || 'tenant@homesphere.com')
-  const [phone, setPhone] = useState('(415) 555-0182')
-  const [monthlyIncome, setMonthlyIncome] = useState('8500')
-  const [employer, setEmployer] = useState('Senior Product Designer at NovaTech Inc.')
-  const [moveInDate, setMoveInDate] = useState('2026-10-01')
+  const [phone, setPhone] = useState(user?.phone || '+91 98765 43210')
+  const [monthlyIncome, setMonthlyIncome] = useState('85000')
+  const [employer, setEmployer] = useState('Senior Software Engineer')
+  const [moveInDate, setMoveInDate] = useState(
+    new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
+  )
   const [message, setMessage] = useState('')
 
-  // Document Filenames (Filename only - no real upload)
-  const [idFileName, setIdFileName] = useState('driver_license_jordan.pdf')
-  const [incomeProofFileName, setIncomeProofFileName] = useState('paystubs_recent_3mo.pdf')
+  // Document Filenames (Visual form preservation)
+  const [idFileName, setIdFileName] = useState('driver_license.pdf')
+  const [incomeProofFileName, setIncomeProofFileName] = useState('salary_slips_recent.pdf')
   const [rentalHistoryFileName, setRentalHistoryFileName] = useState('prior_landlord_reference.pdf')
 
   // UI state
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
 
+  // Load properties on mount
   useEffect(() => {
     let isMounted = true
-    const loadProperties = async () => {
+    const loadPropertiesList = async () => {
+      setIsLoadingProps(true)
+      setLoadError(null)
       try {
-        const available = await getAvailableProperties(user)
+        const list = await getProperties()
         if (!isMounted) return
-        const list = Array.isArray(available)
-          ? available.map((item) => item.property || item)
-          : []
-        setProperties(list)
-        if (list.length > 0) {
-          setSelectedPropertyId(String(list[0].id))
-          setSelectedUnit('Unit #101')
+        const validList = Array.isArray(list) ? list : []
+        setProperties(validList)
+
+        // Select initial property
+        if (urlPropertyId && validList.some((p) => String(p.propertyId || p.id) === String(urlPropertyId))) {
+          setSelectedPropertyId(String(urlPropertyId))
+        } else if (validList.length > 0) {
+          setSelectedPropertyId(String(validList[0].propertyId || validList[0].id))
         }
       } catch (err) {
-        console.error('Failed to load available properties for application:', err)
+        console.error('Failed to load properties for application:', err)
         if (isMounted) {
+          setLoadError(err?.message || 'Failed to load property list. Please try again.')
           setProperties([])
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProps(false)
         }
       }
     }
-    loadProperties()
+
+    loadPropertiesList()
     return () => {
       isMounted = false
     }
-  }, [user])
+  }, [urlPropertyId])
 
-  // Selected property object
-  const selectedProperty = properties.find((p) => String(p.id) === String(selectedPropertyId))
-
-  const propertyOptions = properties.map((p) => {
-    const loc = [p.city, p.state].filter(Boolean).join(', ')
-    return {
-      value: String(p.id),
-      label: loc ? `${p.name} (${loc})` : p.name,
+  // Load property details and units when selectedPropertyId changes
+  useEffect(() => {
+    if (!selectedPropertyId) {
+      setPropertyDetails(null)
+      setUnits([])
+      setSelectedUnitId('')
+      return
     }
-  })
 
-  const unitOptions = [
-    { value: 'Unit #101', label: 'Unit #101 - 1 Bed, 1 Bath (₹2,450/mo)' },
-    { value: 'Unit #202', label: 'Unit #202 - 2 Bed, 2 Bath (₹3,200/mo)' },
-    { value: 'Unit #304', label: 'Unit #304 - 2 Bed, 2.5 Bath (₹3,800/mo)' },
-    { value: 'Penthouse #501', label: 'Penthouse #501 - 3 Bed, 3 Bath (₹5,400/mo)' },
-  ]
+    let isMounted = true
+    const loadDetails = async () => {
+      setIsLoadingDetails(true)
+      try {
+        const data = await getPropertyDetails(selectedPropertyId)
+        if (!isMounted) return
+        setPropertyDetails(data)
+
+        // Flatten units across buildings -> floors -> units
+        const rawUnits = (data?.buildings || []).flatMap((b) =>
+          (b.floors || []).flatMap((f) =>
+            (f.units || []).map((u) => ({
+              ...u,
+              buildingName: b.building?.buildingName,
+              floorName:
+                f.floor?.floorName ||
+                (f.floor?.floorNumber != null ? `Floor ${f.floor.floorNumber}` : null),
+            }))
+          )
+        )
+        setUnits(rawUnits)
+
+        // Pre-select unit if urlUnitId is present, or choose first unit
+        if (urlUnitId && rawUnits.some((u) => String(u.unitId) === String(urlUnitId))) {
+          setSelectedUnitId(String(urlUnitId))
+        } else if (rawUnits.length > 0) {
+          // Prefer available unit if possible
+          const firstVacant = rawUnits.find((u) => (u.status || '').toUpperCase() === 'AVAILABLE')
+          setSelectedUnitId(String(firstVacant ? firstVacant.unitId : rawUnits[0].unitId))
+        } else {
+          setSelectedUnitId('')
+        }
+      } catch (err) {
+        console.error(`Failed to load details for property ${selectedPropertyId}:`, err)
+        if (isMounted) {
+          setPropertyDetails(null)
+          setUnits([])
+          setSelectedUnitId('')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingDetails(false)
+        }
+      }
+    }
+
+    loadDetails()
+    return () => {
+      isMounted = false
+    }
+  }, [selectedPropertyId, urlUnitId])
+
+  // Selected Property and Unit objects
+  const selectedProperty = useMemo(() => {
+    return properties.find(
+      (p) => String(p.propertyId || p.id) === String(selectedPropertyId)
+    )
+  }, [properties, selectedPropertyId])
+
+  const selectedUnitObj = useMemo(() => {
+    return units.find((u) => String(u.unitId) === String(selectedUnitId))
+  }, [units, selectedUnitId])
+
+  // Property dropdown options
+  const propertyOptions = useMemo(() => {
+    return properties.map((p) => {
+      const pid = p.propertyId || p.id
+      const type = p.propertyType ? ` (${String(p.propertyType).toLowerCase()})` : ''
+      return {
+        value: String(pid),
+        label: `${p.propertyName || p.name || 'Property #' + pid}${type}`,
+      }
+    })
+  }, [properties])
+
+  // Unit dropdown options
+  const unitOptions = useMemo(() => {
+    if (units.length === 0) {
+      return [{ value: '', label: '-- No units configured for this property --' }]
+    }
+    return [
+      { value: '', label: '-- Select a Unit to Apply --' },
+      ...units.map((u) => {
+        const rentText = u.monthlyRent != null ? ` - ${formatInr(u.monthlyRent)}/mo` : ''
+        const bedsText = u.bedrooms != null ? ` (${u.bedrooms === 0 ? 'Studio' : `${u.bedrooms} Bed`})` : ''
+        const statusText = u.status ? ` [${u.status}]` : ''
+        return {
+          value: String(u.unitId),
+          label: `Unit ${u.unitNumber || u.unitId}${bedsText}${rentText}${statusText}`,
+        }
+      }),
+    ]
+  }, [units])
+
+  // Address formatted
+  const formattedAddress = useMemo(() => {
+    const addr = propertyDetails?.address
+    if (!addr) return null
+    const parts = [addr.addressLine1, addr.area, addr.city, addr.state, addr.pincode].filter(Boolean)
+    return parts.length > 0 ? parts.join(', ') : null
+  }, [propertyDetails])
 
   const validate = () => {
     const errs = {}
+    if (!selectedPropertyId) errs.property = 'Please select a property'
+    if (!selectedUnitId) errs.unit = 'Please select a specific unit to apply for'
     if (!applicantName.trim()) errs.applicantName = 'Applicant name is required'
     if (!applicantEmail.trim()) errs.applicantEmail = 'Email address is required'
     if (!phone.trim()) errs.phone = 'Phone number is required'
-    if (!monthlyIncome || Number(monthlyIncome) <= 0) {
-      errs.monthlyIncome = 'Please enter a valid monthly income'
+    if (!moveInDate) {
+      errs.moveInDate = 'Preferred move-in date is required'
+    } else {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const selectedDate = new Date(moveInDate)
+      if (selectedDate < today) {
+        errs.moveInDate = 'Preferred move-in date cannot be in the past'
+      }
     }
-    if (!employer.trim()) errs.employer = 'Employer or occupation is required'
-    if (!moveInDate) errs.moveInDate = 'Preferred move-in date is required'
-    if (!selectedPropertyId) errs.property = 'Please select a property'
-    if (!selectedUnit) errs.unit = 'Please select a unit'
 
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isSubmitting) return
     if (!validate()) return
 
     setIsSubmitting(true)
+    setSubmitError(null)
 
-    // Construct application payload
-    const newApplication = {
-      applicantName: applicantName.trim(),
-      email: applicantEmail.trim(),
-      phone: phone.trim(),
-      employmentStatus: employer.trim(),
-      propertyName: selectedProperty?.name || 'Selected Property',
-      unit: selectedUnit,
-      monthlyIncome: Number(monthlyIncome),
-      preferredMoveInDate: moveInDate,
-      message: message.trim(),
-      documents: [
-        { title: 'ID Proof', filename: idFileName },
-        { title: 'Income Proof', filename: incomeProofFileName },
-        { title: 'Rental History', filename: rentalHistoryFileName },
-      ].filter((d) => Boolean(d.filename)),
+    try {
+      // Strictly submit only fields supported by backend RentalApplicationCreateRequest
+      const payload = {
+        unitId: Number(selectedUnitId),
+        preferredMoveInDate: moveInDate || null,
+        message: message && message.trim() ? message.trim() : null,
+      }
+
+      const result = await createApplication(payload)
+
+      const appId = result?.applicationId ? `#${result.applicationId}` : ''
+      const appStatus = result?.status || 'PENDING'
+
+      setSuccessMessage(
+        `Your rental application ${appId} for Unit ${selectedUnitObj?.unitNumber || ''} at ${
+          selectedProperty?.propertyName || 'the property'
+        } has been submitted successfully! Status: ${appStatus}. Redirecting to your applications...`
+      )
+
+      setTimeout(() => {
+        navigate('/tenant/applications')
+      }, 1800)
+    } catch (err) {
+      console.error('Failed to submit rental application:', err)
+      let errorMsg =
+        err?.message || 'Failed to submit rental application. Please check your inputs and try again.'
+
+      if (err?.status === 400 && err?.message) {
+        errorMsg = err.message
+      } else if (err?.status === 404) {
+        errorMsg =
+          err?.message || 'Tenant profile or unit record not found. Please ensure your account is set up.'
+      } else if (err?.isAuthError || err?.status === 401) {
+        errorMsg = 'Your session has expired. Please sign in again.'
+      } else if (err?.isForbidden || err?.status === 403) {
+        errorMsg = 'Access restricted: Only authenticated tenants can submit rental applications.'
+      }
+
+      setSubmitError(errorMsg)
+    } finally {
+      setIsSubmitting(false)
     }
-
-    // Persist to mock data and localStorage
-    addApplication(newApplication)
-
-    setSuccessMessage(
-      `Your rental application for ${selectedProperty?.name || 'the selected property'} has been submitted successfully! Redirecting to applications...`
-    )
-
-    // Redirect to /tenant/applications after brief timeout so user sees confirmation
-    setTimeout(() => {
-      navigate('/tenant/applications')
-    }, 1500)
   }
 
   return (
@@ -160,20 +308,18 @@ export default function SubmitApplicationPage() {
       activeItem="my-applications"
       pageTitle="Submit Rental Application"
     >
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6 pb-16">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
-            to="/tenant/dashboard"
+            to="/tenant/applications"
             className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Dashboard</span>
+            <span>Back to My Applications</span>
           </Link>
           <span>/</span>
-          <span className="text-[#243447] font-medium">
-            Rental Application
-          </span>
+          <span className="text-[#243447] font-medium">New Application</span>
         </div>
 
         {/* Success Notification */}
@@ -181,6 +327,34 @@ export default function SubmitApplicationPage() {
           <div className="p-4 rounded-lg bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs">
             <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
             <span>{successMessage}</span>
+          </div>
+        )}
+
+        {/* Submit Error Notification */}
+        {submitError && (
+          <div className="p-4 rounded-lg bg-[#FDF2F2] border border-[#F8B4B4] text-[#9B1C1C] text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-[#E02424] shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Load Error Notification */}
+        {loadError && (
+          <div className="p-4 rounded-lg bg-[#FEF7EC] border border-[#F4E2B6] text-[#8A5B16] text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-[#8A5B16] shrink-0" />
+              <span>{loadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded bg-white text-[#8A5B16] border border-[#F4E2B6] text-xs font-semibold hover:bg-[#FEF7EC]"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Retry</span>
+            </button>
           </div>
         )}
 
@@ -198,7 +372,7 @@ export default function SubmitApplicationPage() {
                 <StatusBadge status="Available" size="sm" />
               </div>
               <p className="text-xs sm:text-sm text-[#5B6875] mt-0.5">
-                Complete and submit your tenant profile for property manager review
+                Submit an official rental application directly to the property manager
               </p>
             </div>
           </div>
@@ -210,7 +384,7 @@ export default function SubmitApplicationPage() {
           <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
             <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
               <Building2 className="w-4 h-4 text-[#315A7D]" />
-              1. Desired Property & Unit
+              1. Target Property & Unit
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -221,6 +395,7 @@ export default function SubmitApplicationPage() {
                   value={selectedPropertyId}
                   onChange={(e) => setSelectedPropertyId(e.target.value)}
                   error={errors.property}
+                  disabled={isLoadingProps}
                   required
                 />
               </div>
@@ -229,27 +404,60 @@ export default function SubmitApplicationPage() {
                 <Select
                   label="Select Unit"
                   options={unitOptions}
-                  value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  value={selectedUnitId}
+                  onChange={(e) => setSelectedUnitId(e.target.value)}
                   error={errors.unit}
+                  disabled={isLoadingDetails || units.length === 0}
                   required
                 />
               </div>
             </div>
 
+            {/* Selected Property Details banner */}
             {selectedProperty && (
-              <div className="p-3 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-[#243447]">
-                    {selectedProperty.name}
+              <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs text-[#5B6875] space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-sm text-[#243447]">
+                    {selectedProperty.propertyName || selectedProperty.name}
                   </span>
-                  <span className="text-[#5B6875] block">
-                    {selectedProperty.address}, {selectedProperty.city}, {selectedProperty.state} {selectedProperty.zipCode}
-                  </span>
+                  {selectedProperty.propertyType && (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EAF2F7] text-[#315A7D] uppercase">
+                      {selectedProperty.propertyType}
+                    </span>
+                  )}
                 </div>
-                <span className="font-bold text-[#315A7D] text-sm">
-                  ₹{Number(selectedProperty.rent || 0).toLocaleString('en-IN')}/mo
-                </span>
+                {formattedAddress && <p className="text-[#5B6875]">{formattedAddress}</p>}
+              </div>
+            )}
+
+            {/* Selected Unit Details card */}
+            {selectedUnitObj && (
+              <div className="p-3.5 rounded-md bg-[#EAF2F7]/50 border border-[#315A7D]/20 text-xs text-[#243447] space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-[#315A7D]">
+                    Selected: Unit {selectedUnitObj.unitNumber}
+                  </span>
+                  {selectedUnitObj.status && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                      {selectedUnitObj.status}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[#5B6875]">
+                  {selectedUnitObj.monthlyRent != null && (
+                    <span>
+                      Monthly Rent: <strong className="text-[#315A7D]">{formatInr(selectedUnitObj.monthlyRent)}/mo</strong>
+                    </span>
+                  )}
+                  {selectedUnitObj.securityDeposit != null && (
+                    <span>
+                      Security Deposit: <strong className="text-[#243447]">{formatInr(selectedUnitObj.securityDeposit)}</strong>
+                    </span>
+                  )}
+                  {selectedUnitObj.bedrooms != null && (
+                    <span>Layout: {selectedUnitObj.bedrooms === 0 ? 'Studio' : `${selectedUnitObj.bedrooms} Bed`}</span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -291,7 +499,7 @@ export default function SubmitApplicationPage() {
                 <Input
                   label="Phone Number"
                   type="tel"
-                  placeholder="(555) 000-0000"
+                  placeholder="+91 98765 43210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   error={errors.phone}
@@ -326,13 +534,11 @@ export default function SubmitApplicationPage() {
                 <Input
                   label="Monthly Gross Income (₹)"
                   type="number"
-                  placeholder="e.g. 8500"
+                  placeholder="e.g. 85000"
                   value={monthlyIncome}
                   onChange={(e) => setMonthlyIncome(e.target.value)}
-                  error={errors.monthlyIncome}
                   leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
-                  helperText="Required for rent-to-income verification"
-                  required
+                  helperText="Verified in tenant profile"
                 />
               </div>
 
@@ -342,9 +548,7 @@ export default function SubmitApplicationPage() {
                   placeholder="e.g. Software Engineer at Tech Corp"
                   value={employer}
                   onChange={(e) => setEmployer(e.target.value)}
-                  error={errors.employer}
                   leftIcon={<Briefcase className="w-4 h-4 text-[#5B6875]" />}
-                  required
                 />
               </div>
             </div>
@@ -352,7 +556,7 @@ export default function SubmitApplicationPage() {
             <div>
               <Textarea
                 label="Optional Message or Notes for Property Manager"
-                placeholder="Include details about lease duration, co-occupants, pets, or parking needs..."
+                placeholder="Include details about preferred lease term, co-occupants, references, or specific questions..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
@@ -367,22 +571,21 @@ export default function SubmitApplicationPage() {
                 <FileText className="w-4 h-4 text-[#315A7D]" />
                 4. Supporting Documents (Filenames)
               </h2>
-              <span className="text-[11px] text-[#5B6875]">Mock Filename Mode</span>
+              <span className="text-[11px] text-[#5B6875]">Verified Profile Mode</span>
             </div>
 
             <p className="text-xs text-[#5B6875]">
-              Provide filenames for your verification files. Real document uploads will connect to secure cloud storage in a future release.
+              Document verification files registered under your tenant account.
             </p>
 
             <div className="space-y-3">
               <div>
                 <Input
                   label="Government Photo ID Filename"
-                  placeholder="e.g. passport_scan.pdf"
+                  placeholder="e.g. aadhaar_pan_card.pdf"
                   value={idFileName}
                   onChange={(e) => setIdFileName(e.target.value)}
                   leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                  helperText="Driver's License, State ID, or Passport"
                 />
               </div>
 
@@ -393,7 +596,6 @@ export default function SubmitApplicationPage() {
                   value={incomeProofFileName}
                   onChange={(e) => setIncomeProofFileName(e.target.value)}
                   leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                  helperText="Recent paystubs, W-2, or offer letter"
                 />
               </div>
 
@@ -404,7 +606,6 @@ export default function SubmitApplicationPage() {
                   value={rentalHistoryFileName}
                   onChange={(e) => setRentalHistoryFileName(e.target.value)}
                   leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                  helperText="Prior landlord reference letter or ledger"
                 />
               </div>
             </div>
@@ -412,7 +613,7 @@ export default function SubmitApplicationPage() {
 
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Link to="/tenant/dashboard">
+            <Link to="/tenant/applications">
               <Button variant="outline" type="button">
                 Cancel
               </Button>

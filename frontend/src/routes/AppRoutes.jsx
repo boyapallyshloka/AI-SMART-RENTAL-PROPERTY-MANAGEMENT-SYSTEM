@@ -40,6 +40,13 @@ import TenantPaymentsPage from '../pages/tenant/TenantPaymentsPage'
 import TenantMaintenancePage from '../pages/tenant/TenantMaintenancePage'
 import CreateMaintenanceRequestPage from '../pages/tenant/CreateMaintenanceRequestPage'
 import FindPropertiesPage from '../pages/tenant/FindPropertiesPage'
+import PropertySearchPage from '../pages/tenant/PropertySearchPage'
+import TenantPropertyDetailsPage from '../pages/tenant/PropertyDetailsPage'
+import TenantApplicationDetailsPage from '../pages/tenant/TenantApplicationDetailsPage'
+
+// Manager Dashboard Pages
+import ManagerDashboardPage from '../pages/manager/ManagerDashboardPage'
+import ManagerApplicationDetailsPage from '../pages/manager/ManagerApplicationDetailsPage'
 
 // Admin Dashboard Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
@@ -211,9 +218,12 @@ export default function AppRoutes() {
                 <Route path="buildings/:buildingId" element={<BuildingDetailsPage />} />
                 <Route path="buildings/:buildingId/floors/:floorId" element={<FloorDetailsPage />} />
                 <Route path="units/:unitId" element={<UnitDetailsPage />} />
-                <Route path="find-properties" element={<FindPropertiesPage />} />
-                <Route path="browse" element={<Navigate to="/tenant/find-properties" replace />} />
+                <Route path="properties" element={<PropertySearchPage />} />
+                <Route path="properties/:id" element={<TenantPropertyDetailsPage />} />
+                <Route path="find-properties" element={<PropertySearchPage />} />
+                <Route path="browse" element={<Navigate to="/tenant/properties" replace />} />
                 <Route path="applications" element={<TenantApplicationsPage />} />
+                <Route path="applications/:id" element={<TenantApplicationDetailsPage />} />
                 <Route path="applications/new" element={<SubmitApplicationPage />} />
                 <Route path="agreement" element={<TenantAgreementPage />} />
                 <Route path="payments" element={<TenantPaymentsPage />} />
@@ -247,10 +257,20 @@ export default function AppRoutes() {
         }
       />
 
-      {/* Manager Portal Alias: smoothly redirects to owner/manager dashboard */}
+      {/* Protected Manager Routes */}
       <Route
         path="/manager/*"
-        element={<Navigate to="/owner/dashboard" replace />}
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRole={[ROLES.PROPERTY_MANAGER]}>
+              <Routes>
+                <Route path="dashboard" element={<ManagerDashboardPage />} />
+                <Route path="applications/:id" element={<ManagerApplicationDetailsPage />} />
+                <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
       />
 
       {/* Fallback route */}

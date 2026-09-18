@@ -33,6 +33,13 @@ import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.enums.PropertyType;
 import com.rental.rental_management_backend.property.enums.UnitStatus;
 import com.rental.rental_management_backend.property.enums.UnitType;
+import com.rental.rental_management_backend.property.repository.BuildingRepository;
+import com.rental.rental_management_backend.property.repository.FloorRepository;
+import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
+import com.rental.rental_management_backend.property.repository.PropertyAmenityRepository;
+import com.rental.rental_management_backend.property.repository.PropertyImageRepository;
+import com.rental.rental_management_backend.property.repository.PropertyRepository;
+import com.rental.rental_management_backend.property.repository.UnitRepository;
 import com.rental.rental_management_backend.property.service.AmenityService;
 import com.rental.rental_management_backend.property.service.BuildingService;
 import com.rental.rental_management_backend.property.service.FloorService;
@@ -66,6 +73,27 @@ class PropertyDetailsServiceTest {
     @Mock
     private PropertyImageService propertyImageService;
 
+    @Mock
+    private PropertyRepository propertyRepository;
+
+    @Mock
+    private PropertyAddressRepository propertyAddressRepository;
+
+    @Mock
+    private BuildingRepository buildingRepository;
+
+    @Mock
+    private FloorRepository floorRepository;
+
+    @Mock
+    private UnitRepository unitRepository;
+
+    @Mock
+    private PropertyAmenityRepository propertyAmenityRepository;
+
+    @Mock
+    private PropertyImageRepository propertyImageRepository;
+
     private PropertyDetailsServiceImpl propertyDetailsService;
 
     @BeforeEach
@@ -77,7 +105,14 @@ class PropertyDetailsServiceTest {
                 floorService,
                 unitService,
                 amenityService,
-                propertyImageService
+                propertyImageService,
+                propertyRepository,
+                propertyAddressRepository,
+                buildingRepository,
+                floorRepository,
+                unitRepository,
+                propertyAmenityRepository,
+                propertyImageRepository
         );
     }
 

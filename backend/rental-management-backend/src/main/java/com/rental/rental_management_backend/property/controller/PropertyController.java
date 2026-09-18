@@ -58,9 +58,10 @@ public class PropertyController {
     }
 
     /*
-     * GET LOGGED-IN OWNER'S PROPERTIES
+     * GET LOGGED-IN OWNER'S PROPERTIES OR AVAILABLE PROPERTIES FOR TENANT
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'TENANT')")
     public ResponseEntity<List<PropertyResponse>> getMyProperties() {
 
         return ResponseEntity.ok(
@@ -93,6 +94,7 @@ public class PropertyController {
      * Images
      */
     @GetMapping("/{id}/details")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'TENANT')")
     public ResponseEntity<PropertyDetailsResponse> getPropertyDetails(
             @PathVariable Long id) {
 

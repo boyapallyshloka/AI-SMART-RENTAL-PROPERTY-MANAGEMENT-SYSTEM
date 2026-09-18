@@ -76,7 +76,7 @@ export function getPortalName(role) {
  * Mapping:
  * SUPER_ADMIN → /admin/dashboard
  * PROPERTY_OWNER → /owner/dashboard
- * PROPERTY_MANAGER → /owner/dashboard
+ * PROPERTY_MANAGER → /manager/dashboard
  * TENANT → /tenant/dashboard
  *
  * @param {string} role
@@ -88,8 +88,9 @@ export function getDashboardPath(role) {
     case ROLES.SUPER_ADMIN:
       return '/admin/dashboard'
     case ROLES.PROPERTY_OWNER:
-    case ROLES.PROPERTY_MANAGER:
       return '/owner/dashboard'
+    case ROLES.PROPERTY_MANAGER:
+      return '/manager/dashboard'
     case ROLES.TENANT:
       return '/tenant/dashboard'
     default:
