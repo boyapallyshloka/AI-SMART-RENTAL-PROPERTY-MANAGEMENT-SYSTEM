@@ -23,8 +23,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 # Avenue360 shared datasets
-ai-service/data/ml/
 ai-service/data/processed/
 
 # Archives
-*.zip
+*.zip
