@@ -1,0 +1,183 @@
+package com.rental.rental_management_backend.property.entity;
+
+import java.time.LocalDateTime;
+
+import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.property.enums.FurnishingStatus;
+import com.rental.rental_management_backend.property.enums.PropertyStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+
+@Entity
+@Table(name = "properties")
+public class Property {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "property_id")
+    private Long propertyId;
+
+    @NotBlank(message = "Property name is required")
+    @Column(name = "property_name", nullable = false, length = 150)
+    private String propertyName;
+
+    @NotNull(message = "Property type is required")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "property_type", nullable = false, length = 30)
+    private PropertyType propertyType;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @PositiveOrZero(message = "Total area cannot be negative")
+    @Column(name = "total_area")
+    private Double totalArea;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "furnishing_status", length = 30)
+    private FurnishingStatus furnishingStatus;
+
+    @Column(name = "parking_available")
+    private Boolean parkingAvailable;
+
+    // M1 AI Rent Prediction field
+    @Column(name = "year_built")
+    private Integer yearBuilt;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private PropertyStatus status = PropertyStatus.DRAFT;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    public Property() {
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+
+        if (status == null) {
+            status = PropertyStatus.DRAFT;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    public Long getPropertyId() {
+        return propertyId;
+    }
+
+    public void setPropertyId(Long propertyId) {
+        this.propertyId = propertyId;
+    }
+
+    public String getPropertyName() {
+        return propertyName;
+    }
+
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
+    }
+
+    public PropertyType getPropertyType() {
+        return propertyType;
+    }
+
+    public void setPropertyType(PropertyType propertyType) {
+        this.propertyType = propertyType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Double getTotalArea() {
+        return totalArea;
+    }
+
+    public void setTotalArea(Double totalArea) {
+        this.totalArea = totalArea;
+    }
+
+    public FurnishingStatus getFurnishingStatus() {
+        return furnishingStatus;
+    }
+
+    public void setFurnishingStatus(FurnishingStatus furnishingStatus) {
+        this.furnishingStatus = furnishingStatus;
+    }
+
+    public Boolean getParkingAvailable() {
+        return parkingAvailable;
+    }
+
+    public void setParkingAvailable(Boolean parkingAvailable) {
+        this.parkingAvailable = parkingAvailable;
+    }
+
+    public Integer getYearBuilt() {
+        return yearBuilt;
+    }
+
+    public void setYearBuilt(Integer yearBuilt) {
+        this.yearBuilt = yearBuilt;
+    }
+
+    public PropertyStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+}

@@ -1,0 +1,238 @@
+
+package com.rental.rental_management_backend.property.serviceimpl;
+
+import java.util.List;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.rental.rental_management_backend.User.Repository.UserRepository;
+import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.property.dto.PropertyManagerResponse;
+import com.rental.rental_management_backend.property.dto.PropertyResponse;
+import com.rental.rental_management_backend.property.entity.Property;
+import com.rental.rental_management_backend.property.entity.PropertyManager;
+import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
+import com.rental.rental_management_backend.property.repository.PropertyRepository;
+import com.rental.rental_management_backend.property.service.PropertyManagerService;
+
+@Service
+@Transactional
+public class PropertyManagerServiceImpl implements PropertyManagerService {
+
+    private final PropertyManagerRepository propertyManagerRepository;
+    private final PropertyRepository propertyRepository;
+    private final UserRepository userRepository;
+
+    public PropertyManagerServiceImpl(
+            PropertyManagerRepository propertyManagerRepository,
+            PropertyRepository propertyRepository,
+            UserRepository userRepository) {
+
+        this.propertyManagerRepository = propertyManagerRepository;
+        this.propertyRepository = propertyRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyManagerResponse getMyProfile() {
+
+        User user = getLoggedInUser();
+
+        validatePropertyManager(user);
+
+        PropertyManager propertyManager =
+                propertyManagerRepository.findByUser(user)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager profile not found"));
+
+        return convertToResponse(propertyManager);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyManagerResponse getPropertyManagerById(Long propertyManagerId) {
+
+        PropertyManager propertyManager =
+                propertyManagerRepository.findById(propertyManagerId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager not found with id: "
+                                                + propertyManagerId));
+
+        return convertToResponse(propertyManager);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getMyAssignedProperties() {
+
+        User user = getLoggedInUser();
+
+        validatePropertyManager(user);
+
+        PropertyManager propertyManager =
+                propertyManagerRepository.findByUser(user)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager profile not found"));
+
+        return propertyRepository
+                .findByPropertyManager(propertyManager)
+                .stream()
+                .map(this::convertPropertyToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyResponse getMyAssignedPropertyById(Long propertyId) {
+
+        User user = getLoggedInUser();
+
+        validatePropertyManager(user);
+
+        PropertyManager propertyManager =
+                propertyManagerRepository.findByUser(user)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager profile not found"));
+
+        Property property =
+                propertyRepository.findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with id: "
+                                                + propertyId));
+
+        if (property.getPropertyManager() == null ||
+                !property.getPropertyManager()
+                        .getPropertyManagerId()
+                        .equals(propertyManager.getPropertyManagerId())) {
+
+            throw new ResourceNotFoundException(
+                    "Property not found or not assigned to you");
+        }
+
+        return convertPropertyToResponse(property);
+    }
+
+    private User getLoggedInUser() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            throw new RuntimeException(
+                    "User is not authenticated");
+        }
+
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Logged-in user not found"));
+    }
+
+    private void validatePropertyManager(User user) {
+
+        if (user.getRole() != RoleType.PROPERTY_MANAGER) {
+
+            throw new RuntimeException(
+                    "Only PROPERTY_MANAGER can access this resource");
+        }
+    }
+
+    private PropertyManagerResponse convertToResponse(
+            PropertyManager propertyManager) {
+
+        PropertyManagerResponse response =
+                new PropertyManagerResponse();
+
+        response.setPropertyManagerId(
+                propertyManager.getPropertyManagerId());
+
+        if (propertyManager.getUser() != null) {
+
+            User user = propertyManager.getUser();
+
+            response.setUserId(user.getId());
+            response.setFirstName(user.getFirstName());
+            response.setLastName(user.getLastName());
+            response.setEmail(user.getEmail());
+            response.setPhone(user.getPhone());
+        }
+
+        response.setCreatedAt(
+                propertyManager.getCreatedAt());
+
+        response.setUpdatedAt(
+                propertyManager.getUpdatedAt());
+
+        return response;
+    }
+
+    private PropertyResponse convertPropertyToResponse(
+            Property property) {
+
+        PropertyResponse response =
+                new PropertyResponse();
+
+        response.setPropertyId(
+                property.getPropertyId());
+
+        response.setPropertyName(
+                property.getPropertyName());
+
+        response.setPropertyType(
+                property.getPropertyType());
+
+        response.setDescription(
+                property.getDescription());
+
+        response.setTotalArea(
+                property.getTotalArea());
+
+        response.setFurnishingStatus(
+                property.getFurnishingStatus());
+
+        response.setParkingAvailable(
+                property.getParkingAvailable());
+
+        response.setYearBuilt(
+                property.getYearBuilt());
+
+        response.setStatus(
+                property.getStatus());
+
+        if (property.getOwner() != null) {
+
+            response.setOwnerId(
+                    property.getOwner().getId());
+
+            response.setOwnerName(
+                    property.getOwner().getFirstName()
+                            + " "
+                            + property.getOwner().getLastName());
+        }
+
+        response.setCreatedAt(
+                property.getCreatedAt());
+
+        response.setUpdatedAt(
+                property.getUpdatedAt());
+
+        return response;
+    }
+}

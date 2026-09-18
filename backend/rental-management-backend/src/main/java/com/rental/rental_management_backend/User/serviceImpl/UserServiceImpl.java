@@ -27,6 +27,8 @@ import com.rental.rental_management_backend.User.exception.ResourceNotFoundExcep
 import com.rental.rental_management_backend.User.exception.UserAlreadyExistsException;
 import com.rental.rental_management_backend.User.security.JwtService;
 import com.rental.rental_management_backend.User.service.UserService;
+import com.rental.rental_management_backend.property.entity.PropertyManager;
+import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 
 @Service
 @Transactional
@@ -40,17 +42,20 @@ public class UserServiceImpl implements UserService {
 
     private final PasswordResetTokenRepository passwordResetTokenRepository;
 
+    private final PropertyManagerRepository propertyManagerRepository;
+
     public UserServiceImpl(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            PasswordResetTokenRepository passwordResetTokenRepository) {
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            PropertyManagerRepository propertyManagerRepository) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.passwordResetTokenRepository =
-                passwordResetTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.propertyManagerRepository = propertyManagerRepository;
     }
 
     // =========================================================
@@ -109,7 +114,8 @@ public class UserServiceImpl implements UserService {
 
         user.setRole(request.getRole());
 
-        if (request.getRole() == RoleType.PROPERTY_OWNER) {
+        if (request.getRole() == RoleType.PROPERTY_OWNER
+                || request.getRole() == RoleType.PROPERTY_MANAGER) {
 
             user.setStatus(UserStatus.PENDING);
 
@@ -404,10 +410,36 @@ public class UserServiceImpl implements UserService {
                         )
                 );
 
+        /*
+         * Preserve the existing user status update functionality.
+         */
         user.setStatus(status);
 
         User updatedUser =
                 userRepository.save(user);
+
+        /*
+         * When a PROPERTY_MANAGER is approved and becomes ACTIVE,
+         * create the corresponding PropertyManager profile.
+         *
+         * This does not affect PROPERTY_OWNER, TENANT,
+         * SUPER_ADMIN, or any other existing functionality.
+         *
+         * The exists check prevents duplicate PropertyManager
+         * profiles if the admin activates the same user again.
+         */
+        if (user.getRole() == RoleType.PROPERTY_MANAGER
+                && status == UserStatus.ACTIVE
+                && !propertyManagerRepository
+                        .existsByUser_Id(user.getId())) {
+
+            PropertyManager propertyManager =
+                    new PropertyManager();
+
+            propertyManager.setUser(user);
+
+            propertyManagerRepository.save(propertyManager);
+        }
 
         return mapToResponse(updatedUser);
     }
@@ -555,7 +587,7 @@ public class UserServiceImpl implements UserService {
     // =========================================================
     // FORGOT PASSWORD
     // =========================================================
-    
+
     @Override
     public void forgotPassword(String email) {
 
@@ -612,7 +644,7 @@ public class UserServiceImpl implements UserService {
                 "PASSWORD RESET TOKEN: " + token
         );
     }
-    
+
     // =========================================================
     // RESET PASSWORD
     // =========================================================

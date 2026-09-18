@@ -34,7 +34,6 @@ public class PropertyController {
 
     private final PropertyDetailsService propertyDetailsService;
 
-
     public PropertyController(
             PropertyService propertyService,
             PropertyDetailsService propertyDetailsService) {
@@ -42,7 +41,6 @@ public class PropertyController {
         this.propertyService = propertyService;
         this.propertyDetailsService = propertyDetailsService;
     }
-
 
     /*
      * CREATE PROPERTY
@@ -59,7 +57,6 @@ public class PropertyController {
                 .body(response);
     }
 
-
     /*
      * GET LOGGED-IN OWNER'S PROPERTIES
      */
@@ -70,7 +67,6 @@ public class PropertyController {
                 propertyService.getMyProperties()
         );
     }
-
 
     /*
      * GET ONE PROPERTY OF LOGGED-IN OWNER
@@ -83,7 +79,6 @@ public class PropertyController {
                 propertyService.getMyPropertyById(id)
         );
     }
-
 
     /*
      * GET COMPLETE PROPERTY DETAILS
@@ -106,7 +101,6 @@ public class PropertyController {
         );
     }
 
-
     /*
      * UPDATE PROPERTY
      */
@@ -123,7 +117,6 @@ public class PropertyController {
         );
     }
 
-
     /*
      * DELETE PROPERTY
      */
@@ -137,7 +130,6 @@ public class PropertyController {
                 "Property deleted successfully"
         );
     }
-
 
     /*
      * UPDATE PROPERTY STATUS
@@ -154,5 +146,42 @@ public class PropertyController {
                 )
         );
     }
+
+    /*
+     * ASSIGN PROPERTY MANAGER
+     *
+     * The logged-in property owner can assign
+     * a PropertyManager to their own property.
+     */
+    @PutMapping("/{propertyId}/manager/{propertyManagerId}")
+    public ResponseEntity<PropertyResponse> assignPropertyManager(
+            @PathVariable Long propertyId,
+            @PathVariable Long propertyManagerId) {
+
+        return ResponseEntity.ok(
+                propertyService.assignPropertyManager(
+                        propertyId,
+                        propertyManagerId
+                )
+        );
+    }
+
+    /*
+     * REMOVE PROPERTY MANAGER
+     *
+     * The logged-in property owner can remove
+     * the manager assigned to their own property.
+     */
+    @DeleteMapping("/{propertyId}/manager")
+    public ResponseEntity<PropertyResponse> removePropertyManager(
+            @PathVariable Long propertyId) {
+
+        return ResponseEntity.ok(
+                propertyService.removePropertyManager(
+                        propertyId
+                )
+        );
+    }
 }
+
 

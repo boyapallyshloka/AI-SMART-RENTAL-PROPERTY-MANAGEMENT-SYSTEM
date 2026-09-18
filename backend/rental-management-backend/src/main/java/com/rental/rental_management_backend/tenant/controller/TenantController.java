@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.controller;
 
 import java.util.List;
@@ -30,9 +31,7 @@ public class TenantController {
 
     private final TenantService tenantService;
 
-    public TenantController(
-            TenantService tenantService) {
-
+    public TenantController(TenantService tenantService) {
         this.tenantService = tenantService;
     }
 
@@ -89,17 +88,32 @@ public class TenantController {
     }
 
     // =========================================================
-    // GET TENANT BY ID
+    // SEARCH TENANTS
     // SUPER ADMIN
     // =========================================================
 
-    @GetMapping("/{tenantId}")
+    @GetMapping("/search")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<TenantResponse> getTenantById(
-            @PathVariable Long tenantId) {
+    public ResponseEntity<List<TenantResponse>> searchTenants(
+            @RequestParam String keyword) {
 
         return ResponseEntity.ok(
-                tenantService.getTenantById(tenantId)
+                tenantService.searchTenants(keyword)
+        );
+    }
+
+    // =========================================================
+    // GET TENANTS BY STATUS
+    // SUPER ADMIN
+    // =========================================================
+
+    @GetMapping("/status/{status}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<TenantResponse>> getTenantsByStatus(
+            @PathVariable UserStatus status) {
+
+        return ResponseEntity.ok(
+                tenantService.getTenantsByStatus(status)
         );
     }
 
@@ -115,6 +129,21 @@ public class TenantController {
 
         return ResponseEntity.ok(
                 tenantService.getTenantByUserId(userId)
+        );
+    }
+
+    // =========================================================
+    // GET TENANT BY ID
+    // SUPER ADMIN
+    // =========================================================
+
+    @GetMapping("/{tenantId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TenantResponse> getTenantById(
+            @PathVariable Long tenantId) {
+
+        return ResponseEntity.ok(
+                tenantService.getTenantById(tenantId)
         );
     }
 
