@@ -1,7 +1,5 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
-
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,12 +9,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
@@ -28,8 +26,6 @@ import com.rental.rental_management_backend.property.entity.PropertyImage;
 import com.rental.rental_management_backend.property.repository.PropertyImageRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyImageService;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -65,13 +61,11 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         validateFile(file);
 
-        User owner = getAuthenticatedUser();
+        User authenticatedUser = getAuthenticatedUser();
 
-        Property property = propertyRepository
-                .findByPropertyIdAndOwner(propertyId, owner)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Property not found or you do not have permission"));
+        Property property = getAccessibleProperty(
+                propertyId,
+                authenticatedUser);
 
         String imageUrl = saveFile(file, propertyId);
 
@@ -96,8 +90,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         image.setImageUrl(imageUrl);
         image.setImageType(imageType);
         image.setIsPrimary(
-                Boolean.TRUE.equals(isPrimary)
-        );
+                Boolean.TRUE.equals(isPrimary));
         image.setProperty(property);
 
         PropertyImage savedImage =
@@ -114,13 +107,11 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     public List<PropertyImageResponse> getImagesByProperty(
             Long propertyId) {
 
-        User owner = getAuthenticatedUser();
+        User authenticatedUser = getAuthenticatedUser();
 
-        Property property = propertyRepository
-                .findByPropertyIdAndOwner(propertyId, owner)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Property not found or you do not have permission"));
+        Property property = getAccessibleProperty(
+                propertyId,
+                authenticatedUser);
 
         return propertyImageRepository
                 .findByProperty(property)
@@ -136,14 +127,17 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     @Override
     public PropertyImageResponse getImageById(Long imageId) {
 
-        User owner = getAuthenticatedUser();
+        User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("Image not found with ID: " + imageId));
+                        new ResourceNotFoundException(
+                                "Image not found with ID: " + imageId));
 
-        validateOwnership(image.getProperty(), owner);
+        validateImageAccess(
+                image.getProperty(),
+                authenticatedUser);
 
         return mapToResponse(image);
     }
@@ -159,16 +153,19 @@ public class PropertyImageServiceImpl implements PropertyImageService {
             String imageType,
             Boolean isPrimary) {
 
-        User owner = getAuthenticatedUser();
+        User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("Image not found with ID: " + imageId));
+                        new ResourceNotFoundException(
+                                "Image not found with ID: " + imageId));
 
         Property property = image.getProperty();
 
-        validateOwnership(property, owner);
+        validateImageAccess(
+                property,
+                authenticatedUser);
 
         /*
          * Replace existing file if a new file is provided.
@@ -180,7 +177,9 @@ public class PropertyImageServiceImpl implements PropertyImageService {
             deletePhysicalFile(image.getImageUrl());
 
             String newImageUrl =
-                    saveFile(file, property.getPropertyId());
+                    saveFile(
+                            file,
+                            property.getPropertyId());
 
             image.setImageUrl(newImageUrl);
         }
@@ -223,18 +222,86 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     @Override
     public void deleteImage(Long imageId) {
 
-        User owner = getAuthenticatedUser();
+        User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
                 .findById(imageId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("Image not found with ID: " + imageId));
+                        new ResourceNotFoundException(
+                                "Image not found with ID: " + imageId));
 
-        validateOwnership(image.getProperty(), owner);
+        validateImageAccess(
+                image.getProperty(),
+                authenticatedUser);
 
         deletePhysicalFile(image.getImageUrl());
 
         propertyImageRepository.delete(image);
+    }
+
+    // =========================================================
+    // GET ACCESSIBLE PROPERTY
+    // =========================================================
+
+    private Property getAccessibleProperty(
+            Long propertyId,
+            User authenticatedUser) {
+
+        Property property = propertyRepository
+                .findById(propertyId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Property not found with ID: "
+                                        + propertyId));
+
+        validateImageAccess(
+                property,
+                authenticatedUser);
+
+        return property;
+    }
+
+    // =========================================================
+    // VALIDATE PROPERTY ACCESS
+    // =========================================================
+
+    private void validateImageAccess(
+            Property property,
+            User authenticatedUser) {
+
+        if (property == null) {
+
+            throw new AccessDeniedException(
+                    "Property not found");
+        }
+
+        /*
+         * PROPERTY_OWNER access
+         */
+        if (property.getOwner() != null
+                && property.getOwner().getId()
+                        .equals(authenticatedUser.getId())) {
+
+            return;
+        }
+
+        /*
+         * PROPERTY_MANAGER access
+         *
+         * Manager can access the property only when
+         * the property is assigned to that manager.
+         */
+        if (property.getPropertyManager() != null
+                && property.getPropertyManager().getUser() != null
+                && property.getPropertyManager().getUser()
+                        .getId()
+                        .equals(authenticatedUser.getId())) {
+
+            return;
+        }
+
+        throw new AccessDeniedException(
+                "You are not authorized to access this property image");
     }
 
     // =========================================================
@@ -280,7 +347,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
                     StandardCopyOption.REPLACE_EXISTING);
 
             /*
-             * This value is stored in PostgreSQL.
+             * This value is stored in the database.
              */
             return "/uploads/property-images/"
                     + propertyId
@@ -290,7 +357,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         } catch (IOException e) {
 
             throw new RuntimeException(
-                    "Failed to store image file", e);
+                    "Failed to store image file",
+                    e);
         }
     }
 
@@ -298,9 +366,12 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     // DELETE PHYSICAL FILE
     // =========================================================
 
-    private void deletePhysicalFile(String imageUrl) {
+    private void deletePhysicalFile(
+            String imageUrl) {
 
-        if (imageUrl == null || imageUrl.isBlank()) {
+        if (imageUrl == null
+                || imageUrl.isBlank()) {
+
             return;
         }
 
@@ -335,9 +406,11 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     // VALIDATE FILE
     // =========================================================
 
-    private void validateFile(MultipartFile file) {
+    private void validateFile(
+            MultipartFile file) {
 
-        if (file == null || file.isEmpty()) {
+        if (file == null
+                || file.isEmpty()) {
 
             throw new IllegalArgumentException(
                     "Please select an image file");
@@ -398,25 +471,6 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     }
 
     // =========================================================
-    // OWNERSHIP VALIDATION
-    // =========================================================
-
-    private void validateOwnership(
-            Property property,
-            User owner) {
-
-        if (property == null
-                || property.getOwner() == null
-                || !property.getOwner()
-                        .getId()
-                        .equals(owner.getId())) {
-
-            throw new AccessDeniedException(
-                    "You are not authorized to access this image");
-        }
-    }
-
-    // =========================================================
     // MAP RESPONSE
     // =========================================================
 
@@ -455,6 +509,11 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         return response;
     }
+
+    // =========================================================
+    // PUBLIC TENANT IMAGES
+    // =========================================================
+
     @Override
     @Transactional(readOnly = true)
     public List<PropertyImageResponse> getPublicImagesByProperty(

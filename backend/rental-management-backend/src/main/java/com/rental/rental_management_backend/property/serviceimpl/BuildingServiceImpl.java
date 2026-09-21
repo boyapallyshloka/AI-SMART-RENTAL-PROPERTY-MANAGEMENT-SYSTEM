@@ -45,15 +45,12 @@ public class BuildingServiceImpl implements BuildingService {
     public BuildingResponse createBuilding(
             BuildingRequest request) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser = getAuthenticatedUser();
 
-        Property property = propertyRepository
-                .findByPropertyIdAndOwner(
+        Property property =
+                getAccessibleProperty(
                         request.getPropertyId(),
-                        owner)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Property not found or you do not have permission"));
+                        authenticatedUser);
 
         if (buildingRepository.existsByPropertyAndBuildingName(
                 property,
@@ -91,15 +88,12 @@ public class BuildingServiceImpl implements BuildingService {
     public List<BuildingResponse> getBuildingsByProperty(
             Long propertyId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser = getAuthenticatedUser();
 
-        Property property = propertyRepository
-                .findByPropertyIdAndOwner(
+        Property property =
+                getAccessibleProperty(
                         propertyId,
-                        owner)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Property not found or you do not have permission"));
+                        authenticatedUser);
 
         return buildingRepository
                 .findByProperty(property)
@@ -117,12 +111,12 @@ public class BuildingServiceImpl implements BuildingService {
     public BuildingResponse getBuildingById(
             Long buildingId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser = getAuthenticatedUser();
 
         Building building =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         buildingId,
-                        owner);
+                        authenticatedUser);
 
         return mapToResponse(building);
     }
@@ -136,14 +130,15 @@ public class BuildingServiceImpl implements BuildingService {
             Long buildingId,
             BuildingRequest request) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser = getAuthenticatedUser();
 
         Building building =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         buildingId,
-                        owner);
+                        authenticatedUser);
 
-        Property property = building.getProperty();
+        Property property =
+                building.getProperty();
 
         if (!building.getBuildingName()
                 .equals(request.getBuildingName())
@@ -179,21 +174,21 @@ public class BuildingServiceImpl implements BuildingService {
     public void deleteBuilding(
             Long buildingId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser = getAuthenticatedUser();
 
         Building building =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         buildingId,
-                        owner);
+                        authenticatedUser);
 
         buildingRepository.delete(building);
     }
 
     // ============================================================
-    // AUTHENTICATED PROPERTY OWNER
+    // AUTHENTICATED USER
     // ============================================================
 
-    private User getAuthenticatedOwner() {
+    private User getAuthenticatedUser() {
 
         Authentication authentication =
                 SecurityContextHolder
@@ -215,22 +210,86 @@ public class BuildingServiceImpl implements BuildingService {
                         new RuntimeException(
                                 "Authenticated user not found"));
 
-        if (user.getRole() != RoleType.PROPERTY_OWNER) {
+        if (user.getRole() != RoleType.PROPERTY_OWNER
+                && user.getRole() != RoleType.PROPERTY_MANAGER) {
 
             throw new RuntimeException(
-                    "Only PROPERTY_OWNER can manage buildings");
+                    "Only PROPERTY_OWNER or PROPERTY_MANAGER can manage buildings");
         }
 
         return user;
     }
 
     // ============================================================
-    // BUILDING OWNERSHIP
+    // PROPERTY ACCESS
     // ============================================================
 
-    private Building getBuildingOwnedByOwner(
+    private Property getAccessibleProperty(
+            Long propertyId,
+            User authenticatedUser) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found or you do not have permission"));
+
+        // --------------------------------------------------------
+        // PROPERTY OWNER ACCESS
+        // --------------------------------------------------------
+
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_OWNER) {
+
+            if (property.getOwner() == null
+                    || property.getOwner().getId() == null
+                    || !property.getOwner()
+                            .getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Property not found or you do not have permission");
+            }
+
+            return property;
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY MANAGER ACCESS
+        // --------------------------------------------------------
+
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_MANAGER) {
+
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager().getUser() == null
+                    || property.getPropertyManager()
+                            .getUser()
+                            .getId() == null
+                    || !property.getPropertyManager()
+                            .getUser()
+                            .getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Property not found or you do not have permission");
+            }
+
+            return property;
+        }
+
+        throw new ResourceNotFoundException(
+                "Property not found or you do not have permission");
+    }
+
+    // ============================================================
+    // BUILDING ACCESS
+    // ============================================================
+
+    private Building getAccessibleBuilding(
             Long buildingId,
-            User owner) {
+            User authenticatedUser) {
 
         Building building =
                 buildingRepository
@@ -249,19 +308,11 @@ public class BuildingServiceImpl implements BuildingService {
                     "Building is not associated with a property");
         }
 
-        if (property.getOwner() == null) {
-
-            throw new RuntimeException(
-                    "Property is not associated with an owner");
-        }
-
-        if (!property.getOwner()
-                .getId()
-                .equals(owner.getId())) {
-
-            throw new ResourceNotFoundException(
-                    "Building not found with ID: " + buildingId);
-        }
+        // Reuse the same property-level authorization
+        // for both PROPERTY_OWNER and PROPERTY_MANAGER.
+        getAccessibleProperty(
+                property.getPropertyId(),
+                authenticatedUser);
 
         return building;
     }
@@ -291,18 +342,23 @@ public class BuildingServiceImpl implements BuildingService {
                 building.getUpdatedAt()
         );
     }
+
+    // ============================================================
+    // PUBLIC BUILDINGS FOR TENANTS
+    // ============================================================
+
     @Override
     @Transactional(readOnly = true)
     public List<BuildingResponse> getPublicBuildingsByProperty(
             Long propertyId) {
 
-        Property property = propertyRepository
-                .findById(propertyId)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Property not found with id: " + propertyId
-                        )
-                );
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with ID: "
+                                                + propertyId));
 
         return buildingRepository
                 .findByProperty(property)

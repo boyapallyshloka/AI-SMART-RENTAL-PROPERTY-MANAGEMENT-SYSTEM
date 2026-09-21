@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.rental.rental_management_backend.property.dto.PropertyManagerResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.service.PropertyManagerService;
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 
 @RestController
 @RequestMapping("/api/property-manager")
@@ -77,5 +78,13 @@ public class PropertyManagerController {
         return ResponseEntity.ok(
                 propertyManagerService
                         .getMyAssignedPropertyById(propertyId));
+    }
+    @GetMapping("/properties/{propertyId}/details")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public ResponseEntity<PropertyDetailsResponse> getMyAssignedPropertyDetails(
+            @PathVariable Long propertyId) {
+
+        return ResponseEntity.ok(
+                propertyManagerService.getMyAssignedPropertyDetails(propertyId));
     }
 }

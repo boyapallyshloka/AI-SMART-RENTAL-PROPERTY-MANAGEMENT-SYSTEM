@@ -19,6 +19,8 @@ import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyManagerService;
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
+import com.rental.rental_management_backend.property.service.PropertyDetailsService;
 
 @Service
 @Transactional
@@ -27,15 +29,18 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
     private final PropertyManagerRepository propertyManagerRepository;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
+    private final PropertyDetailsService propertyDetailsService;
 
     public PropertyManagerServiceImpl(
             PropertyManagerRepository propertyManagerRepository,
             PropertyRepository propertyRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PropertyDetailsService propertyDetailsService) {
 
         this.propertyManagerRepository = propertyManagerRepository;
         this.propertyRepository = propertyRepository;
         this.userRepository = userRepository;
+        this.propertyDetailsService = propertyDetailsService;
     }
 
     @Override
@@ -234,5 +239,16 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
                 property.getUpdatedAt());
 
         return response;
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyDetailsResponse getMyAssignedPropertyDetails(Long propertyId) {
+
+        PropertyResponse property =
+                getMyAssignedPropertyById(propertyId);
+
+        return propertyDetailsService.getPropertyDetailsForManager(
+                propertyId,
+                property);
     }
 }

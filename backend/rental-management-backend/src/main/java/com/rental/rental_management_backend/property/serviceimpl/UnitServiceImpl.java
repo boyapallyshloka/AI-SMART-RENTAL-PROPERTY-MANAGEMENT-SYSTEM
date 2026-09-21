@@ -1,7 +1,5 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
-
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,14 +41,20 @@ public class UnitServiceImpl implements UnitService {
         this.userRepository = userRepository;
     }
 
+    // ============================================================
+    // CREATE UNIT
+    // ============================================================
+
     @Override
     public UnitResponse createUnit(UnitRequest request) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
-        Floor floor = getFloorOwnedByOwner(
-                request.getFloorId(),
-                owner);
+        Floor floor =
+                getAccessibleFloor(
+                        request.getFloorId(),
+                        authenticatedUser);
 
         if (unitRepository.existsByFloorAndUnitNumber(
                 floor,
@@ -81,62 +85,91 @@ public class UnitServiceImpl implements UnitService {
         unit.setDescription(request.getDescription());
         unit.setFloor(floor);
 
-        Unit savedUnit = unitRepository.save(unit);
+        Unit savedUnit =
+                unitRepository.save(unit);
 
         return mapToResponse(savedUnit);
     }
 
+    // ============================================================
+    // GET UNITS BY FLOOR
+    // ============================================================
+
     @Override
     @Transactional(readOnly = true)
-    public List<UnitResponse> getUnitsByFloor(Long floorId) {
+    public List<UnitResponse> getUnitsByFloor(
+            Long floorId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
-        Floor floor = getFloorOwnedByOwner(
-                floorId,
-                owner);
+        Floor floor =
+                getAccessibleFloor(
+                        floorId,
+                        authenticatedUser);
 
-        return unitRepository.findByFloor(floor)
+        return unitRepository
+                .findByFloor(floor)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    // ============================================================
+    // GET UNIT BY ID
+    // ============================================================
+
     @Override
     @Transactional(readOnly = true)
-    public UnitResponse getUnitById(Long unitId) {
+    public UnitResponse getUnitById(
+            Long unitId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
-        Unit unit = unitRepository.findById(unitId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Unit not found with ID: "
-                                + unitId));
+        Unit unit =
+                unitRepository
+                        .findById(unitId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Unit not found with ID: "
+                                        + unitId));
 
-        validateUnitOwnership(unit, owner);
+        validateUnitAccess(
+                unit,
+                authenticatedUser);
 
         return mapToResponse(unit);
     }
+
+    // ============================================================
+    // UPDATE UNIT
+    // ============================================================
 
     @Override
     public UnitResponse updateUnit(
             Long unitId,
             UnitRequest request) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
-        Unit unit = unitRepository.findById(unitId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Unit not found with ID: "
-                                + unitId));
+        Unit unit =
+                unitRepository
+                        .findById(unitId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Unit not found with ID: "
+                                        + unitId));
 
-        validateUnitOwnership(unit, owner);
+        validateUnitAccess(
+                unit,
+                authenticatedUser);
 
-        Floor newFloor = getFloorOwnedByOwner(
-                request.getFloorId(),
-                owner);
+        Floor newFloor =
+                getAccessibleFloor(
+                        request.getFloorId(),
+                        authenticatedUser);
 
         boolean floorChanged =
                 !unit.getFloor()
@@ -176,32 +209,42 @@ public class UnitServiceImpl implements UnitService {
         unit.setDescription(request.getDescription());
         unit.setFloor(newFloor);
 
-        Unit updatedUnit = unitRepository.save(unit);
+        Unit updatedUnit =
+                unitRepository.save(unit);
 
         return mapToResponse(updatedUnit);
     }
 
+    // ============================================================
+    // DELETE UNIT
+    // ============================================================
+
     @Override
     public void deleteUnit(Long unitId) {
 
-        User owner = getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
-        Unit unit = unitRepository.findById(unitId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Unit not found with ID: "
-                                + unitId));
+        Unit unit =
+                unitRepository
+                        .findById(unitId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Unit not found with ID: "
+                                        + unitId));
 
-        validateUnitOwnership(unit, owner);
+        validateUnitAccess(
+                unit,
+                authenticatedUser);
 
         unitRepository.delete(unit);
     }
 
     // ============================================================
-    // AUTHENTICATED PROPERTY OWNER
+    // AUTHENTICATED USER
     // ============================================================
 
-    private User getAuthenticatedOwner() {
+    private User getAuthenticatedUser() {
 
         Authentication authentication =
                 SecurityContextHolder
@@ -215,48 +258,56 @@ public class UnitServiceImpl implements UnitService {
                     "User is not authenticated");
         }
 
-        String email = authentication.getName();
+        String email =
+                authentication.getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Authenticated user not found"));
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Authenticated user not found"));
 
-        if (user.getRole() != RoleType.PROPERTY_OWNER) {
+        if (user.getRole() != RoleType.PROPERTY_OWNER
+                && user.getRole() != RoleType.PROPERTY_MANAGER) {
 
             throw new RuntimeException(
-                    "Only property owners can manage units");
+                    "Only PROPERTY_OWNER or PROPERTY_MANAGER can manage units");
         }
 
         return user;
     }
 
     // ============================================================
-    // GET FLOOR AND VERIFY OWNER
+    // GET FLOOR AND VERIFY ACCESS
     // ============================================================
 
-    private Floor getFloorOwnedByOwner(
+    private Floor getAccessibleFloor(
             Long floorId,
-            User owner) {
+            User authenticatedUser) {
 
-        Floor floor = floorRepository.findById(floorId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Floor not found with ID: "
-                                + floorId));
+        Floor floor =
+                floorRepository
+                        .findById(floorId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Floor not found with ID: "
+                                        + floorId));
 
-        validateFloorOwnership(floor, owner);
+        validateFloorAccess(
+                floor,
+                authenticatedUser);
 
         return floor;
     }
 
     // ============================================================
-    // FLOOR → BUILDING → PROPERTY → OWNER
+    // FLOOR → BUILDING → PROPERTY → USER ACCESS
     // ============================================================
 
-    private void validateFloorOwnership(
+    private void validateFloorAccess(
             Floor floor,
-            User owner) {
+            User authenticatedUser) {
 
         if (floor.getBuilding() == null) {
 
@@ -264,7 +315,8 @@ public class UnitServiceImpl implements UnitService {
                     "Floor is not associated with a building");
         }
 
-        Building building = floor.getBuilding();
+        Building building =
+                floor.getBuilding();
 
         if (building.getProperty() == null) {
 
@@ -272,30 +324,71 @@ public class UnitServiceImpl implements UnitService {
                     "Building is not associated with a property");
         }
 
-        Property property = building.getProperty();
+        Property property =
+                building.getProperty();
 
-        if (property.getOwner() == null) {
+        // --------------------------------------------------------
+        // PROPERTY OWNER ACCESS
+        // --------------------------------------------------------
 
-            throw new RuntimeException(
-                    "Property does not have an owner");
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_OWNER) {
+
+            if (property.getOwner() == null) {
+
+                throw new RuntimeException(
+                        "Property does not have an owner");
+            }
+
+            if (!property.getOwner()
+                    .getId()
+                    .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Floor not found with ID: "
+                        + floor.getFloorId());
+            }
+
+            return;
         }
 
-        if (!property.getOwner()
-                .getId()
-                .equals(owner.getId())) {
+        // --------------------------------------------------------
+        // PROPERTY MANAGER ACCESS
+        // --------------------------------------------------------
 
-            throw new ResourceNotFoundException(
-                    "Floor not found with ID: " + floor.getFloorId());
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_MANAGER) {
+
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager().getUser() == null
+                    || property.getPropertyManager()
+                            .getUser()
+                            .getId() == null
+                    || !property.getPropertyManager()
+                            .getUser()
+                            .getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Floor not found with ID: "
+                        + floor.getFloorId());
+            }
+
+            return;
         }
+
+        throw new ResourceNotFoundException(
+                "Floor not found with ID: "
+                + floor.getFloorId());
     }
 
     // ============================================================
-    // UNIT OWNERSHIP
+    // UNIT ACCESS
     // ============================================================
 
-    private void validateUnitOwnership(
+    private void validateUnitAccess(
             Unit unit,
-            User owner) {
+            User authenticatedUser) {
 
         if (unit.getFloor() == null) {
 
@@ -303,63 +396,127 @@ public class UnitServiceImpl implements UnitService {
                     "Unit is not associated with a floor");
         }
 
-        validateFloorOwnership(
+        validateFloorAccess(
                 unit.getFloor(),
-                owner);
+                authenticatedUser);
     }
 
     // ============================================================
     // ENTITY → RESPONSE
     // ============================================================
 
-    private UnitResponse mapToResponse(Unit unit) {
+    private UnitResponse mapToResponse(
+            Unit unit) {
 
-        Floor floor = unit.getFloor();
-        Building building = floor != null ? floor.getBuilding() : null;
-        Property property = building != null ? building.getProperty() : null;
+        Floor floor =
+                unit.getFloor();
 
-        UnitResponse response = new UnitResponse();
+        Building building =
+                floor != null
+                        ? floor.getBuilding()
+                        : null;
 
-        response.setUnitId(unit.getUnitId());
-        response.setUnitNumber(unit.getUnitNumber());
-        response.setUnitType(unit.getUnitType());
+        Property property =
+                building != null
+                        ? building.getProperty()
+                        : null;
 
-        response.setArea(unit.getArea());
-        response.setBedrooms(unit.getBedrooms());
-        response.setBathrooms(unit.getBathrooms());
+        UnitResponse response =
+                new UnitResponse();
 
-        response.setMonthlyRent(unit.getMonthlyRent());
-        response.setSecurityDeposit(unit.getSecurityDeposit());
+        response.setUnitId(
+                unit.getUnitId());
 
-        response.setStatus(unit.getStatus());
-        response.setDescription(unit.getDescription());
+        response.setUnitNumber(
+                unit.getUnitNumber());
 
-        response.setFloorId(floor != null ? floor.getFloorId() : null);
-        response.setFloorName(floor != null ? floor.getFloorName() : null);
-        response.setFloorNumber(floor != null ? floor.getFloorNumber() : null);
+        response.setUnitType(
+                unit.getUnitType());
 
-        response.setBuildingId(building != null ? building.getBuildingId() : null);
-        response.setBuildingName(building != null ? building.getBuildingName() : null);
+        response.setArea(
+                unit.getArea());
 
-        response.setPropertyId(property != null ? property.getPropertyId() : null);
-        response.setPropertyName(property != null ? property.getPropertyName() : null);
+        response.setBedrooms(
+                unit.getBedrooms());
 
-        response.setCreatedAt(unit.getCreatedAt());
-        response.setUpdatedAt(unit.getUpdatedAt());
+        response.setBathrooms(
+                unit.getBathrooms());
+
+        response.setMonthlyRent(
+                unit.getMonthlyRent());
+
+        response.setSecurityDeposit(
+                unit.getSecurityDeposit());
+
+        response.setStatus(
+                unit.getStatus());
+
+        response.setDescription(
+                unit.getDescription());
+
+        response.setFloorId(
+                floor != null
+                        ? floor.getFloorId()
+                        : null);
+
+        response.setFloorName(
+                floor != null
+                        ? floor.getFloorName()
+                        : null);
+
+        response.setFloorNumber(
+                floor != null
+                        ? floor.getFloorNumber()
+                        : null);
+
+        response.setBuildingId(
+                building != null
+                        ? building.getBuildingId()
+                        : null);
+
+        response.setBuildingName(
+                building != null
+                        ? building.getBuildingName()
+                        : null);
+
+        response.setPropertyId(
+                property != null
+                        ? property.getPropertyId()
+                        : null);
+
+        response.setPropertyName(
+                property != null
+                        ? property.getPropertyName()
+                        : null);
+
+        response.setCreatedAt(
+                unit.getCreatedAt());
+
+        response.setUpdatedAt(
+                unit.getUpdatedAt());
 
         return response;
     }
+
+    // ============================================================
+    // PUBLIC UNITS FOR TENANTS
+    // ============================================================
+
     @Override
     @Transactional(readOnly = true)
-    public List<UnitResponse> getPublicUnitsByFloor(Long floorId) {
+    public List<UnitResponse> getPublicUnitsByFloor(
+            Long floorId) {
 
-        Floor floor = floorRepository.findById(floorId)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Floor not found with ID: "
-                                + floorId));
+        Floor floor =
+                floorRepository
+                        .findById(floorId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Floor not found with ID: "
+                                        + floorId));
 
-        return unitRepository.findByFloor(floor)
+        return unitRepository
+                .findByFloor(floor)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

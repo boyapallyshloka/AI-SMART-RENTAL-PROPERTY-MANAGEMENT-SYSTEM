@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.ArrayList;
@@ -20,6 +19,7 @@ import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse
 import com.rental.rental_management_backend.property.dto.PropertyImageResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.dto.UnitResponse;
+import com.rental.rental_management_backend.property.entity.Amenity;
 import com.rental.rental_management_backend.property.entity.Building;
 import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -27,7 +27,6 @@ import com.rental.rental_management_backend.property.entity.PropertyAddress;
 import com.rental.rental_management_backend.property.entity.PropertyAmenity;
 import com.rental.rental_management_backend.property.entity.PropertyImage;
 import com.rental.rental_management_backend.property.entity.Unit;
-import com.rental.rental_management_backend.property.entity.Amenity;
 import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.repository.BuildingRepository;
 import com.rental.rental_management_backend.property.repository.FloorRepository;
@@ -49,51 +48,91 @@ import com.rental.rental_management_backend.property.service.UnitService;
 public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
     private final PropertyService propertyService;
+
     private final PropertyAddressService propertyAddressService;
+
     private final BuildingService buildingService;
+
     private final FloorService floorService;
+
     private final UnitService unitService;
+
     private final AmenityService amenityService;
+
     private final PropertyImageService propertyImageService;
 
     private final PropertyRepository propertyRepository;
+
     private final PropertyAddressRepository propertyAddressRepository;
+
     private final BuildingRepository buildingRepository;
+
     private final FloorRepository floorRepository;
+
     private final UnitRepository unitRepository;
+
     private final PropertyAmenityRepository propertyAmenityRepository;
+
     private final PropertyImageRepository propertyImageRepository;
 
     public PropertyDetailsServiceImpl(
+
             PropertyService propertyService,
+
             PropertyAddressService propertyAddressService,
+
             BuildingService buildingService,
+
             FloorService floorService,
+
             UnitService unitService,
+
             AmenityService amenityService,
+
             PropertyImageService propertyImageService,
+
             PropertyRepository propertyRepository,
+
             PropertyAddressRepository propertyAddressRepository,
+
             BuildingRepository buildingRepository,
+
             FloorRepository floorRepository,
+
             UnitRepository unitRepository,
+
             PropertyAmenityRepository propertyAmenityRepository,
+
             PropertyImageRepository propertyImageRepository) {
 
         this.propertyService = propertyService;
+
         this.propertyAddressService = propertyAddressService;
+
         this.buildingService = buildingService;
+
         this.floorService = floorService;
+
         this.unitService = unitService;
+
         this.amenityService = amenityService;
+
         this.propertyImageService = propertyImageService;
+
         this.propertyRepository = propertyRepository;
+
         this.propertyAddressRepository = propertyAddressRepository;
+
         this.buildingRepository = buildingRepository;
+
         this.floorRepository = floorRepository;
+
         this.unitRepository = unitRepository;
+
         this.propertyAmenityRepository = propertyAmenityRepository;
+
         this.propertyImageRepository = propertyImageRepository;
+
     }
 
     @Override
@@ -105,9 +144,11 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
         boolean isTenant = authentication != null &&
                 authentication.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_TENANT"));
+                        .anyMatch(a ->
+                                a.getAuthority().equals("ROLE_TENANT"));
 
         if (isTenant) {
+
             return getPropertyDetailsForTenant(propertyId);
         }
 
@@ -117,11 +158,14 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
     @Override
     @Transactional(readOnly = true)
     public PropertyDetailsResponse getPublicPropertyDetails(Long propertyId) {
+
         return getPropertyDetailsForTenant(propertyId);
     }
 
     /**
-     * OWNER FLOW: Reuses existing owner-scoped sub-services
+     * OWNER FLOW:
+     *
+     * Reuses existing owner-scoped sub-services.
      */
     private PropertyDetailsResponse getPropertyDetailsForOwner(Long propertyId) {
 
@@ -135,9 +179,14 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          * 2. ADDRESS
          */
         PropertyAddressResponse address = null;
+
         try {
-            address = propertyAddressService.getAddressByPropertyId(propertyId);
+
+            address =
+                    propertyAddressService.getAddressByPropertyId(propertyId);
+
         } catch (ResourceNotFoundException ex) {
+
             address = null;
         }
 
@@ -151,7 +200,9 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
                 new ArrayList<>();
 
         if (buildingResponses != null) {
+
             for (BuildingResponse building : buildingResponses) {
+
                 if (building == null) {
                     continue;
                 }
@@ -161,16 +212,20 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
                 buildingDetails.setBuilding(building);
 
+                /*
+                 * FLOORS
+                 */
                 List<FloorResponse> floorResponses =
                         floorService.getFloorsByBuilding(
-                                building.getBuildingId()
-                        );
+                                building.getBuildingId());
 
                 List<FloorDetailsResponse> floors =
                         new ArrayList<>();
 
                 if (floorResponses != null) {
+
                     for (FloorResponse floor : floorResponses) {
+
                         if (floor == null) {
                             continue;
                         }
@@ -180,12 +235,17 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
                         floorDetails.setFloor(floor);
 
+                        /*
+                         * UNITS
+                         */
                         List<UnitResponse> units =
                                 unitService.getUnitsByFloor(
-                                        floor.getFloorId()
-                                );
+                                        floor.getFloorId());
 
-                        floorDetails.setUnits(units != null ? units : new ArrayList<>());
+                        floorDetails.setUnits(
+                                units != null
+                                        ? units
+                                        : new ArrayList<>());
 
                         floors.add(floorDetails);
                     }
@@ -202,7 +262,9 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          */
         List<AmenityResponse> amenities =
                 amenityService.getPropertyAmenities(propertyId);
+
         if (amenities == null) {
+
             amenities = new ArrayList<>();
         }
 
@@ -211,211 +273,648 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          */
         List<PropertyImageResponse> images =
                 propertyImageService.getImagesByProperty(propertyId);
+
         if (images == null) {
+
             images = new ArrayList<>();
         }
 
         /*
          * 8. BUILD FINAL RESPONSE
          */
-        PropertyDetailsResponse response =
-                new PropertyDetailsResponse();
-
-        response.setProperty(property);
-        response.setAddress(address);
-        response.setBuildings(buildings);
-        response.setAmenities(amenities);
-        response.setImages(images);
-
-        return response;
+        return buildPropertyDetailsResponse(
+                propertyId,
+                property,
+                address,
+                buildings,
+                amenities,
+                images);
     }
 
     /**
-     * TENANT FLOW: Exposes full property details ONLY when PropertyStatus.AVAILABLE
+     * TENANT FLOW:
+     *
+     * Exposes full property details ONLY when PropertyStatus.AVAILABLE.
      */
-    private PropertyDetailsResponse getPropertyDetailsForTenant(Long propertyId) {
+    private PropertyDetailsResponse getPropertyDetailsForTenant(
+            Long propertyId) {
 
-        Property property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Property not found with ID: " + propertyId));
+        Property property =
+                propertyRepository.findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with ID: "
+                                                + propertyId));
 
         if (property.getStatus() != PropertyStatus.AVAILABLE) {
+
             throw new ResourceNotFoundException(
-                    "Property not found or not available for browsing with ID: " + propertyId);
+                    "Property not found or not available for browsing with ID: "
+                            + propertyId);
         }
 
-        PropertyResponse propertyResponse = convertPropertyToResponse(property);
+        PropertyResponse propertyResponse =
+                convertPropertyToResponse(property);
 
-        PropertyAddressResponse address = propertyAddressRepository.findByProperty(property)
-                .map(this::convertAddressToResponse)
-                .orElse(null);
+        PropertyAddressResponse address =
+                propertyAddressRepository.findByProperty(property)
+                        .map(this::convertAddressToResponse)
+                        .orElse(null);
 
-        List<BuildingDetailsResponse> buildings = new ArrayList<>();
-        List<Building> buildingEntities = buildingRepository.findByProperty(property);
+        List<BuildingDetailsResponse> buildings =
+                new ArrayList<>();
+
+        List<Building> buildingEntities =
+                buildingRepository.findByProperty(property);
+
         if (buildingEntities != null) {
+
             for (Building building : buildingEntities) {
-                if (building == null) continue;
-                BuildingDetailsResponse buildingDetails = new BuildingDetailsResponse();
-                buildingDetails.setBuilding(convertBuildingToResponse(building));
 
-                List<FloorDetailsResponse> floors = new ArrayList<>();
-                List<Floor> floorEntities = floorRepository.findByBuilding(building);
+                if (building == null) {
+                    continue;
+                }
+
+                BuildingDetailsResponse buildingDetails =
+                        new BuildingDetailsResponse();
+
+                buildingDetails.setBuilding(
+                        convertBuildingToResponse(building));
+
+                List<FloorDetailsResponse> floors =
+                        new ArrayList<>();
+
+                List<Floor> floorEntities =
+                        floorRepository.findByBuilding(building);
+
                 if (floorEntities != null) {
-                    for (Floor floor : floorEntities) {
-                        if (floor == null) continue;
-                        FloorDetailsResponse floorDetails = new FloorDetailsResponse();
-                        floorDetails.setFloor(convertFloorToResponse(floor));
 
-                        List<Unit> unitEntities = unitRepository.findByFloor(floor);
-                        List<UnitResponse> unitResponses = unitEntities != null
-                                ? unitEntities.stream().map(this::convertUnitToResponse).toList()
-                                : new ArrayList<>();
+                    for (Floor floor : floorEntities) {
+
+                        if (floor == null) {
+                            continue;
+                        }
+
+                        FloorDetailsResponse floorDetails =
+                                new FloorDetailsResponse();
+
+                        floorDetails.setFloor(
+                                convertFloorToResponse(floor));
+
+                        List<Unit> unitEntities =
+                                unitRepository.findByFloor(floor);
+
+                        List<UnitResponse> unitResponses =
+                                unitEntities != null
+                                        ? unitEntities.stream()
+                                                .map(this::convertUnitToResponse)
+                                                .toList()
+                                        : new ArrayList<>();
+
                         floorDetails.setUnits(unitResponses);
+
                         floors.add(floorDetails);
                     }
                 }
+
                 buildingDetails.setFloors(floors);
+
                 buildings.add(buildingDetails);
             }
         }
 
-        List<AmenityResponse> amenities = propertyAmenityRepository.findByProperty(property)
-                .stream()
-                .map(PropertyAmenity::getAmenity)
-                .filter(a -> a != null)
-                .map(this::convertAmenityToResponse)
-                .toList();
+        List<AmenityResponse> amenities =
+                propertyAmenityRepository.findByProperty(property)
+                        .stream()
+                        .map(PropertyAmenity::getAmenity)
+                        .filter(a -> a != null)
+                        .map(this::convertAmenityToResponse)
+                        .toList();
 
-        List<PropertyImageResponse> images = propertyImageRepository.findByProperty(property)
-                .stream()
-                .map(this::convertImageToResponse)
-                .toList();
+        List<PropertyImageResponse> images =
+                propertyImageRepository.findByProperty(property)
+                        .stream()
+                        .map(this::convertImageToResponse)
+                        .toList();
 
-        PropertyDetailsResponse response = new PropertyDetailsResponse();
-        response.setProperty(propertyResponse);
-        response.setAddress(address);
-        response.setBuildings(buildings);
-        response.setAmenities(amenities);
-        response.setImages(images);
-
-        return response;
+        return buildPropertyDetailsResponse(
+                propertyId,
+                propertyResponse,
+                address,
+                buildings,
+                amenities,
+                images);
     }
 
-    private PropertyResponse convertPropertyToResponse(Property property) {
-        PropertyResponse response = new PropertyResponse();
-        response.setPropertyId(property.getPropertyId());
-        response.setPropertyName(property.getPropertyName());
-        response.setPropertyType(property.getPropertyType());
-        response.setDescription(property.getDescription());
-        response.setTotalArea(property.getTotalArea());
-        response.setFurnishingStatus(property.getFurnishingStatus());
-        response.setParkingAvailable(property.getParkingAvailable());
-        response.setYearBuilt(property.getYearBuilt());
-        response.setStatus(property.getStatus());
-        if (property.getOwner() != null) {
-            response.setOwnerId(property.getOwner().getId());
-            response.setOwnerName(property.getOwner().getFirstName() + " " + property.getOwner().getLastName());
+    /**
+     * MANAGER FLOW:
+     *
+     * The PropertyManagerService first verifies that the authenticated
+     * manager is assigned to the requested property.
+     *
+     * This method builds the complete property hierarchy using
+     * direct repository reads so that owner-only service validation
+     * is not triggered.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PropertyDetailsResponse getPropertyDetailsForManager(
+            Long propertyId,
+            PropertyResponse property) {
+
+        /*
+         * PROPERTY
+         */
+        Property propertyEntity =
+                propertyRepository.findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with ID: "
+                                                + propertyId));
+
+        /*
+         * ADDRESS
+         *
+         * Direct repository access.
+         * We intentionally do not call PropertyAddressService here
+         * because that service is restricted to PROPERTY_OWNER.
+         */
+        PropertyAddressResponse address =
+                propertyAddressRepository
+                        .findByProperty(propertyEntity)
+                        .map(this::convertAddressToResponse)
+                        .orElse(null);
+
+        /*
+         * BUILDINGS
+         */
+        List<BuildingDetailsResponse> buildings =
+                new ArrayList<>();
+
+        List<Building> buildingEntities =
+                buildingRepository.findByProperty(propertyEntity);
+
+        if (buildingEntities != null) {
+
+            for (Building building : buildingEntities) {
+
+                if (building == null) {
+                    continue;
+                }
+
+                BuildingDetailsResponse buildingDetails =
+                        new BuildingDetailsResponse();
+
+                buildingDetails.setBuilding(
+                        convertBuildingToResponse(building));
+
+                /*
+                 * FLOORS
+                 */
+                List<FloorDetailsResponse> floors =
+                        new ArrayList<>();
+
+                List<Floor> floorEntities =
+                        floorRepository.findByBuilding(building);
+
+                if (floorEntities != null) {
+
+                    for (Floor floor : floorEntities) {
+
+                        if (floor == null) {
+                            continue;
+                        }
+
+                        FloorDetailsResponse floorDetails =
+                                new FloorDetailsResponse();
+
+                        floorDetails.setFloor(
+                                convertFloorToResponse(floor));
+
+                        /*
+                         * UNITS
+                         */
+                        List<Unit> unitEntities =
+                                unitRepository.findByFloor(floor);
+
+                        List<UnitResponse> unitResponses =
+                                unitEntities != null
+                                        ? unitEntities.stream()
+                                                .map(this::convertUnitToResponse)
+                                                .toList()
+                                        : new ArrayList<>();
+
+                        floorDetails.setUnits(unitResponses);
+
+                        floors.add(floorDetails);
+                    }
+                }
+
+                buildingDetails.setFloors(floors);
+
+                buildings.add(buildingDetails);
+            }
         }
-        response.setCreatedAt(property.getCreatedAt());
-        response.setUpdatedAt(property.getUpdatedAt());
+
+        /*
+         * AMENITIES
+         */
+        List<AmenityResponse> amenities =
+                propertyAmenityRepository
+                        .findByProperty(propertyEntity)
+                        .stream()
+                        .map(PropertyAmenity::getAmenity)
+                        .filter(a -> a != null)
+                        .map(this::convertAmenityToResponse)
+                        .toList();
+
+        /*
+         * IMAGES
+         */
+        List<PropertyImageResponse> images =
+                propertyImageRepository
+                        .findByProperty(propertyEntity)
+                        .stream()
+                        .map(this::convertImageToResponse)
+                        .toList();
+
+        /*
+         * FINAL RESPONSE
+         */
+        return buildPropertyDetailsResponse(
+                propertyId,
+                property,
+                address,
+                buildings,
+                amenities,
+                images);
+    }
+
+    /**
+     * Common method used to build the final PropertyDetailsResponse.
+     */
+    private PropertyDetailsResponse buildPropertyDetailsResponse(
+
+            Long propertyId,
+
+            PropertyResponse property,
+
+            PropertyAddressResponse address,
+
+            List<BuildingDetailsResponse> buildings,
+
+            List<AmenityResponse> amenities,
+
+            List<PropertyImageResponse> images) {
+
+        PropertyDetailsResponse response =
+                new PropertyDetailsResponse();
+
+        response.setProperty(property);
+
+        response.setAddress(address);
+
+        response.setBuildings(
+                buildings != null
+                        ? buildings
+                        : new ArrayList<>());
+
+        response.setAmenities(
+                amenities != null
+                        ? amenities
+                        : new ArrayList<>());
+
+        response.setImages(
+                images != null
+                        ? images
+                        : new ArrayList<>());
+
         return response;
     }
 
-    private PropertyAddressResponse convertAddressToResponse(PropertyAddress address) {
-        PropertyAddressResponse response = new PropertyAddressResponse();
-        response.setAddressId(address.getAddressId());
-        response.setPropertyId(address.getProperty() != null ? address.getProperty().getPropertyId() : null);
-        response.setAddressLine1(address.getAddressLine1());
-        response.setAddressLine2(address.getAddressLine2());
-        response.setArea(address.getArea());
-        response.setAreaType(address.getAreaType());
-        response.setCity(address.getCity());
-        response.setState(address.getState());
-        response.setCountry(address.getCountry());
-        response.setPincode(address.getPincode());
-        response.setLatitude(address.getLatitude());
-        response.setLongitude(address.getLongitude());
-        response.setCreatedAt(address.getCreatedAt());
-        response.setUpdatedAt(address.getUpdatedAt());
+    private PropertyResponse convertPropertyToResponse(
+            Property property) {
+
+        PropertyResponse response =
+                new PropertyResponse();
+
+        response.setPropertyId(
+                property.getPropertyId());
+
+        response.setPropertyName(
+                property.getPropertyName());
+
+        response.setPropertyType(
+                property.getPropertyType());
+
+        response.setDescription(
+                property.getDescription());
+
+        response.setTotalArea(
+                property.getTotalArea());
+
+        response.setFurnishingStatus(
+                property.getFurnishingStatus());
+
+        response.setParkingAvailable(
+                property.getParkingAvailable());
+
+        response.setYearBuilt(
+                property.getYearBuilt());
+
+        response.setStatus(
+                property.getStatus());
+
+        if (property.getOwner() != null) {
+
+            response.setOwnerId(
+                    property.getOwner().getId());
+
+            response.setOwnerName(
+                    property.getOwner().getFirstName()
+                            + " "
+                            + property.getOwner().getLastName());
+        }
+
+        response.setCreatedAt(
+                property.getCreatedAt());
+
+        response.setUpdatedAt(
+                property.getUpdatedAt());
+
         return response;
     }
 
-    private BuildingResponse convertBuildingToResponse(Building building) {
-        Property property = building.getProperty();
+    private PropertyAddressResponse convertAddressToResponse(
+            PropertyAddress address) {
+
+        PropertyAddressResponse response =
+                new PropertyAddressResponse();
+
+        response.setAddressId(
+                address.getAddressId());
+
+        response.setPropertyId(
+                address.getProperty() != null
+                        ? address.getProperty().getPropertyId()
+                        : null);
+
+        response.setAddressLine1(
+                address.getAddressLine1());
+
+        response.setAddressLine2(
+                address.getAddressLine2());
+
+        response.setArea(
+                address.getArea());
+
+        response.setAreaType(
+                address.getAreaType());
+
+        response.setCity(
+                address.getCity());
+
+        response.setState(
+                address.getState());
+
+        response.setCountry(
+                address.getCountry());
+
+        response.setPincode(
+                address.getPincode());
+
+        response.setLatitude(
+                address.getLatitude());
+
+        response.setLongitude(
+                address.getLongitude());
+
+        response.setCreatedAt(
+                address.getCreatedAt());
+
+        response.setUpdatedAt(
+                address.getUpdatedAt());
+
+        return response;
+    }
+
+    private BuildingResponse convertBuildingToResponse(
+            Building building) {
+
+        Property property =
+                building.getProperty();
+
         return new BuildingResponse(
+
                 building.getBuildingId(),
+
                 building.getBuildingName(),
+
                 building.getDescription(),
+
                 building.getTotalFloors(),
-                property != null ? property.getPropertyId() : null,
-                property != null ? property.getPropertyName() : null,
+
+                property != null
+                        ? property.getPropertyId()
+                        : null,
+
+                property != null
+                        ? property.getPropertyName()
+                        : null,
+
                 building.getCreatedAt(),
-                building.getUpdatedAt()
-        );
+
+                building.getUpdatedAt());
     }
 
-    private FloorResponse convertFloorToResponse(Floor floor) {
-        Building building = floor.getBuilding();
-        Property property = building != null ? building.getProperty() : null;
+    private FloorResponse convertFloorToResponse(
+            Floor floor) {
+
+        Building building =
+                floor.getBuilding();
+
+        Property property =
+                building != null
+                        ? building.getProperty()
+                        : null;
+
         return new FloorResponse(
+
                 floor.getFloorId(),
+
                 floor.getFloorName(),
+
                 floor.getFloorNumber(),
-                building != null ? building.getBuildingId() : null,
-                building != null ? building.getBuildingName() : null,
-                property != null ? property.getPropertyId() : null,
-                property != null ? property.getPropertyName() : null,
+
+                building != null
+                        ? building.getBuildingId()
+                        : null,
+
+                building != null
+                        ? building.getBuildingName()
+                        : null,
+
+                property != null
+                        ? property.getPropertyId()
+                        : null,
+
+                property != null
+                        ? property.getPropertyName()
+                        : null,
+
                 floor.getCreatedAt(),
-                floor.getUpdatedAt()
-        );
+
+                floor.getUpdatedAt());
     }
 
-    private UnitResponse convertUnitToResponse(Unit unit) {
-        Floor floor = unit.getFloor();
-        Building building = floor != null ? floor.getBuilding() : null;
-        Property property = building != null ? building.getProperty() : null;
-        UnitResponse response = new UnitResponse();
-        response.setUnitId(unit.getUnitId());
-        response.setUnitNumber(unit.getUnitNumber());
-        response.setUnitType(unit.getUnitType());
-        response.setArea(unit.getArea());
-        response.setBedrooms(unit.getBedrooms());
-        response.setBathrooms(unit.getBathrooms());
-        response.setMonthlyRent(unit.getMonthlyRent());
-        response.setSecurityDeposit(unit.getSecurityDeposit());
-        response.setStatus(unit.getStatus());
-        response.setDescription(unit.getDescription());
-        response.setFloorId(floor != null ? floor.getFloorId() : null);
-        response.setFloorName(floor != null ? floor.getFloorName() : null);
-        response.setFloorNumber(floor != null ? floor.getFloorNumber() : null);
-        response.setBuildingId(building != null ? building.getBuildingId() : null);
-        response.setBuildingName(building != null ? building.getBuildingName() : null);
-        response.setPropertyId(property != null ? property.getPropertyId() : null);
-        response.setPropertyName(property != null ? property.getPropertyName() : null);
-        response.setCreatedAt(unit.getCreatedAt());
-        response.setUpdatedAt(unit.getUpdatedAt());
+    private UnitResponse convertUnitToResponse(
+            Unit unit) {
+
+        Floor floor =
+                unit.getFloor();
+
+        Building building =
+                floor != null
+                        ? floor.getBuilding()
+                        : null;
+
+        Property property =
+                building != null
+                        ? building.getProperty()
+                        : null;
+
+        UnitResponse response =
+                new UnitResponse();
+
+        response.setUnitId(
+                unit.getUnitId());
+
+        response.setUnitNumber(
+                unit.getUnitNumber());
+
+        response.setUnitType(
+                unit.getUnitType());
+
+        response.setArea(
+                unit.getArea());
+
+        response.setBedrooms(
+                unit.getBedrooms());
+
+        response.setBathrooms(
+                unit.getBathrooms());
+
+        response.setMonthlyRent(
+                unit.getMonthlyRent());
+
+        response.setSecurityDeposit(
+                unit.getSecurityDeposit());
+
+        response.setStatus(
+                unit.getStatus());
+
+        response.setDescription(
+                unit.getDescription());
+
+        response.setFloorId(
+                floor != null
+                        ? floor.getFloorId()
+                        : null);
+
+        response.setFloorName(
+                floor != null
+                        ? floor.getFloorName()
+                        : null);
+
+        response.setFloorNumber(
+                floor != null
+                        ? floor.getFloorNumber()
+                        : null);
+
+        response.setBuildingId(
+                building != null
+                        ? building.getBuildingId()
+                        : null);
+
+        response.setBuildingName(
+                building != null
+                        ? building.getBuildingName()
+                        : null);
+
+        response.setPropertyId(
+                property != null
+                        ? property.getPropertyId()
+                        : null);
+
+        response.setPropertyName(
+                property != null
+                        ? property.getPropertyName()
+                        : null);
+
+        response.setCreatedAt(
+                unit.getCreatedAt());
+
+        response.setUpdatedAt(
+                unit.getUpdatedAt());
+
         return response;
     }
 
-    private AmenityResponse convertAmenityToResponse(Amenity amenity) {
-        AmenityResponse response = new AmenityResponse();
-        response.setAmenityId(amenity.getAmenityId());
-        response.setAmenityName(amenity.getAmenityName());
-        response.setDescription(amenity.getDescription());
+    private AmenityResponse convertAmenityToResponse(
+            Amenity amenity) {
+
+        AmenityResponse response =
+                new AmenityResponse();
+
+        response.setAmenityId(
+                amenity.getAmenityId());
+
+        response.setAmenityName(
+                amenity.getAmenityName());
+
+        response.setDescription(
+                amenity.getDescription());
+
         return response;
     }
 
-    private PropertyImageResponse convertImageToResponse(PropertyImage image) {
-        Property property = image.getProperty();
-        PropertyImageResponse response = new PropertyImageResponse();
-        response.setImageId(image.getImageId());
-        response.setImageUrl(image.getImageUrl());
-        response.setImageType(image.getImageType());
-        response.setIsPrimary(image.getIsPrimary());
-        response.setPropertyId(property != null ? property.getPropertyId() : null);
-        response.setPropertyName(property != null ? property.getPropertyName() : null);
-        response.setCreatedAt(image.getCreatedAt());
-        response.setUpdatedAt(image.getUpdatedAt());
+    private PropertyImageResponse convertImageToResponse(
+            PropertyImage image) {
+
+        Property property =
+                image.getProperty();
+
+        PropertyImageResponse response =
+                new PropertyImageResponse();
+
+        response.setImageId(
+                image.getImageId());
+
+        response.setImageUrl(
+                image.getImageUrl());
+
+        response.setImageType(
+                image.getImageType());
+
+        response.setIsPrimary(
+                image.getIsPrimary());
+
+        response.setPropertyId(
+                property != null
+                        ? property.getPropertyId()
+                        : null);
+
+        response.setPropertyName(
+                property != null
+                        ? property.getPropertyName()
+                        : null);
+
+        response.setCreatedAt(
+                image.getCreatedAt());
+
+        response.setUpdatedAt(
+                image.getUpdatedAt());
+
         return response;
     }
 }

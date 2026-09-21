@@ -15,17 +15,29 @@ public interface RentalApplicationRepository
     List<RentalApplication> findByUnit_UnitId(Long unitId);
 
     List<RentalApplication> findByStatus(
-            RentalApplicationStatus status
-    );
+            RentalApplicationStatus status);
 
     List<RentalApplication> findByUnit_UnitIdAndStatus(
             Long unitId,
-            RentalApplicationStatus status
-    );
+            RentalApplicationStatus status);
 
     boolean existsByTenant_TenantIdAndUnit_UnitIdAndStatus(
             Long tenantId,
             Long unitId,
-            RentalApplicationStatus status
-    );
+            RentalApplicationStatus status);
+
+    /*
+     * Get all rental applications belonging to a property.
+     *
+     * Property hierarchy:
+     *
+     * Property
+     *   -> Building
+     *      -> Floor
+     *         -> Unit
+     *            -> RentalApplication
+     */
+    List<RentalApplication>
+    findByUnit_Floor_Building_Property_PropertyId(
+            Long propertyId);
 }

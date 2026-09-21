@@ -46,13 +46,13 @@ public class FloorServiceImpl implements FloorService {
     public FloorResponse createFloor(
             FloorRequest request) {
 
-        User owner =
-                getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
         Building building =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         request.getBuildingId(),
-                        owner);
+                        authenticatedUser);
 
         if (floorRepository
                 .existsByBuildingAndFloorNumber(
@@ -90,13 +90,13 @@ public class FloorServiceImpl implements FloorService {
     public List<FloorResponse> getFloorsByBuilding(
             Long buildingId) {
 
-        User owner =
-                getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
         Building building =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         buildingId,
-                        owner);
+                        authenticatedUser);
 
         return floorRepository
                 .findByBuilding(building)
@@ -114,8 +114,8 @@ public class FloorServiceImpl implements FloorService {
     public FloorResponse getFloorById(
             Long floorId) {
 
-        User owner =
-                getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
         Floor floor =
                 floorRepository
@@ -125,9 +125,9 @@ public class FloorServiceImpl implements FloorService {
                                         "Floor not found with ID: "
                                                 + floorId));
 
-        validateFloorOwnership(
+        validateFloorAccess(
                 floor,
-                owner);
+                authenticatedUser);
 
         return mapToResponse(floor);
     }
@@ -141,8 +141,8 @@ public class FloorServiceImpl implements FloorService {
             Long floorId,
             FloorRequest request) {
 
-        User owner =
-                getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
         Floor floor =
                 floorRepository
@@ -152,14 +152,14 @@ public class FloorServiceImpl implements FloorService {
                                         "Floor not found with ID: "
                                                 + floorId));
 
-        validateFloorOwnership(
+        validateFloorAccess(
                 floor,
-                owner);
+                authenticatedUser);
 
         Building newBuilding =
-                getBuildingOwnedByOwner(
+                getAccessibleBuilding(
                         request.getBuildingId(),
-                        owner);
+                        authenticatedUser);
 
         boolean buildingChanged =
                 !floor.getBuilding()
@@ -207,8 +207,8 @@ public class FloorServiceImpl implements FloorService {
     public void deleteFloor(
             Long floorId) {
 
-        User owner =
-                getAuthenticatedOwner();
+        User authenticatedUser =
+                getAuthenticatedUser();
 
         Floor floor =
                 floorRepository
@@ -218,18 +218,18 @@ public class FloorServiceImpl implements FloorService {
                                         "Floor not found with ID: "
                                                 + floorId));
 
-        validateFloorOwnership(
+        validateFloorAccess(
                 floor,
-                owner);
+                authenticatedUser);
 
         floorRepository.delete(floor);
     }
 
     // ============================================================
-    // AUTHENTICATED PROPERTY OWNER
+    // AUTHENTICATED USER
     // ============================================================
 
-    private User getAuthenticatedOwner() {
+    private User getAuthenticatedUser() {
 
         Authentication authentication =
                 SecurityContextHolder
@@ -253,23 +253,23 @@ public class FloorServiceImpl implements FloorService {
                                 new RuntimeException(
                                         "Authenticated user not found"));
 
-        if (user.getRole()
-                != RoleType.PROPERTY_OWNER) {
+        if (user.getRole() != RoleType.PROPERTY_OWNER
+                && user.getRole() != RoleType.PROPERTY_MANAGER) {
 
             throw new RuntimeException(
-                    "Only PROPERTY_OWNER can manage floors");
+                    "Only PROPERTY_OWNER or PROPERTY_MANAGER can manage floors");
         }
 
         return user;
     }
 
     // ============================================================
-    // BUILDING OWNERSHIP
+    // BUILDING ACCESS
     // ============================================================
 
-    private Building getBuildingOwnedByOwner(
+    private Building getAccessibleBuilding(
             Long buildingId,
-            User owner) {
+            User authenticatedUser) {
 
         Building building =
                 buildingRepository
@@ -288,30 +288,64 @@ public class FloorServiceImpl implements FloorService {
                     "Building is not associated with a property");
         }
 
-        if (property.getOwner() == null) {
+        // --------------------------------------------------------
+        // PROPERTY OWNER ACCESS
+        // --------------------------------------------------------
 
-            throw new RuntimeException(
-                    "Property is not associated with an owner");
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_OWNER) {
+
+            if (property.getOwner() == null
+                    || property.getOwner().getId() == null
+                    || !property.getOwner()
+                            .getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Building not found with ID: "
+                                + buildingId);
+            }
+
+            return building;
         }
 
-        if (!property.getOwner()
-                .getId()
-                .equals(owner.getId())) {
+        // --------------------------------------------------------
+        // PROPERTY MANAGER ACCESS
+        // --------------------------------------------------------
 
-            throw new ResourceNotFoundException(
-                    "Building not found with ID: " + buildingId);
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_MANAGER) {
+
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager().getUser() == null
+                    || property.getPropertyManager()
+                            .getUser()
+                            .getId() == null
+                    || !property.getPropertyManager()
+                            .getUser()
+                            .getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Building not found with ID: "
+                                + buildingId);
+            }
+
+            return building;
         }
 
-        return building;
+        throw new ResourceNotFoundException(
+                "Building not found with ID: "
+                        + buildingId);
     }
 
     // ============================================================
-    // FLOOR OWNERSHIP
+    // FLOOR ACCESS
     // ============================================================
 
-    private void validateFloorOwnership(
+    private void validateFloorAccess(
             Floor floor,
-            User owner) {
+            User authenticatedUser) {
 
         Building building =
                 floor.getBuilding();
@@ -322,28 +356,10 @@ public class FloorServiceImpl implements FloorService {
                     "Floor is not associated with a building");
         }
 
-        Property property =
-                building.getProperty();
-
-        if (property == null) {
-
-            throw new RuntimeException(
-                    "Building is not associated with a property");
-        }
-
-        if (property.getOwner() == null) {
-
-            throw new RuntimeException(
-                    "Property is not associated with an owner");
-        }
-
-        if (!property.getOwner()
-                .getId()
-                .equals(owner.getId())) {
-
-            throw new ResourceNotFoundException(
-                    "Floor not found with ID: " + floor.getFloorId());
-        }
+        // Reuse the same building/property authorization.
+        getAccessibleBuilding(
+                building.getBuildingId(),
+                authenticatedUser);
     }
 
     // ============================================================
@@ -365,27 +381,27 @@ public class FloorServiceImpl implements FloorService {
                 floor.getFloorId(),
                 floor.getFloorName(),
                 floor.getFloorNumber(),
-
                 building != null
                         ? building.getBuildingId()
                         : null,
-
                 building != null
                         ? building.getBuildingName()
                         : null,
-
                 property != null
                         ? property.getPropertyId()
                         : null,
-
                 property != null
                         ? property.getPropertyName()
                         : null,
-
                 floor.getCreatedAt(),
                 floor.getUpdatedAt()
         );
     }
+
+    // ============================================================
+    // PUBLIC FLOORS FOR TENANTS
+    // ============================================================
+
     @Override
     @Transactional(readOnly = true)
     public List<FloorResponse> getPublicFloorsByBuilding(
