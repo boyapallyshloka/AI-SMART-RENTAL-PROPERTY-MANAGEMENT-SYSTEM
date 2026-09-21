@@ -52,8 +52,12 @@ class DemandRequest(BaseModel):
 class DemandSuccessResponse(BaseModel):
     success: bool = True
     prediction: float
+    predictedDemandCount: int
+    demandUnit: str = "prospective tenant applications"
+    forecastPeriod: str = "next_month"
+    city: str
+    areaLocality: str
     modelVersion: str = "1.0"
-
 
 class DemandErrorResponse(BaseModel):
     success: bool = False
@@ -147,12 +151,20 @@ def predict_demand_endpoint(request: DemandRequest):
     """
     try:
         features = request.dict() if hasattr(request, "dict") else request.model_dump()
-        prediction = predict_demand(features)
+        prediction = float(predict_demand(features))
+
+        predicted_demand_count = max(0, int(prediction + 0.5))
+
         return {
-            "success": True,
-            "prediction": prediction,
-            "modelVersion": "1.0"
-        }
+        "success": True,
+        "prediction": prediction,
+        "predictedDemandCount": predicted_demand_count,
+        "demandUnit": "prospective tenant applications",
+        "forecastPeriod": "next_month",
+        "city": request.city,
+        "areaLocality": request.area_locality,
+        "modelVersion": "1.0"
+    }
     except FileNotFoundError:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
