@@ -1,43 +1,107 @@
 
-package com.rental.rental_management_backend.tenant.dto;
+package com.rental.rental_management_backend.tenant.entity;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
-import com.rental.rental_management_backend.property.dto.AmenityResponse;
+import com.rental.rental_management_backend.property.entity.Amenity;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
 import com.rental.rental_management_backend.property.enums.PropertyType;
 
-public class TenantPreferenceResponseDTO {
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
+@Entity
+@Table(
+    name = "tenant_preferences",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = "tenant_id")
+    }
+)
+public class TenantPreference {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "preference_id")
     private Long preferenceId;
 
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "tenant_id", nullable = false, unique = true)
+    private Tenant tenant;
+
+    @Column(name = "preferred_city", length = 100)
     private String preferredCity;
 
+    @Column(name = "max_budget")
     private Integer maxBudget;
 
+    @Column(name = "min_bedrooms")
     private Integer minBedrooms;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_property_type", length = 30)
     private PropertyType preferredPropertyType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "furnishing_preference", length = 30)
     private FurnishingStatus furnishingPreference;
 
+    @Column(name = "parking_required")
     private Boolean parkingRequired;
 
-    private List<AmenityResponse> preferredAmenities = new ArrayList<>();
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "tenant_preference_amenities",
+        joinColumns = @JoinColumn(name = "preference_id"),
+        inverseJoinColumns = @JoinColumn(name = "amenity_id"),
+        uniqueConstraints = {
+            @UniqueConstraint(
+                columnNames = {"preference_id", "amenity_id"}
+            )
+        }
+    )
+    private Set<Amenity> preferredAmenities = new HashSet<>();
 
+    @Column(name = "preferred_latitude")
     private Double preferredLatitude;
 
+    @Column(name = "preferred_longitude")
     private Double preferredLongitude;
 
+    @Column(name = "max_distance_km")
     private Double maxDistanceKm;
 
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public TenantPreferenceResponseDTO() {
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     public Long getPreferenceId() {
@@ -46,6 +110,14 @@ public class TenantPreferenceResponseDTO {
 
     public void setPreferenceId(Long preferenceId) {
         this.preferenceId = preferenceId;
+    }
+
+    public Tenant getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(Tenant tenant) {
+        this.tenant = tenant;
     }
 
     public String getPreferredCity() {
@@ -96,11 +168,11 @@ public class TenantPreferenceResponseDTO {
         this.parkingRequired = parkingRequired;
     }
 
-    public List<AmenityResponse> getPreferredAmenities() {
+    public Set<Amenity> getPreferredAmenities() {
         return preferredAmenities;
     }
 
-    public void setPreferredAmenities(List<AmenityResponse> preferredAmenities) {
+    public void setPreferredAmenities(Set<Amenity> preferredAmenities) {
         this.preferredAmenities = preferredAmenities;
     }
 
@@ -144,3 +216,4 @@ public class TenantPreferenceResponseDTO {
         this.updatedAt = updatedAt;
     }
 }
+
