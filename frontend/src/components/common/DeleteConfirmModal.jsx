@@ -20,8 +20,12 @@ export default function DeleteConfirmModal({
   onConfirm,
   title = 'Confirm Deletion',
   itemName,
+  message,
   consequenceMessage,
   isLoading = false,
+  confirmText = 'Delete',
+  confirmVariant = 'danger',
+  confirmIcon,
 }) {
   if (!isOpen) return null
 
@@ -43,8 +47,14 @@ export default function DeleteConfirmModal({
               {title}
             </h3>
             <p className="text-xs text-[#5B6875] mt-1 leading-relaxed">
-              Are you sure you want to permanently delete{' '}
-              <strong className="text-[#243447]">{itemName}</strong>?
+              {message ? (
+                message
+              ) : (
+                <>
+                  Are you sure you want to permanently delete{' '}
+                  <strong className="text-[#243447]">{itemName}</strong>?
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -71,12 +81,12 @@ export default function DeleteConfirmModal({
           <Button
             type="button"
             size="sm"
-            variant="danger"
+            variant={confirmVariant}
             onClick={onConfirm}
             isLoading={isLoading}
-            leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+            leftIcon={confirmIcon || <Trash2 className="w-3.5 h-3.5" />}
           >
-            Delete
+            {confirmText}
           </Button>
         </div>
       </div>

@@ -46,6 +46,9 @@ import TenantApplicationDetailsPage from '../pages/tenant/TenantApplicationDetai
 
 // Manager Dashboard Pages
 import ManagerDashboardPage from '../pages/manager/ManagerDashboardPage'
+import ManagerPropertiesPage from '../pages/manager/ManagerPropertiesPage'
+import ManagerPropertyDetailsPage from '../pages/manager/ManagerPropertyDetailsPage'
+import ManagerBuildingDetailsPage from '../pages/manager/ManagerBuildingDetailsPage'
 import ManagerApplicationDetailsPage from '../pages/manager/ManagerApplicationDetailsPage'
 
 // Admin Dashboard Pages
@@ -265,6 +268,9 @@ export default function AppRoutes() {
             <RoleRoute allowedRole={[ROLES.PROPERTY_MANAGER]}>
               <Routes>
                 <Route path="dashboard" element={<ManagerDashboardPage />} />
+                <Route path="properties" element={<ManagerPropertiesPage />} />
+                <Route path="properties/:propertyId" element={<ManagerPropertyDetailsPage />} />
+                <Route path="properties/:propertyId/buildings/:buildingId" element={<ManagerBuildingDetailsPage />} />
                 <Route path="applications/:id" element={<ManagerApplicationDetailsPage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>
