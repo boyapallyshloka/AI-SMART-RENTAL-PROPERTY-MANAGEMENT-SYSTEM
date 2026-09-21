@@ -358,6 +358,20 @@ public class PropertyServiceImpl implements PropertyService {
             );
         }
 
+        if (property.getPropertyManager() != null) {
+            PropertyManager pm = property.getPropertyManager();
+            response.setPropertyManagerId(pm.getPropertyManagerId());
+            if (pm.getUser() != null) {
+                User u = pm.getUser();
+                String firstName = u.getFirstName() != null ? u.getFirstName().trim() : "";
+                String lastName = u.getLastName() != null ? u.getLastName().trim() : "";
+                String fullName = (firstName + " " + lastName).trim();
+                response.setManagerName(fullName.isEmpty() ? null : fullName);
+                response.setManagerEmail(u.getEmail());
+                response.setManagerPhone(u.getPhone());
+            }
+        }
+
         response.setCreatedAt(
                 property.getCreatedAt()
         );
@@ -394,14 +408,14 @@ public class PropertyServiceImpl implements PropertyService {
                                                 + propertyManagerId));
 
         if (propertyManager.getUser() == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Property manager is not linked to a user");
         }
 
         if (propertyManager.getUser().getRole()
                 != RoleType.PROPERTY_MANAGER) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Selected user is not a PROPERTY_MANAGER");
         }
 

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyManagerResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
@@ -128,6 +129,16 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
         return convertPropertyToResponse(property);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyManagerResponse> getEligibleManagers() {
+        return propertyManagerRepository
+                .findEligibleManagers(UserStatus.ACTIVE, RoleType.PROPERTY_MANAGER)
+                .stream()
+                .map(this::convertToResponse)
+                .toList();
+    }
+
     private User getLoggedInUser() {
 
         Authentication authentication =
@@ -230,6 +241,20 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
                     property.getOwner().getFirstName()
                             + " "
                             + property.getOwner().getLastName());
+        }
+
+        if (property.getPropertyManager() != null) {
+            PropertyManager pm = property.getPropertyManager();
+            response.setPropertyManagerId(pm.getPropertyManagerId());
+            if (pm.getUser() != null) {
+                User u = pm.getUser();
+                String firstName = u.getFirstName() != null ? u.getFirstName().trim() : "";
+                String lastName = u.getLastName() != null ? u.getLastName().trim() : "";
+                String fullName = (firstName + " " + lastName).trim();
+                response.setManagerName(fullName.isEmpty() ? null : fullName);
+                response.setManagerEmail(u.getEmail());
+                response.setManagerPhone(u.getPhone());
+            }
         }
 
         response.setCreatedAt(

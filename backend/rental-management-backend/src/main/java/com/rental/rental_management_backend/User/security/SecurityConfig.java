@@ -141,10 +141,11 @@ public class SecurityConfig {
                 ).hasRole("PROPERTY_OWNER")
 
                 // =================================================
-                // FUTURE PROPERTY MANAGER APIs
+                // PROPERTY MANAGER APIs
                 // =================================================
 
                 .requestMatchers(
+                        "/api/property-manager/**",
                         "/api/manager/**"
                 ).hasRole("PROPERTY_MANAGER")
 

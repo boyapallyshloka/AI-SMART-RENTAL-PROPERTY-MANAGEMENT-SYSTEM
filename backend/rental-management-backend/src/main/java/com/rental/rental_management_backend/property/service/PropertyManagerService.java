@@ -17,6 +17,6 @@ public interface PropertyManagerService {
 
     PropertyResponse getMyAssignedPropertyById(Long propertyId);
     PropertyDetailsResponse getMyAssignedPropertyDetails(Long propertyId);
-    
-    
+
+    List<PropertyManagerResponse> getEligibleManagers();
 }
