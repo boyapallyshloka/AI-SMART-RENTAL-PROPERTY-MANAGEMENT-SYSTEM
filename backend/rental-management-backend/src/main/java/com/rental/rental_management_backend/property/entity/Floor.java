@@ -43,7 +43,7 @@ public class Floor {
     @Column(name = "floor_number", nullable = false)
     private Integer floorNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "building_id", nullable = false)
     private Building building;
 

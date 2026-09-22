@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.User.security;
 
 import java.io.IOException;
@@ -19,10 +18,8 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-
     private final CustomUserDetailsService userDetailsService;
 
-    // Explicit constructor
     public JwtAuthenticationFilter(
             JwtService jwtService,
             CustomUserDetailsService userDetailsService) {
@@ -38,50 +35,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        String authHeader =
-                request.getHeader("Authorization");
+        String authHeader = request.getHeader("Authorization");
 
         String jwt = null;
         String userEmail = null;
 
-        // Check Authorization header
-        if (authHeader != null
-                && authHeader.startsWith("Bearer ")) {
+        // ---------------------------------------------------------
+        // READ JWT FROM AUTHORIZATION HEADER
+        // ---------------------------------------------------------
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
 
             jwt = authHeader.substring(7);
 
             try {
 
-                userEmail =
-                        jwtService.extractUsername(jwt);
+                userEmail = jwtService.extractUsername(jwt);
+
+                System.out.println("=================================================");
+                System.out.println("JWT EMAIL : " + userEmail);
+                System.out.println("REQUEST   : " + request.getRequestURI());
+                System.out.println("=================================================");
 
             } catch (Exception e) {
 
                 System.out.println(
-                        "Invalid JWT token: "
-                                + e.getMessage()
+                        "Invalid JWT token: " + e.getMessage()
                 );
             }
         }
 
-        // Authenticate user
-        if (userEmail != null
-                && SecurityContextHolder
-                        .getContext()
-                        .getAuthentication() == null) {
+        // ---------------------------------------------------------
+        // LOAD USER AND SET AUTHENTICATION
+        // ---------------------------------------------------------
+
+        if (userEmail != null &&
+                SecurityContextHolder.getContext().getAuthentication() == null) {
 
             try {
 
                 UserDetails userDetails =
-                        userDetailsService
-                                .loadUserByUsername(userEmail);
+                        userDetailsService.loadUserByUsername(userEmail);
 
-                if (jwtService.isTokenValid(
-                        jwt,
-                        userDetails)) {
+                if (jwtService.isTokenValid(jwt, userDetails)) {
 
-                    UsernamePasswordAuthenticationToken
-                            authenticationToken =
+                    UsernamePasswordAuthenticationToken authenticationToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
@@ -95,9 +93,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder
                             .getContext()
-                            .setAuthentication(
-                                    authenticationToken
-                            );
+                            .setAuthentication(authenticationToken);
+
+                    // -------------------------------------------------
+                    // DEBUG - CHECK ACTUAL SPRING SECURITY AUTHORITY
+                    // -------------------------------------------------
+
+                    System.out.println(
+                            "================================================="
+                    );
+
+                    System.out.println(
+                            "AUTHENTICATED USER : "
+                                    + userDetails.getUsername()
+                    );
+
+                    System.out.println(
+                            "AUTHORITIES        : "
+                                    + userDetails.getAuthorities()
+                    );
+
+                    System.out.println(
+                            "AUTHENTICATION     : "
+                                    + SecurityContextHolder
+                                            .getContext()
+                                            .getAuthentication()
+                    );
+
+                    System.out.println(
+                            "================================================="
+                    );
+
+                } else {
+
+                    System.out.println(
+                            "JWT TOKEN IS NOT VALID"
+                    );
                 }
 
             } catch (Exception e) {
@@ -109,9 +140,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(
-                request,
-                response
-        );
+        filterChain.doFilter(request, response);
     }
 }

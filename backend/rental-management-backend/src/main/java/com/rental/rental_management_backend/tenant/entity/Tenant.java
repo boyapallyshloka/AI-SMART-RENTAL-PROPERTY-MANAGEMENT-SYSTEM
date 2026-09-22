@@ -41,7 +41,7 @@ public class Tenant {
     // USER RELATIONSHIP
     // =========================================================
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
         name = "user_id",
         nullable = false,
