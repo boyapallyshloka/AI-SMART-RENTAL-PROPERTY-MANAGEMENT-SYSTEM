@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.User.security;
 
 import java.util.List;
@@ -116,21 +117,15 @@ public class SecurityConfig {
                 ).permitAll()
 
                 // -------------------------------------------------
-                // SWAGGER
+                // SWAGGER + UPLOADED FILES
                 // -------------------------------------------------
 
                 .requestMatchers(
                     "/swagger-ui/**",
                     "/swagger-ui.html",
-                    "/v3/api-docs/**"
-                ).permitAll()
-
-                // -------------------------------------------------
-                // PROPERTY IMAGES
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/uploads/property-images/**"
+                    "/v3/api-docs/**",
+                    "/uploads/property-images/**",
+                    "/uploads/tenant-documents/**"
                 ).permitAll()
 
                 // -------------------------------------------------
@@ -151,46 +146,32 @@ public class SecurityConfig {
                     "/api/users/**"
                 ).hasRole("SUPER_ADMIN")
 
-<<<<<<< HEAD
-                // -------------------------------------------------
-                // PROPERTY OWNER APIs
-                // -------------------------------------------------
-=======
                 // =================================================
-                // PROPERTY LIST & DETAILS - OWNER & TENANT BROWSING
+                // PROPERTY LIST & DETAILS
+                // OWNER & TENANT BROWSING
                 // =================================================
 
                 .requestMatchers(
-                        HttpMethod.GET,
-                        "/api/owner/properties",
-                        "/api/owner/properties/*/details"
+                    HttpMethod.GET,
+                    "/api/owner/properties",
+                    "/api/owner/properties/*/details"
                 ).hasAnyRole("PROPERTY_OWNER", "TENANT")
 
                 // =================================================
-                // FUTURE PROPERTY OWNER APIs
+                // PROPERTY OWNER APIs
                 // =================================================
->>>>>>> c42a397955da576d2b4ba1e0162a9b622552cb3c
 
                 .requestMatchers(
                     "/api/owner/**"
                 ).hasRole("PROPERTY_OWNER")
 
-<<<<<<< HEAD
-                // -------------------------------------------------
+                // =================================================
                 // PROPERTY MANAGER APIs
-                // -------------------------------------------------
+                // =================================================
 
                 .requestMatchers(
+                    "/api/property-manager/**",
                     "/api/manager/**"
-=======
-                // =================================================
-                // PROPERTY MANAGER APIs
-                // =================================================
-
-                .requestMatchers(
-                        "/api/property-manager/**",
-                        "/api/manager/**"
->>>>>>> c42a397955da576d2b4ba1e0162a9b622552cb3c
                 ).hasRole("PROPERTY_MANAGER")
 
                 // -------------------------------------------------

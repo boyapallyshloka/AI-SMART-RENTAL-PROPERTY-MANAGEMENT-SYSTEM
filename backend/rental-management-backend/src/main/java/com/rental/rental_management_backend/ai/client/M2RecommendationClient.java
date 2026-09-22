@@ -1,5 +1,6 @@
 package com.rental.rental_management_backend.ai.client;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -15,8 +16,8 @@ import com.rental.rental_management_backend.ai.dto.M2RecommendationResponse;
 @Component
 public class M2RecommendationClient {
 
-    private static final String M2_URL =
-            "http://192.168.0.100:8000/m2/recommend-properties";
+    @Value("${ai.ml.base-url}")
+    private String aiMlBaseUrl;
 
     private final RestTemplate restTemplate;
 
@@ -33,11 +34,13 @@ public class M2RecommendationClient {
         HttpEntity<M2RecommendationRequest> entity =
                 new HttpEntity<>(request, headers);
 
+        String m2Url = aiMlBaseUrl + "/m2/recommend-properties";
+
         try {
 
             ResponseEntity<M2RecommendationResponse> response =
                     restTemplate.exchange(
-                            M2_URL,
+                            m2Url,
                             HttpMethod.POST,
                             entity,
                             M2RecommendationResponse.class
@@ -57,7 +60,7 @@ public class M2RecommendationClient {
 
             throw new RuntimeException(
                     "Unable to connect to M2 recommendation service at "
-                            + M2_URL,
+                            + m2Url,
                     ex
             );
         }

@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.User.serviceImpl;
 
 import java.time.LocalDateTime;
@@ -29,31 +28,39 @@ import com.rental.rental_management_backend.User.security.JwtService;
 import com.rental.rental_management_backend.User.service.UserService;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
-
-
+import com.rental.rental_management_backend.tenant.entity.Tenant;
+import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+
     private final PasswordEncoder passwordEncoder;
+
     private final JwtService jwtService;
+
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+
     private final PropertyManagerRepository propertyManagerRepository;
+
+    private final TenantRepository tenantRepository;
 
     public UserServiceImpl(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             PasswordResetTokenRepository passwordResetTokenRepository,
-            PropertyManagerRepository propertyManagerRepository) {
+            PropertyManagerRepository propertyManagerRepository,
+            TenantRepository tenantRepository) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.propertyManagerRepository = propertyManagerRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     // =========================================================
@@ -68,18 +75,21 @@ public class UserServiceImpl implements UserService {
                 .trim();
 
         if (userRepository.existsByEmail(email)) {
+
             throw new UserAlreadyExistsException(
                     "Email already registered"
             );
         }
 
         if (userRepository.existsByPhone(request.getPhone())) {
+
             throw new UserAlreadyExistsException(
                     "Phone number already registered"
             );
         }
 
         if (request.getRole() == RoleType.SUPER_ADMIN) {
+
             throw new IllegalArgumentException(
                     "SUPER_ADMIN cannot be created through public registration"
             );
@@ -104,7 +114,9 @@ public class UserServiceImpl implements UserService {
         );
 
         user.setPhone(request.getPhone());
+
         user.setGender(request.getGender());
+
         user.setRole(request.getRole());
 
         if (request.getRole() == RoleType.PROPERTY_OWNER
@@ -118,6 +130,26 @@ public class UserServiceImpl implements UserService {
         }
 
         User savedUser = userRepository.save(user);
+
+        /*
+         * Automatically create Tenant profile when
+         * a TENANT registers.
+         *
+         * Relationship:
+         *
+         * users.id -> tenants.user_id
+         *
+         * This ensures that the tenant profile exists
+         * before the tenant creates a rental application.
+         */
+        if (savedUser.getRole() == RoleType.TENANT
+                && !tenantRepository.existsByUser_Id(savedUser.getId())) {
+
+            Tenant tenant = new Tenant();
+            tenant.setUser(savedUser);
+
+            tenantRepository.save(tenant);
+        }
 
         return mapToResponse(savedUser);
     }
@@ -135,6 +167,7 @@ public class UserServiceImpl implements UserService {
                 .trim();
 
         User user = userRepository.findByEmail(email)
+
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Invalid email or password"
@@ -142,6 +175,7 @@ public class UserServiceImpl implements UserService {
                 );
 
         if (user.getStatus() != UserStatus.ACTIVE) {
+
             throw new IllegalArgumentException(
                     "Account is not active"
             );
@@ -170,10 +204,15 @@ public class UserServiceImpl implements UserService {
         LoginResponse response = new LoginResponse();
 
         response.setToken(token);
+
         response.setUserId(user.getId());
+
         response.setFirstName(user.getFirstName());
+
         response.setLastName(user.getLastName());
+
         response.setEmail(user.getEmail());
+
         response.setRole(user.getRole());
 
         return response;
@@ -188,6 +227,7 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserById(Long id) {
 
         User user = userRepository.findById(id)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -208,6 +248,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(
                         email.toLowerCase().trim()
                 )
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with email: " + email
@@ -227,6 +268,7 @@ public class UserServiceImpl implements UserService {
             UpdateUserRequest request) {
 
         User user = userRepository.findById(id)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -288,6 +330,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (request.getGender() != null) {
+
             user.setGender(request.getGender());
         }
 
@@ -305,8 +348,11 @@ public class UserServiceImpl implements UserService {
     public List<UserResponse> getAllUsers() {
 
         return userRepository.findAll()
+
                 .stream()
+
                 .map(this::mapToResponse)
+
                 .collect(Collectors.toList());
     }
 
@@ -320,8 +366,11 @@ public class UserServiceImpl implements UserService {
             RoleType role) {
 
         return userRepository.findByRole(role)
+
                 .stream()
+
                 .map(this::mapToResponse)
+
                 .collect(Collectors.toList());
     }
 
@@ -335,8 +384,11 @@ public class UserServiceImpl implements UserService {
             UserStatus status) {
 
         return userRepository.findByStatus(status)
+
                 .stream()
+
                 .map(this::mapToResponse)
+
                 .collect(Collectors.toList());
     }
 
@@ -352,8 +404,11 @@ public class UserServiceImpl implements UserService {
 
         return userRepository
                 .findByRoleAndStatus(role, status)
+
                 .stream()
+
                 .map(this::mapToResponse)
+
                 .collect(Collectors.toList());
     }
 
@@ -367,6 +422,7 @@ public class UserServiceImpl implements UserService {
             UserStatus status) {
 
         User user = userRepository.findById(id)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -374,6 +430,7 @@ public class UserServiceImpl implements UserService {
                 );
 
         // Update the user's status
+
         user.setStatus(status);
 
         User updatedUser = userRepository.save(user);
@@ -408,6 +465,7 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(Long id) {
 
         User user = userRepository.findById(id)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -426,14 +484,23 @@ public class UserServiceImpl implements UserService {
         UserResponse response = new UserResponse();
 
         response.setId(user.getId());
+
         response.setFirstName(user.getFirstName());
+
         response.setLastName(user.getLastName());
+
         response.setEmail(user.getEmail());
+
         response.setPhone(user.getPhone());
+
         response.setGender(user.getGender());
+
         response.setRole(user.getRole());
+
         response.setStatus(user.getStatus());
+
         response.setCreatedAt(user.getCreatedAt());
+
         response.setUpdatedAt(user.getUpdatedAt());
 
         return response;
@@ -450,6 +517,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(
                         email.toLowerCase().trim()
                 )
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with email: " + email
@@ -470,6 +538,7 @@ public class UserServiceImpl implements UserService {
             String newPassword) {
 
         User user = userRepository.findById(id)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -512,6 +581,7 @@ public class UserServiceImpl implements UserService {
                 email.toLowerCase().trim();
 
         User user = userRepository.findByEmail(normalizedEmail)
+
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with email: " + email
@@ -547,6 +617,7 @@ public class UserServiceImpl implements UserService {
         passwordResetTokenRepository.save(resetToken);
 
         // Temporary testing output
+
         System.out.println(
                 "PASSWORD RESET TOKEN: " + token
         );
@@ -564,6 +635,7 @@ public class UserServiceImpl implements UserService {
         PasswordResetToken resetToken =
                 passwordResetTokenRepository
                         .findByToken(token)
+
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "Invalid password reset token"
