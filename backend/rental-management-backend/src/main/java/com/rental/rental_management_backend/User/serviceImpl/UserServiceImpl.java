@@ -27,30 +27,33 @@ import com.rental.rental_management_backend.User.exception.ResourceNotFoundExcep
 import com.rental.rental_management_backend.User.exception.UserAlreadyExistsException;
 import com.rental.rental_management_backend.User.security.JwtService;
 import com.rental.rental_management_backend.User.service.UserService;
+import com.rental.rental_management_backend.property.entity.PropertyManager;
+import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
+
+
 
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final JwtService jwtService;
-
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PropertyManagerRepository propertyManagerRepository;
 
     public UserServiceImpl(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            PasswordResetTokenRepository passwordResetTokenRepository) {
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            PropertyManagerRepository propertyManagerRepository) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.passwordResetTokenRepository =
-                passwordResetTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.propertyManagerRepository = propertyManagerRepository;
     }
 
     // =========================================================
@@ -65,21 +68,18 @@ public class UserServiceImpl implements UserService {
                 .trim();
 
         if (userRepository.existsByEmail(email)) {
-
             throw new UserAlreadyExistsException(
                     "Email already registered"
             );
         }
 
         if (userRepository.existsByPhone(request.getPhone())) {
-
             throw new UserAlreadyExistsException(
                     "Phone number already registered"
             );
         }
 
         if (request.getRole() == RoleType.SUPER_ADMIN) {
-
             throw new IllegalArgumentException(
                     "SUPER_ADMIN cannot be created through public registration"
             );
@@ -104,12 +104,11 @@ public class UserServiceImpl implements UserService {
         );
 
         user.setPhone(request.getPhone());
-
         user.setGender(request.getGender());
-
         user.setRole(request.getRole());
 
-        if (request.getRole() == RoleType.PROPERTY_OWNER) {
+        if (request.getRole() == RoleType.PROPERTY_OWNER
+                || request.getRole() == RoleType.PROPERTY_MANAGER) {
 
             user.setStatus(UserStatus.PENDING);
 
@@ -118,8 +117,7 @@ public class UserServiceImpl implements UserService {
             user.setStatus(UserStatus.ACTIVE);
         }
 
-        User savedUser =
-                userRepository.save(user);
+        User savedUser = userRepository.save(user);
 
         return mapToResponse(savedUser);
     }
@@ -130,15 +128,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public LoginResponse loginUser(
-            LoginRequest request) {
+    public LoginResponse loginUser(LoginRequest request) {
 
         String email = request.getEmail()
                 .toLowerCase()
                 .trim();
 
-        User user =
-                userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Invalid email or password"
@@ -146,7 +142,6 @@ public class UserServiceImpl implements UserService {
                 );
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-
             throw new IllegalArgumentException(
                     "Account is not active"
             );
@@ -166,27 +161,19 @@ public class UserServiceImpl implements UserService {
                         .withUsername(user.getEmail())
                         .password(user.getPassword())
                         .authorities(
-                                "ROLE_" +
-                                user.getRole().name()
+                                "ROLE_" + user.getRole().name()
                         )
                         .build();
 
-        String token =
-                jwtService.generateToken(userDetails);
+        String token = jwtService.generateToken(userDetails);
 
-        LoginResponse response =
-                new LoginResponse();
+        LoginResponse response = new LoginResponse();
 
         response.setToken(token);
-
         response.setUserId(user.getId());
-
         response.setFirstName(user.getFirstName());
-
         response.setLastName(user.getLastName());
-
         response.setEmail(user.getEmail());
-
         response.setRole(user.getRole());
 
         return response;
@@ -200,8 +187,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
 
-        User user =
-                userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with id: " + id
@@ -217,17 +203,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getUserByEmail(
-            String email) {
+    public UserResponse getUserByEmail(String email) {
 
-        User user =
-                userRepository.findByEmail(
+        User user = userRepository.findByEmail(
                         email.toLowerCase().trim()
                 )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with email: "
-                                        + email
+                                "User not found with email: " + email
                         )
                 );
 
@@ -243,12 +226,10 @@ public class UserServiceImpl implements UserService {
             Long id,
             UpdateUserRequest request) {
 
-        User user =
-                userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with id: "
-                                        + id
+                                "User not found with id: " + id
                         )
                 );
 
@@ -271,12 +252,9 @@ public class UserServiceImpl implements UserService {
         if (request.getEmail() != null
                 && !request.getEmail().isBlank()
                 && !request.getEmail()
-                        .equalsIgnoreCase(
-                                user.getEmail()
-                        )) {
+                        .equalsIgnoreCase(user.getEmail())) {
 
-            String newEmail =
-                    request.getEmail()
+            String newEmail = request.getEmail()
                     .toLowerCase()
                     .trim();
 
@@ -310,14 +288,10 @@ public class UserServiceImpl implements UserService {
         }
 
         if (request.getGender() != null) {
-
-            user.setGender(
-                    request.getGender()
-            );
+            user.setGender(request.getGender());
         }
 
-        User updatedUser =
-                userRepository.save(user);
+        User updatedUser = userRepository.save(user);
 
         return mapToResponse(updatedUser);
     }
@@ -377,10 +351,7 @@ public class UserServiceImpl implements UserService {
             UserStatus status) {
 
         return userRepository
-                .findByRoleAndStatus(
-                        role,
-                        status
-                )
+                .findByRoleAndStatus(role, status)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -395,19 +366,36 @@ public class UserServiceImpl implements UserService {
             Long id,
             UserStatus status) {
 
-        User user =
-                userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with id: "
-                                        + id
+                                "User not found with id: " + id
                         )
                 );
 
+        // Update the user's status
         user.setStatus(status);
 
-        User updatedUser =
-                userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+
+        /*
+         * When a PROPERTY_MANAGER is approved and becomes ACTIVE,
+         * create the corresponding PropertyManager profile.
+         *
+         * The exists check prevents duplicate profiles.
+         */
+        if (user.getRole() == RoleType.PROPERTY_MANAGER
+                && status == UserStatus.ACTIVE
+                && !propertyManagerRepository
+                        .existsByUser_Id(user.getId())) {
+
+            PropertyManager propertyManager =
+                    new PropertyManager();
+
+            propertyManager.setUser(user);
+
+            propertyManagerRepository.save(propertyManager);
+        }
 
         return mapToResponse(updatedUser);
     }
@@ -419,12 +407,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(Long id) {
 
-        User user =
-                userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with id: "
-                                        + id
+                                "User not found with id: " + id
                         )
                 );
 
@@ -432,52 +418,23 @@ public class UserServiceImpl implements UserService {
     }
 
     // =========================================================
-    // ENTITY → DTO
+    // ENTITY -> DTO
     // =========================================================
 
-    private UserResponse mapToResponse(
-            User user) {
+    private UserResponse mapToResponse(User user) {
 
-        UserResponse response =
-                new UserResponse();
+        UserResponse response = new UserResponse();
 
         response.setId(user.getId());
-
-        response.setFirstName(
-                user.getFirstName()
-        );
-
-        response.setLastName(
-                user.getLastName()
-        );
-
-        response.setEmail(
-                user.getEmail()
-        );
-
-        response.setPhone(
-                user.getPhone()
-        );
-
-        response.setGender(
-                user.getGender()
-        );
-
-        response.setRole(
-                user.getRole()
-        );
-
-        response.setStatus(
-                user.getStatus()
-        );
-
-        response.setCreatedAt(
-                user.getCreatedAt()
-        );
-
-        response.setUpdatedAt(
-                user.getUpdatedAt()
-        );
+        response.setFirstName(user.getFirstName());
+        response.setLastName(user.getLastName());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setGender(user.getGender());
+        response.setRole(user.getRole());
+        response.setStatus(user.getStatus());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
 
         return response;
     }
@@ -488,17 +445,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getMyProfile(
-            String email) {
+    public UserResponse getMyProfile(String email) {
 
-        User user =
-                userRepository.findByEmail(
+        User user = userRepository.findByEmail(
                         email.toLowerCase().trim()
                 )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with email: "
-                                        + email
+                                "User not found with email: " + email
                         )
                 );
 
@@ -515,16 +469,13 @@ public class UserServiceImpl implements UserService {
             String currentPassword,
             String newPassword) {
 
-        User user =
-                userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with id: "
-                                        + id
+                                "User not found with id: " + id
                         )
                 );
 
-        // Check current password
         if (!passwordEncoder.matches(
                 currentPassword,
                 user.getPassword())) {
@@ -534,7 +485,6 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Prevent using the same password
         if (passwordEncoder.matches(
                 newPassword,
                 user.getPassword())) {
@@ -544,7 +494,6 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Encrypt new password
         user.setPassword(
                 passwordEncoder.encode(newPassword)
         );
@@ -555,43 +504,36 @@ public class UserServiceImpl implements UserService {
     // =========================================================
     // FORGOT PASSWORD
     // =========================================================
-    
+
     @Override
     public void forgotPassword(String email) {
 
         String normalizedEmail =
                 email.toLowerCase().trim();
 
-        // Find user
-        User user =
-                userRepository.findByEmail(normalizedEmail)
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User not found with email: " + email
                         )
                 );
 
-        // Find existing reset token for this user
         Optional<PasswordResetToken> existingToken =
                 passwordResetTokenRepository
                         .findByUserId(user.getId());
 
-        // Delete existing token
         if (existingToken.isPresent()) {
 
             passwordResetTokenRepository.delete(
                     existingToken.get()
             );
 
-            // Force DELETE to PostgreSQL before INSERT
             passwordResetTokenRepository.flush();
         }
 
-        // Generate new reset token
         String token =
                 UUID.randomUUID().toString();
 
-        // Token expires after 15 minutes
         LocalDateTime expiryDate =
                 LocalDateTime.now().plusMinutes(15);
 
@@ -602,17 +544,14 @@ public class UserServiceImpl implements UserService {
                         expiryDate
                 );
 
-        // Save new token
-        passwordResetTokenRepository.save(
-                resetToken
-        );
+        passwordResetTokenRepository.save(resetToken);
 
         // Temporary testing output
         System.out.println(
                 "PASSWORD RESET TOKEN: " + token
         );
     }
-    
+
     // =========================================================
     // RESET PASSWORD
     // =========================================================
@@ -622,7 +561,6 @@ public class UserServiceImpl implements UserService {
             String token,
             String newPassword) {
 
-        // Find reset token
         PasswordResetToken resetToken =
                 passwordResetTokenRepository
                         .findByToken(token)
@@ -632,7 +570,6 @@ public class UserServiceImpl implements UserService {
                                 )
                         );
 
-        // Check token expiry
         if (resetToken.getExpiryDate()
                 .isBefore(LocalDateTime.now())) {
 
@@ -644,10 +581,8 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Get user associated with reset token
         User user = resetToken.getUser();
 
-        // Prevent using the same password
         if (passwordEncoder.matches(
                 newPassword,
                 user.getPassword())) {
@@ -657,17 +592,15 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        // Encrypt new password
         user.setPassword(
                 passwordEncoder.encode(newPassword)
         );
 
-        // Save updated user
         userRepository.save(user);
 
-        // Delete token after successful password reset
         passwordResetTokenRepository
                 .deleteByToken(token);
     }
 }
+
 

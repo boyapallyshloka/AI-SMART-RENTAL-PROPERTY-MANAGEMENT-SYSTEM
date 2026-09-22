@@ -1,6 +1,8 @@
+from pathlib import Path
 import pandas as pd
 
-DATA_PATH = "data/raw/House_Rent_Dataset.csv"
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_PATH = BASE_DIR / "data" / "raw" / "House_Rent_Dataset.csv"
 
 df = pd.read_csv(DATA_PATH)
 

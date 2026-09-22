@@ -33,7 +33,7 @@ public class BuildingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('PROPERTY_OWNER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<BuildingResponse> createBuilding(
             @Valid @RequestBody BuildingRequest request) {
 
@@ -45,7 +45,7 @@ public class BuildingController {
     }
 
     @GetMapping("/property/{propertyId}")
-    @PreAuthorize("hasRole('PROPERTY_OWNER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<List<BuildingResponse>>
             getBuildingsByProperty(
                     @PathVariable Long propertyId) {
@@ -57,7 +57,7 @@ public class BuildingController {
     }
 
     @GetMapping("/{buildingId}")
-    @PreAuthorize("hasRole('PROPERTY_OWNER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<BuildingResponse>
             getBuildingById(
                     @PathVariable Long buildingId) {
@@ -69,7 +69,7 @@ public class BuildingController {
     }
 
     @PutMapping("/{buildingId}")
-    @PreAuthorize("hasRole('PROPERTY_OWNER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<BuildingResponse>
             updateBuilding(
                     @PathVariable Long buildingId,
@@ -84,7 +84,7 @@ public class BuildingController {
     }
 
     @DeleteMapping("/{buildingId}")
-    @PreAuthorize("hasRole('PROPERTY_OWNER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<String>
             deleteBuilding(
                     @PathVariable Long buildingId) {

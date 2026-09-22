@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -150,20 +151,46 @@ public class SecurityConfig {
                     "/api/users/**"
                 ).hasRole("SUPER_ADMIN")
 
+<<<<<<< HEAD
                 // -------------------------------------------------
                 // PROPERTY OWNER APIs
                 // -------------------------------------------------
+=======
+                // =================================================
+                // PROPERTY LIST & DETAILS - OWNER & TENANT BROWSING
+                // =================================================
+
+                .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/owner/properties",
+                        "/api/owner/properties/*/details"
+                ).hasAnyRole("PROPERTY_OWNER", "TENANT")
+
+                // =================================================
+                // FUTURE PROPERTY OWNER APIs
+                // =================================================
+>>>>>>> c42a397955da576d2b4ba1e0162a9b622552cb3c
 
                 .requestMatchers(
                     "/api/owner/**"
                 ).hasRole("PROPERTY_OWNER")
 
+<<<<<<< HEAD
                 // -------------------------------------------------
                 // PROPERTY MANAGER APIs
                 // -------------------------------------------------
 
                 .requestMatchers(
                     "/api/manager/**"
+=======
+                // =================================================
+                // PROPERTY MANAGER APIs
+                // =================================================
+
+                .requestMatchers(
+                        "/api/property-manager/**",
+                        "/api/manager/**"
+>>>>>>> c42a397955da576d2b4ba1e0162a9b622552cb3c
                 ).hasRole("PROPERTY_MANAGER")
 
                 // -------------------------------------------------

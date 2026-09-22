@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.serviceimpl;
 
 import java.util.List;
@@ -32,11 +33,6 @@ public class TenantServiceImpl implements TenantService {
         this.userRepository = userRepository;
     }
 
-    // =========================================================
-    // GET ALL TENANTS
-    // SUPER ADMIN
-    // =========================================================
-
     @Override
     @Transactional(readOnly = true)
     public List<TenantResponse> getAllTenants() {
@@ -47,83 +43,48 @@ public class TenantServiceImpl implements TenantService {
                 .collect(Collectors.toList());
     }
 
-    // =========================================================
-    // GET TENANT BY ID
-    // SUPER ADMIN
-    // =========================================================
-
     @Override
     @Transactional(readOnly = true)
     public TenantResponse getTenantById(Long tenantId) {
 
         if (tenantId == null) {
-            throw new IllegalArgumentException(
-                    "Tenant ID is required"
-            );
+            throw new IllegalArgumentException("Tenant ID is required");
         }
 
-        Tenant tenant =
-                tenantRepository.findById(tenantId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Tenant not found with ID: "
-                                                + tenantId
-                                )
-                        );
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Tenant not found with ID: " + tenantId));
 
         return mapToResponse(tenant);
     }
-
-    // =========================================================
-    // GET TENANT BY USER ID
-    // SUPER ADMIN
-    // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public TenantResponse getTenantByUserId(Long userId) {
 
         if (userId == null) {
-            throw new IllegalArgumentException(
-                    "User ID is required"
-            );
+            throw new IllegalArgumentException("User ID is required");
         }
 
-        Tenant tenant =
-                tenantRepository.findByUser_Id(userId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Tenant not found for user ID: "
-                                                + userId
-                                )
-                        );
+        Tenant tenant = tenantRepository.findByUser_Id(userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Tenant not found for user ID: " + userId));
 
         return mapToResponse(tenant);
     }
-
-    // =========================================================
-    // GET MY TENANT PROFILE
-    // TENANT
-    // =========================================================
 
     @Override
     public TenantResponse getMyTenantProfile(String email) {
 
         User user = getAuthenticatedTenant(email);
 
-        Tenant tenant =
-                tenantRepository.findByUser(user)
-                        .orElseGet(() ->
-                                createEmptyTenantProfile(user)
-                        );
+        Tenant tenant = tenantRepository.findByUser(user)
+                .orElseGet(() -> createEmptyTenantProfile(user));
 
         return mapToResponse(tenant);
     }
-
-    // =========================================================
-    // UPDATE MY TENANT PROFILE
-    // TENANT
-    // =========================================================
 
     @Override
     public TenantResponse updateMyTenantProfile(
@@ -132,128 +93,71 @@ public class TenantServiceImpl implements TenantService {
 
         if (request == null) {
             throw new IllegalArgumentException(
-                    "Tenant profile request cannot be null"
-            );
+                    "Tenant profile request cannot be null");
         }
 
         User user = getAuthenticatedTenant(email);
 
-        Tenant tenant =
-                tenantRepository.findByUser(user)
-                        .orElseGet(() ->
-                                createEmptyTenantProfile(user)
-                        );
-
-        // =====================================================
-        // PERSONAL DETAILS
-        // =====================================================
+        Tenant tenant = tenantRepository.findByUser(user)
+                .orElseGet(() -> createEmptyTenantProfile(user));
 
         if (request.getDateOfBirth() != null) {
-            tenant.setDateOfBirth(
-                    request.getDateOfBirth()
-            );
+            tenant.setDateOfBirth(request.getDateOfBirth());
         }
 
         if (request.getAlternatePhone() != null) {
             tenant.setAlternatePhone(
-                    cleanValue(
-                            request.getAlternatePhone()
-                    )
-            );
+                    cleanValue(request.getAlternatePhone()));
         }
-
-        // =====================================================
-        // PROFESSIONAL DETAILS
-        // =====================================================
 
         if (request.getOccupation() != null) {
             tenant.setOccupation(
-                    cleanValue(
-                            request.getOccupation()
-                    )
-            );
+                    cleanValue(request.getOccupation()));
         }
 
         if (request.getCompanyName() != null) {
             tenant.setCompanyName(
-                    cleanValue(
-                            request.getCompanyName()
-                    )
-            );
+                    cleanValue(request.getCompanyName()));
         }
 
         if (request.getMonthlyIncome() != null) {
-            tenant.setMonthlyIncome(
-                    request.getMonthlyIncome()
-            );
+            tenant.setMonthlyIncome(request.getMonthlyIncome());
         }
-
-        // =====================================================
-        // EMERGENCY CONTACT
-        // =====================================================
 
         if (request.getEmergencyContactName() != null) {
             tenant.setEmergencyContactName(
-                    cleanValue(
-                            request.getEmergencyContactName()
-                    )
-            );
+                    cleanValue(request.getEmergencyContactName()));
         }
 
         if (request.getEmergencyContactPhone() != null) {
             tenant.setEmergencyContactPhone(
-                    cleanValue(
-                            request.getEmergencyContactPhone()
-                    )
-            );
+                    cleanValue(request.getEmergencyContactPhone()));
         }
-
-        // =====================================================
-        // CURRENT ADDRESS
-        // =====================================================
 
         if (request.getCurrentAddress() != null) {
             tenant.setCurrentAddress(
-                    cleanValue(
-                            request.getCurrentAddress()
-                    )
-            );
+                    cleanValue(request.getCurrentAddress()));
         }
 
         if (request.getCity() != null) {
             tenant.setCity(
-                    cleanValue(
-                            request.getCity()
-                    )
-            );
+                    cleanValue(request.getCity()));
         }
 
         if (request.getState() != null) {
             tenant.setState(
-                    cleanValue(
-                            request.getState()
-                    )
-            );
+                    cleanValue(request.getState()));
         }
 
         if (request.getPincode() != null) {
             tenant.setPincode(
-                    cleanValue(
-                            request.getPincode()
-                    )
-            );
+                    cleanValue(request.getPincode()));
         }
 
-        Tenant updatedTenant =
-                tenantRepository.save(tenant);
+        Tenant updatedTenant = tenantRepository.save(tenant);
 
         return mapToResponse(updatedTenant);
     }
-
-    // =========================================================
-    // UPDATE TENANT STATUS
-    // SUPER ADMIN
-    // =========================================================
 
     @Override
     public TenantResponse updateTenantStatus(
@@ -262,24 +166,18 @@ public class TenantServiceImpl implements TenantService {
 
         if (tenantId == null) {
             throw new IllegalArgumentException(
-                    "Tenant ID is required"
-            );
+                    "Tenant ID is required");
         }
 
         if (status == null) {
             throw new IllegalArgumentException(
-                    "Status is required"
-            );
+                    "Status is required");
         }
 
-        Tenant tenant =
-                tenantRepository.findById(tenantId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Tenant not found with ID: "
-                                                + tenantId
-                                )
-                        );
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Tenant not found with ID: " + tenantId));
 
         User user = tenant.getUser();
 
@@ -290,78 +188,51 @@ public class TenantServiceImpl implements TenantService {
         return mapToResponse(tenant);
     }
 
-    // =========================================================
-    // DELETE TENANT
-    // SUPER ADMIN
-    // =========================================================
-
     @Override
     public void deleteTenant(Long tenantId) {
 
         if (tenantId == null) {
             throw new IllegalArgumentException(
-                    "Tenant ID is required"
-            );
+                    "Tenant ID is required");
         }
 
-        Tenant tenant =
-                tenantRepository.findById(tenantId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Tenant not found with ID: "
-                                                + tenantId
-                                )
-                        );
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Tenant not found with ID: " + tenantId));
 
         tenantRepository.delete(tenant);
     }
-
-    // =========================================================
-    // GET AUTHENTICATED TENANT
-    // =========================================================
 
     private User getAuthenticatedTenant(String email) {
 
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException(
-                    "Authenticated user email is required"
-            );
+                    "Authenticated user email is required");
         }
 
-        User user =
-                userRepository.findByEmail(
-                        email.toLowerCase().trim()
-                )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Authenticated user not found"
-                        )
-                );
+        User user = userRepository.findByEmail(
+                email.toLowerCase().trim()
+        ).orElseThrow(() ->
+                new ResourceNotFoundException(
+                        "Authenticated user not found"));
 
         if (user.getRole() != RoleType.TENANT) {
             throw new IllegalArgumentException(
-                    "Only TENANT users can access this profile"
-            );
+                    "Only TENANT users can access this profile");
         }
 
         return user;
     }
 
-    // =========================================================
-    // CREATE EMPTY TENANT PROFILE
-    // =========================================================
-
     private Tenant createEmptyTenantProfile(User user) {
 
         if (tenantRepository.existsByUser_Id(user.getId())) {
 
-            return tenantRepository
-                    .findByUser_Id(user.getId())
+            return tenantRepository.findByUser_Id(user.getId())
                     .orElseThrow(() ->
                             new ResourceNotFoundException(
-                                    "Tenant profile could not be loaded"
-                            )
-                    );
+                                    "Tenant profile could not be loaded"));
         }
 
         Tenant tenant = new Tenant();
@@ -371,10 +242,6 @@ public class TenantServiceImpl implements TenantService {
         return tenantRepository.save(tenant);
     }
 
-    // =========================================================
-    // CLEAN STRING
-    // =========================================================
-
     private String cleanValue(String value) {
 
         if (value == null) {
@@ -383,149 +250,116 @@ public class TenantServiceImpl implements TenantService {
 
         String cleaned = value.trim();
 
-        return cleaned.isEmpty()
-                ? null
-                : cleaned;
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
-    // =========================================================
-    // ENTITY → RESPONSE
-    // =========================================================
-
-    private TenantResponse mapToResponse(
-            Tenant tenant) {
+    private TenantResponse mapToResponse(Tenant tenant) {
 
         User user = tenant.getUser();
 
-        TenantResponse response =
-                new TenantResponse();
+        TenantResponse response = new TenantResponse();
 
-        // =====================================================
-        // TENANT ID
-        // =====================================================
+        response.setTenantId(tenant.getTenantId());
 
-        response.setTenantId(
-                tenant.getTenantId()
-        );
+        response.setUserId(user.getId());
 
-        // =====================================================
-        // USER ID
-        // =====================================================
+        response.setFirstName(user.getFirstName());
 
-        response.setUserId(
-                user.getId()
-        );
+        response.setLastName(user.getLastName());
 
-        // =====================================================
-        // USER INFORMATION
-        // =====================================================
+        response.setEmail(user.getEmail());
 
-        response.setFirstName(
-                user.getFirstName()
-        );
-
-        response.setLastName(
-                user.getLastName()
-        );
-
-        response.setEmail(
-                user.getEmail()
-        );
-
-        response.setPhone(
-                user.getPhone()
-        );
+        response.setPhone(user.getPhone());
 
         if (user.getGender() != null) {
-            response.setGender(
-                    user.getGender().name()
-            );
+            response.setGender(user.getGender().name());
         }
 
         if (user.getRole() != null) {
-            response.setRole(
-                    user.getRole().name()
-            );
+            response.setRole(user.getRole().name());
         }
 
         if (user.getStatus() != null) {
-            response.setStatus(
-                    user.getStatus().name()
-            );
+            response.setStatus(user.getStatus().name());
         }
 
-        // =====================================================
-        // TENANT PERSONAL DETAILS
-        // =====================================================
-
-        response.setDateOfBirth(
-                tenant.getDateOfBirth()
-        );
+        response.setDateOfBirth(tenant.getDateOfBirth());
 
         response.setAlternatePhone(
-                tenant.getAlternatePhone()
-        );
-
-        // =====================================================
-        // PROFESSIONAL DETAILS
-        // =====================================================
+                tenant.getAlternatePhone());
 
         response.setOccupation(
-                tenant.getOccupation()
-        );
+                tenant.getOccupation());
 
         response.setCompanyName(
-                tenant.getCompanyName()
-        );
+                tenant.getCompanyName());
 
         response.setMonthlyIncome(
-                tenant.getMonthlyIncome()
-        );
-
-        // =====================================================
-        // EMERGENCY CONTACT
-        // =====================================================
+                tenant.getMonthlyIncome());
 
         response.setEmergencyContactName(
-                tenant.getEmergencyContactName()
-        );
+                tenant.getEmergencyContactName());
 
         response.setEmergencyContactPhone(
-                tenant.getEmergencyContactPhone()
-        );
-
-        // =====================================================
-        // CURRENT ADDRESS
-        // =====================================================
+                tenant.getEmergencyContactPhone());
 
         response.setCurrentAddress(
-                tenant.getCurrentAddress()
-        );
+                tenant.getCurrentAddress());
 
         response.setCity(
-                tenant.getCity()
-        );
+                tenant.getCity());
 
         response.setState(
-                tenant.getState()
-        );
+                tenant.getState());
 
         response.setPincode(
-                tenant.getPincode()
-        );
-
-        // =====================================================
-        // AUDIT
-        // =====================================================
+                tenant.getPincode());
 
         response.setCreatedAt(
-                tenant.getCreatedAt()
-        );
+                tenant.getCreatedAt());
 
         response.setUpdatedAt(
-                tenant.getUpdatedAt()
-        );
+                tenant.getUpdatedAt());
 
         return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TenantResponse> searchTenants(String keyword) {
+
+        if (keyword == null || keyword.isBlank()) {
+            return getAllTenants();
+        }
+
+        String searchKeyword = keyword.trim();
+
+        return tenantRepository
+                .findByUser_FirstNameContainingIgnoreCaseOrUser_LastNameContainingIgnoreCaseOrUser_EmailContainingIgnoreCaseOrUser_PhoneContaining(
+                        searchKeyword,
+                        searchKeyword,
+                        searchKeyword,
+                        searchKeyword
+                )
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TenantResponse> getTenantsByStatus(
+            UserStatus status) {
+
+        if (status == null) {
+            throw new IllegalArgumentException(
+                    "Status is required");
+        }
+
+        return tenantRepository
+                .findByUser_Status(status)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 }

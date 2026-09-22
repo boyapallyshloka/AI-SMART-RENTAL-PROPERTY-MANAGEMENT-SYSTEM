@@ -6,6 +6,7 @@ import {
   getPropertyById,
   deleteProperty,
   updatePropertyStatus,
+  removePropertyManager,
   CANONICAL_PROPERTY_STATUSES,
   mapBackendPropertyToUi,
 } from '../../api/propertyApi'
@@ -31,7 +32,9 @@ import {
   deleteAmenity,
 } from '../../api/amenityApi'
 import { getBuildingsByProperty, deleteBuilding } from '../../api/buildingApi'
+import { formatCurrency } from '../../utils/currency'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
+import AssignPropertyManagerModal from '../../components/properties/AssignPropertyManagerModal'
 import { StatusBadge, Button, EmptyState, Loader, Input, Select } from '../../components/ui'
 import {
   ArrowLeft,
@@ -60,6 +63,11 @@ import {
   X,
   Layers,
   ArrowRight,
+  UserCheck,
+  UserX,
+  UserPlus,
+  Mail,
+  Phone,
 } from 'lucide-react'
 
 export { mapBackendPropertyToUi }
@@ -78,6 +86,15 @@ const formatAreaType = (type) => {
     default:
       return type.replace(/_/g, ' ')
   }
+}
+
+const resolveImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const backendBase = import.meta?.env?.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+    : 'http://localhost:8080'
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 export default function PropertyDetailsPage() {
@@ -137,6 +154,10 @@ export default function PropertyDetailsPage() {
   const [buildingsError, setBuildingsError] = useState(null)
   const [buildingDeleteTarget, setBuildingDeleteTarget] = useState(null)
   const [isDeletingBuilding, setIsDeletingBuilding] = useState(false)
+  const [isAssignManagerOpen, setIsAssignManagerOpen] = useState(false)
+  const [isUnassignConfirmOpen, setIsUnassignConfirmOpen] = useState(false)
+  const [isUnassigningManager, setIsUnassigningManager] = useState(false)
+  const [managerActionError, setManagerActionError] = useState(null)
 
   useEffect(() => {
     if (location.state?.toastMessage) {
@@ -151,13 +172,56 @@ export default function PropertyDetailsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      // Consolidated details endpoint: GET /api/owner/properties/{id}/details
-      // Replaces separate getPropertyById(id)
-      const response = await getPropertyDetails(id)
-      const data = response?.data || response
+      // Consolidated details endpoint alongside getPropertyById to guarantee manager data integrity
+      // Backend /details omits manager fields in convertPropertyToResponse, but /properties/{id} preserves them
+      const [detailsRes, singleRes] = await Promise.allSettled([
+        getPropertyDetails(id),
+        getPropertyById(id),
+      ])
 
-      // 1. Property
-      const rawProperty = data?.property || (data?.propertyId ? data : null)
+      const data =
+        detailsRes.status === 'fulfilled'
+          ? detailsRes.value?.data || detailsRes.value
+          : null
+      const singleProp =
+        singleRes.status === 'fulfilled'
+          ? singleRes.value?.data || singleRes.value
+          : null
+
+      if (!data && !singleProp) {
+        throw detailsRes.status === 'rejected'
+          ? detailsRes.reason
+          : new Error('Property not found')
+      }
+
+      // 1. Property: merge consolidated details with single property to guarantee manager fields
+      const detailsProp = data?.property || (data?.propertyId ? data : null)
+      const rawProperty = {
+        ...(detailsProp || {}),
+        ...(singleProp || {}),
+        // Preserve manager fields if present in either source
+        propertyManagerId:
+          singleProp?.propertyManagerId ??
+          detailsProp?.propertyManagerId ??
+          data?.propertyManagerId ??
+          null,
+        managerName:
+          singleProp?.managerName ??
+          detailsProp?.managerName ??
+          data?.managerName ??
+          null,
+        managerEmail:
+          singleProp?.managerEmail ??
+          detailsProp?.managerEmail ??
+          data?.managerEmail ??
+          null,
+        managerPhone:
+          singleProp?.managerPhone ??
+          detailsProp?.managerPhone ??
+          data?.managerPhone ??
+          null,
+      }
+
       if (rawProperty && (rawProperty.propertyId || rawProperty.id)) {
         setProperty(mapBackendPropertyToUi(rawProperty))
       } else {
@@ -284,6 +348,40 @@ export default function PropertyDetailsPage() {
     } finally {
       setIsDeletingBuilding(false)
     }
+  }
+
+  const handleConfirmUnassignManager = async () => {
+    if (!id || isUnassigningManager) return
+    setIsUnassigningManager(true)
+    setManagerActionError(null)
+    try {
+      await removePropertyManager(id)
+      setIsUnassignConfirmOpen(false)
+      setToastMessage('Property manager unassigned successfully.')
+      await loadProperty()
+      setTimeout(() => setToastMessage(''), 3000)
+    } catch (err) {
+      console.error('Failed to remove property manager:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to remove property manager. Please try again.'
+      setManagerActionError(errorMsg)
+      setIsUnassignConfirmOpen(false)
+    } finally {
+      setIsUnassigningManager(false)
+    }
+  }
+
+  const handleManagerAssignedSuccess = async () => {
+    const isReplacing = Boolean(property?.propertyManagerId)
+    setToastMessage(
+      isReplacing
+        ? 'Property manager replaced successfully.'
+        : 'Property manager assigned successfully.'
+    )
+    await loadProperty()
+    setTimeout(() => setToastMessage(''), 3000)
   }
 
   useEffect(() => {
@@ -786,7 +884,24 @@ export default function PropertyDetailsPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={
+                property.propertyManagerId ? (
+                  <UserCheck className="w-4 h-4 text-[#315A7D]" />
+                ) : (
+                  <UserPlus className="w-4 h-4 text-[#315A7D]" />
+                )
+              }
+              onClick={() => {
+                setManagerActionError(null)
+                setIsAssignManagerOpen(true)
+              }}
+            >
+              {property.propertyManagerId ? 'Manage PM' : 'Assign Manager'}
+            </Button>
             <Link
               to={`/owner/buildings/new?propertyId=${id}`}
               state={{ propertyId: id, propertyName: property.name }}
@@ -857,6 +972,35 @@ export default function PropertyDetailsPage() {
                 <span className="text-xs text-[#5B6875] font-mono">
                   ID: {property.id}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManagerActionError(null)
+                    setIsAssignManagerOpen(true)
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
+                    property.propertyManagerId
+                      ? 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8] hover:bg-[#E2F2E4]'
+                      : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6] hover:bg-[#EAF2F7] hover:text-[#315A7D]'
+                  }`}
+                  title={
+                    property.propertyManagerId
+                      ? `Assigned: ${property.managerName || 'Manager'}`
+                      : 'Click to assign a property manager'
+                  }
+                >
+                  {property.propertyManagerId ? (
+                    <>
+                      <UserCheck className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      <span>Manager: {property.managerName || 'Assigned'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5 text-[#8C9BA8]" />
+                      <span>No Manager Assigned</span>
+                    </>
+                  )}
+                </button>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
                 {property.name}
@@ -957,7 +1101,7 @@ export default function PropertyDetailsPage() {
             <div className="space-y-3">
               <div className="relative rounded-2xl overflow-hidden aspect-video md:aspect-[21/9] max-h-[460px] bg-slate-900 border border-[#D9E0E6]">
                 <img
-                  src={currentImage?.imageUrl}
+                  src={resolveImageUrl(currentImage?.imageUrl)}
                   alt={property.name}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
@@ -1037,7 +1181,7 @@ export default function PropertyDetailsPage() {
                       }`}
                     >
                       <img
-                        src={img.imageUrl}
+                        src={resolveImageUrl(img.imageUrl)}
                         alt={`Thumbnail ${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -1871,7 +2015,7 @@ export default function PropertyDetailsPage() {
                                             ? 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
                                             : 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
                                         }`}
-                                        title={`Unit ${u.unitNumber} (${u.unitType || 'Unit'})${u.monthlyRent ? ` - ₹${Number(u.monthlyRent).toLocaleString('en-IN')}/mo` : ''}`}
+                                        title={`Unit ${u.unitNumber} (${u.unitType || 'Unit'})${u.monthlyRent ? ` - ${formatCurrency(u.monthlyRent)}/mo` : ''}`}
                                       >
                                         <span>Unit {u.unitNumber}</span>
                                         {u.unitType && (
@@ -1994,6 +2138,145 @@ export default function PropertyDetailsPage() {
               </div>
             </div>
 
+            {/* Property Manager Card */}
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-[#315A7D]" />
+                  <h2 className="text-base font-semibold text-[#243447]">
+                    Property Manager
+                  </h2>
+                </div>
+                {property.propertyManagerId ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3F7D58]" />
+                    Assigned
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F7F8FA] text-[#5B6875] border border-[#D9E0E6]">
+                    Not Assigned
+                  </span>
+                )}
+              </div>
+
+              {managerActionError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center justify-between">
+                  <span>{managerActionError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setManagerActionError(null)}
+                    className="text-red-600 hover:text-red-800 font-bold"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+
+              {property.propertyManagerId ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                    <div className="w-10 h-10 rounded-full bg-[#EAF2F7] border border-[#D9E0E6] flex items-center justify-center text-[#315A7D] font-bold text-xs shrink-0">
+                      {property.managerName
+                        ? property.managerName
+                            .split(' ')
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()
+                        : 'PM'}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-bold text-[#243447] truncate">
+                        {property.managerName || 'Assigned Manager'}
+                      </p>
+                      <div className="space-y-1 text-xs text-[#5B6875]">
+                        {property.managerEmail ? (
+                          <p className="flex items-center gap-1.5 truncate">
+                            <Mail className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <a
+                              href={`mailto:${property.managerEmail}`}
+                              className="hover:text-[#315A7D] truncate underline decoration-dotted"
+                            >
+                              {property.managerEmail}
+                            </a>
+                          </p>
+                        ) : null}
+                        <p className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                          <span>
+                            {property.managerPhone ? (
+                              <a
+                                href={`tel:${property.managerPhone}`}
+                                className="hover:text-[#315A7D]"
+                              >
+                                {property.managerPhone}
+                              </a>
+                            ) : (
+                              <span className="text-[#8C9BA8] italic">No phone number</span>
+                            )}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => {
+                        setManagerActionError(null)
+                        setIsAssignManagerOpen(true)
+                      }}
+                      leftIcon={<UserCheck className="w-3.5 h-3.5 text-[#315A7D]" />}
+                    >
+                      Replace Manager
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      onClick={() => {
+                        setManagerActionError(null)
+                        setIsUnassignConfirmOpen(true)
+                      }}
+                      disabled={isUnassigningManager}
+                      leftIcon={<UserX className="w-3.5 h-3.5 text-red-500" />}
+                    >
+                      Unassign
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-4 text-center space-y-3">
+                  <div className="w-11 h-11 rounded-full bg-[#F7F8FA] border border-[#D9E0E6] flex items-center justify-center text-[#5B6875] mx-auto">
+                    <UserX className="w-5 h-5 text-[#8C9BA8]" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[#243447]">
+                      No Manager Assigned
+                    </p>
+                    <p className="text-[11px] text-[#5B6875] max-w-xs mx-auto leading-relaxed">
+                      Assign an active property manager to oversee daily operations, inspections, and tenant requests.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      setManagerActionError(null)
+                      setIsAssignManagerOpen(true)
+                    }}
+                    leftIcon={<UserPlus className="w-3.5 h-3.5" />}
+                  >
+                    Assign Manager
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {/* Property Overview Card */}
             <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-sm space-y-3">
               <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
@@ -2040,6 +2323,23 @@ export default function PropertyDetailsPage() {
                 Quick Actions
               </h2>
               <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  leftIcon={
+                    property.propertyManagerId ? (
+                      <UserCheck className="w-4 h-4 text-[#315A7D]" />
+                    ) : (
+                      <UserPlus className="w-4 h-4 text-[#315A7D]" />
+                    )
+                  }
+                  onClick={() => {
+                    setManagerActionError(null)
+                    setIsAssignManagerOpen(true)
+                  }}
+                >
+                  {property.propertyManagerId ? 'Replace Property Manager' : 'Assign Property Manager'}
+                </Button>
                 <Link
                   to={`/owner/buildings/new?propertyId=${property.id}`}
                   state={{ propertyId: property.id, propertyName: property.name }}
@@ -2095,6 +2395,37 @@ export default function PropertyDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Assign / Replace Property Manager Modal */}
+      <AssignPropertyManagerModal
+        isOpen={isAssignManagerOpen}
+        onClose={() => setIsAssignManagerOpen(false)}
+        property={property}
+        onSuccess={handleManagerAssignedSuccess}
+      />
+
+      {/* Unassign Property Manager Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isUnassignConfirmOpen}
+        onClose={() => !isUnassigningManager && setIsUnassignConfirmOpen(false)}
+        onConfirm={handleConfirmUnassignManager}
+        title="Unassign Property Manager"
+        itemName={property.managerName || 'the assigned manager'}
+        message={
+          <>
+            Are you sure you want to unassign{' '}
+            <strong className="text-[#243447]">
+              {property.managerName || 'the manager'}
+            </strong>{' '}
+            from <strong className="text-[#243447]">{property.name}</strong>?
+          </>
+        }
+        consequenceMessage="This manager will immediately lose operational access to this property, including its buildings, units, and maintenance requests."
+        confirmText="Unassign Manager"
+        confirmVariant="danger"
+        confirmIcon={<UserX className="w-3.5 h-3.5" />}
+        isLoading={isUnassigningManager}
+      />
 
       {/* Delete Building Modal */}
       <DeleteConfirmModal

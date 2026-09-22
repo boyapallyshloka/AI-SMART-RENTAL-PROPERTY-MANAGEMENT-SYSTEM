@@ -74,7 +74,11 @@ export const mapFurnishingStatusToBackend = (furnishing) => {
 export const mapParkingAvailableToBackend = (parking) => {
   if (typeof parking === 'boolean') return parking
   if (typeof parking === 'string') {
-    return parking.toLowerCase() !== 'none' && parking.trim() !== ''
+    const s = parking.trim().toLowerCase()
+    if (s === 'false' || s === 'no' || s === 'none' || s === '0' || s === '') {
+      return false
+    }
+    return true
   }
   return false
 }
@@ -112,7 +116,9 @@ export const buildPropertyRequestPayload = (data = {}) => {
     : (data.type ? mapPropertyTypeToBackend(data.type) : undefined)
 
   const description =
-    data.description != null ? String(data.description).trim() : undefined
+    data.description != null && String(data.description).trim() !== ''
+      ? String(data.description).trim()
+      : undefined
 
   const rawArea = data.totalArea != null ? data.totalArea : data.area
   const totalArea =
@@ -171,6 +177,10 @@ export const buildPropertyRequestPayload = (data = {}) => {
   delete payload.imageUrl
   delete payload.totalUnits
   delete payload.occupiedUnits
+  delete payload.propertyManagerId
+  delete payload.managerName
+  delete payload.managerEmail
+  delete payload.managerPhone
 
   return Object.fromEntries(
     Object.entries(payload).filter(([_, v]) => v !== undefined)
@@ -263,6 +273,18 @@ export const updatePropertyStatus = async (id, status) => {
 }
 
 /**
+ * Resolves relative image URLs (e.g. /uploads/property-images/...) to full backend URLs
+ */
+export const resolveImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const backendBase = import.meta?.env?.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+    : 'http://localhost:8080'
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+/**
  * Maps Spring Boot PropertyResponse to the shape expected by UI components
  * Backend fields:
  * - propertyId -> id, propertyId
@@ -296,6 +318,35 @@ export const mapBackendPropertyToUi = (prop) => {
     propertyName: prop.propertyName ?? prop.name,
     type,
     propertyType: prop.propertyType ?? prop.type,
+    // Property Manager fields (canonical backend contract with defensive fallbacks)
+    propertyManagerId:
+      prop.propertyManagerId ??
+      prop.property_manager_id ??
+      prop.managerId ??
+      prop.manager_id ??
+      prop.propertyManager?.propertyManagerId ??
+      prop.propertyManager?.id ??
+      null,
+    managerName:
+      prop.managerName ??
+      prop.manager_name ??
+      (prop.propertyManager
+        ? [prop.propertyManager.firstName, prop.propertyManager.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || prop.propertyManager.name
+        : null) ??
+      null,
+    managerEmail:
+      prop.managerEmail ??
+      prop.manager_email ??
+      prop.propertyManager?.email ??
+      null,
+    managerPhone:
+      prop.managerPhone ??
+      prop.manager_phone ??
+      prop.propertyManager?.phone ??
+      null,
     // Address fields: keep in current fallback/empty state until Phase 4 Address integration
     address: prop.address || '',
     city: prop.city || '',
@@ -360,6 +411,11 @@ export const mapBackendPropertyToUi = (prop) => {
         ? 1
         : 0,
     images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
+    imageUrl: prop.imageUrl
+      ? resolveImageUrl(prop.imageUrl)
+      : Array.isArray(prop.images) && prop.images[0]?.imageUrl
+      ? resolveImageUrl(prop.images[0].imageUrl)
+      : '',
     amenities: Array.isArray(prop.amenities) ? prop.amenities : [],
     ownerId: prop.ownerId,
     ownerName: prop.ownerName,
@@ -377,3 +433,76 @@ export const getProperties = async () => {
   const data = Array.isArray(response) ? response : response?.data || []
   return data.map(mapBackendPropertyToUi)
 }
+
+/**
+ * GET /api/owner/managers/eligible
+ * Retrieve all active Property Manager profiles eligible for assignment
+ */
+export const getEligiblePropertyManagers = async () => {
+  return axiosClient.get('/owner/managers/eligible')
+}
+
+/**
+ * PUT /api/owner/properties/{propertyId}/manager/{propertyManagerId}
+ * Assign or replace a Property Manager for a property
+ */
+export const assignPropertyManager = async (propertyId, propertyManagerId) => {
+  return axiosClient.put(`/owner/properties/${propertyId}/manager/${propertyManagerId}`)
+}
+
+/**
+ * DELETE /api/owner/properties/{propertyId}/manager
+ * Remove the assigned Property Manager from a property
+ */
+export const removePropertyManager = async (propertyId) => {
+  return axiosClient.delete(`/owner/properties/${propertyId}/manager`)
+}
+
+// ============================================================================
+// Property Manager Assigned Properties API Layer
+// Controller: PropertyManagerController (/api/property-manager)
+// Role: PROPERTY_MANAGER
+// ============================================================================
+
+/**
+ * GET /api/property-manager/properties
+ * Retrieve all properties assigned to the authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @returns {Promise<Array<Object>>} List of PropertyResponse
+ */
+export const getManagerAssignedProperties = async () => {
+  return axiosClient.get('/property-manager/properties')
+}
+
+/**
+ * GET /api/property-manager/properties/{propertyId}
+ * Retrieve single assigned property details summary by ID for authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @param {number|string} propertyId
+ * @returns {Promise<Object>} PropertyResponse
+ */
+export const getManagerAssignedPropertyById = async (propertyId) => {
+  return axiosClient.get(`/property-manager/properties/${propertyId}`)
+}
+
+/**
+ * GET /api/property-manager/me
+ * Retrieve profile information for the authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @returns {Promise<Object>} PropertyManagerResponse
+ */
+export const getManagerProfile = async () => {
+  return axiosClient.get('/property-manager/me')
+}
+
+/**
+ * GET /api/property-manager/properties/{propertyId}/details
+ * Retrieve full property details (including address, buildings, images) for authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @param {number|string} propertyId
+ * @returns {Promise<Object>} PropertyDetailsResponse
+ */
+export const getManagerAssignedPropertyDetails = async (propertyId) => {
+  return axiosClient.get(`/property-manager/properties/${propertyId}/details`)
+}
+

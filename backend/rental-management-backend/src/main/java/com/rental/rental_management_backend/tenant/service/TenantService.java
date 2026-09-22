@@ -39,4 +39,7 @@ public interface TenantService {
     );
 
     void deleteTenant(Long tenantId);
+    List<TenantResponse> searchTenants(String keyword);
+
+    List<TenantResponse> getTenantsByStatus(UserStatus status);
 }

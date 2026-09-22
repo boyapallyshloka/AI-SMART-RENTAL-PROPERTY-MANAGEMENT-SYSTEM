@@ -30,6 +30,14 @@ public class PropertyResponse {
 
     private String ownerName;
 
+    private Long propertyManagerId;
+
+    private String managerName;
+
+    private String managerEmail;
+
+    private String managerPhone;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -123,6 +131,38 @@ public class PropertyResponse {
 
     public void setOwnerName(String ownerName) {
         this.ownerName = ownerName;
+    }
+
+    public Long getPropertyManagerId() {
+        return propertyManagerId;
+    }
+
+    public void setPropertyManagerId(Long propertyManagerId) {
+        this.propertyManagerId = propertyManagerId;
+    }
+
+    public String getManagerName() {
+        return managerName;
+    }
+
+    public void setManagerName(String managerName) {
+        this.managerName = managerName;
+    }
+
+    public String getManagerEmail() {
+        return managerEmail;
+    }
+
+    public void setManagerEmail(String managerEmail) {
+        this.managerEmail = managerEmail;
+    }
+
+    public String getManagerPhone() {
+        return managerPhone;
+    }
+
+    public void setManagerPhone(String managerPhone) {
+        this.managerPhone = managerPhone;
     }
 
     public LocalDateTime getCreatedAt() {

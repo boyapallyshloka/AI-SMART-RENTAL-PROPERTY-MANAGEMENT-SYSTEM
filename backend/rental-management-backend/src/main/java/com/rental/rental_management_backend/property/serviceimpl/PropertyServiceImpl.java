@@ -2,6 +2,9 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.List;
+import com.rental.rental_management_backend.property.enums.FurnishingStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
+import com.rental.rental_management_backend.property.enums.PropertyStatus;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +21,8 @@ import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyService;
+import com.rental.rental_management_backend.property.entity.PropertyManager;
+import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 
 @Service
 @Transactional
@@ -26,13 +31,16 @@ public class PropertyServiceImpl implements PropertyService {
     private final PropertyRepository propertyRepository;
 
     private final UserRepository userRepository;
+    private final PropertyManagerRepository propertyManagerRepository;
 
     public PropertyServiceImpl(
             PropertyRepository propertyRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PropertyManagerRepository propertyManagerRepository) {
 
         this.propertyRepository = propertyRepository;
         this.userRepository = userRepository;
+        this.propertyManagerRepository = propertyManagerRepository;
     }
 
     @Override
@@ -81,14 +89,25 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     public List<PropertyResponse> getMyProperties() {
 
-        User owner = getLoggedInUser();
+        User user = getLoggedInUser();
 
-        validateOwner(owner);
+        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+            return propertyRepository.findByOwner(user)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
 
-        return propertyRepository.findByOwner(owner)
-                .stream()
-                .map(this::convertToResponse)
-                .toList();
+        if (user.getRole() == RoleType.TENANT) {
+            return propertyRepository.findByStatus(PropertyStatus.AVAILABLE)
+                    .stream()
+                    .map(this::convertToResponse)
+                    .toList();
+        }
+
+        validateOwner(user);
+
+        return List.of();
     }
 
     @Override
@@ -339,6 +358,20 @@ public class PropertyServiceImpl implements PropertyService {
             );
         }
 
+        if (property.getPropertyManager() != null) {
+            PropertyManager pm = property.getPropertyManager();
+            response.setPropertyManagerId(pm.getPropertyManagerId());
+            if (pm.getUser() != null) {
+                User u = pm.getUser();
+                String firstName = u.getFirstName() != null ? u.getFirstName().trim() : "";
+                String lastName = u.getLastName() != null ? u.getLastName().trim() : "";
+                String fullName = (firstName + " " + lastName).trim();
+                response.setManagerName(fullName.isEmpty() ? null : fullName);
+                response.setManagerEmail(u.getEmail());
+                response.setManagerPhone(u.getPhone());
+            }
+        }
+
         response.setCreatedAt(
                 property.getCreatedAt()
         );
@@ -349,4 +382,136 @@ public class PropertyServiceImpl implements PropertyService {
 
         return response;
     }
+    
+    @Override
+    public PropertyResponse assignPropertyManager(
+            Long propertyId,
+            Long propertyManagerId) {
+
+        User owner = getLoggedInUser();
+
+        validateOwner(owner);
+
+        Property property =
+                propertyRepository
+                        .findByPropertyIdAndOwner(propertyId, owner)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found or you do not have permission"));
+
+        PropertyManager propertyManager =
+                propertyManagerRepository
+                        .findById(propertyManagerId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager not found with id: "
+                                                + propertyManagerId));
+
+        if (propertyManager.getUser() == null) {
+            throw new IllegalArgumentException(
+                    "Property manager is not linked to a user");
+        }
+
+        if (propertyManager.getUser().getRole()
+                != RoleType.PROPERTY_MANAGER) {
+
+            throw new IllegalArgumentException(
+                    "Selected user is not a PROPERTY_MANAGER");
+        }
+
+        property.setPropertyManager(propertyManager);
+
+        Property updatedProperty =
+                propertyRepository.save(property);
+
+        return convertToResponse(updatedProperty);
+    }
+
+
+    @Override
+    public PropertyResponse removePropertyManager(
+            Long propertyId) {
+
+        User owner = getLoggedInUser();
+
+        validateOwner(owner);
+
+        Property property =
+                propertyRepository
+                        .findByPropertyIdAndOwner(propertyId, owner)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found or you do not have permission"));
+
+        property.setPropertyManager(null);
+
+        Property updatedProperty =
+                propertyRepository.save(property);
+
+        return convertToResponse(updatedProperty);
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> searchAvailableProperties(
+            String searchQuery,
+            String city,
+            PropertyType propertyType,
+            FurnishingStatus furnishingStatus,
+            Boolean parkingAvailable,
+            Double minRent,
+            Double maxRent,
+            Integer bedrooms
+    ) {
+
+        // Normalize text filters
+        searchQuery = normalize(searchQuery);
+        city = normalize(city);
+
+        // Validate rent range
+        if (minRent != null && minRent < 0) {
+            throw new IllegalArgumentException("Minimum rent cannot be negative");
+        }
+
+        if (maxRent != null && maxRent < 0) {
+            throw new IllegalArgumentException("Maximum rent cannot be negative");
+        }
+
+        if (minRent != null && maxRent != null && minRent > maxRent) {
+            throw new IllegalArgumentException(
+                    "Minimum rent cannot be greater than maximum rent"
+            );
+        }
+
+        // Validate bedrooms
+        if (bedrooms != null && bedrooms < 0) {
+            throw new IllegalArgumentException(
+                    "Bedrooms cannot be negative"
+            );
+        }
+
+        List<Property> properties = propertyRepository.searchAvailableProperties(
+                PropertyStatus.AVAILABLE,
+                searchQuery,
+                city,
+                propertyType,
+                furnishingStatus,
+                parkingAvailable,
+                minRent,
+                maxRent,
+                bedrooms
+        );
+
+        return properties.stream()
+                .map(this::convertToResponse)
+                .toList();
+    }
+    private String normalize(String value) {
+
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+    
 }

@@ -14,7 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 export const filterOptions = {
-  propertyTypes: ['All Types', 'Apartment', 'Studio', 'Townhouse', 'Condo', 'Penthouse', 'Villa'],
+  propertyTypes: ['All Types', 'Apartment', 'House', 'Villa', 'PG', 'Hostel', 'Commercial', 'Studio', 'Townhouse', 'Condo', 'Penthouse'],
   cities: ['All Locations', 'Austin, TX', 'Seattle, WA', 'San Diego, CA', 'Miami, FL', 'New York, NY', 'Chicago, IL', 'Denver, CO', 'San Francisco, CA'],
   bedrooms: [
     { label: 'Any Beds', value: 'all' },

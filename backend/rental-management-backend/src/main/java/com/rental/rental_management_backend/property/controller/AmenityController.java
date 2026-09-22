@@ -1,7 +1,5 @@
 package com.rental.rental_management_backend.property.controller;
 
-
-
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -24,7 +22,6 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/amenities")
-@PreAuthorize("hasRole('PROPERTY_OWNER')")
 public class AmenityController {
 
     private final AmenityService amenityService;
@@ -37,9 +34,11 @@ public class AmenityController {
 
     // =========================================================
     // CREATE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @PostMapping
+    @PreAuthorize("hasRole('PROPERTY_OWNER')")
     public ResponseEntity<AmenityResponse> createAmenity(
             @Valid @RequestBody AmenityRequest request) {
 
@@ -53,9 +52,11 @@ public class AmenityController {
 
     // =========================================================
     // GET ALL AMENITIES
+    // PROPERTY OWNER + PROPERTY MANAGER
     // =========================================================
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<List<AmenityResponse>>
             getAllAmenities() {
 
@@ -65,9 +66,11 @@ public class AmenityController {
 
     // =========================================================
     // GET AMENITY BY ID
+    // PROPERTY OWNER + PROPERTY MANAGER
     // =========================================================
 
     @GetMapping("/{amenityId}")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<AmenityResponse>
             getAmenityById(
                     @PathVariable Long amenityId) {
@@ -79,9 +82,11 @@ public class AmenityController {
 
     // =========================================================
     // UPDATE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @PutMapping("/{amenityId}")
+    @PreAuthorize("hasRole('PROPERTY_OWNER')")
     public ResponseEntity<AmenityResponse>
             updateAmenity(
                     @PathVariable Long amenityId,
@@ -96,9 +101,11 @@ public class AmenityController {
 
     // =========================================================
     // DELETE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @DeleteMapping("/{amenityId}")
+    @PreAuthorize("hasRole('PROPERTY_OWNER')")
     public ResponseEntity<String> deleteAmenity(
             @PathVariable Long amenityId) {
 
@@ -110,11 +117,12 @@ public class AmenityController {
 
     // =========================================================
     // ADD AMENITY TO PROPERTY
+    // PROPERTY OWNER + PROPERTY MANAGER
     // =========================================================
 
     @PostMapping(
-            "/property/{propertyId}/amenity/{amenityId}"
-    )
+            "/property/{propertyId}/amenity/{amenityId}")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<AmenityResponse>
             addAmenityToProperty(
                     @PathVariable Long propertyId,
@@ -130,9 +138,11 @@ public class AmenityController {
 
     // =========================================================
     // GET PROPERTY AMENITIES
+    // PROPERTY OWNER + PROPERTY MANAGER
     // =========================================================
 
     @GetMapping("/property/{propertyId}")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<List<AmenityResponse>>
             getPropertyAmenities(
                     @PathVariable Long propertyId) {
@@ -144,11 +154,12 @@ public class AmenityController {
 
     // =========================================================
     // REMOVE AMENITY FROM PROPERTY
+    // PROPERTY OWNER + PROPERTY MANAGER
     // =========================================================
 
     @DeleteMapping(
-            "/property/{propertyId}/amenity/{amenityId}"
-    )
+            "/property/{propertyId}/amenity/{amenityId}")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<String>
             removeAmenityFromProperty(
                     @PathVariable Long propertyId,
