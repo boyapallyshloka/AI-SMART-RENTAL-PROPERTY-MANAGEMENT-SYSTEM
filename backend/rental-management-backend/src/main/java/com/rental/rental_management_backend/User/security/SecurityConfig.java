@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.User.security;
 
 import java.util.List;
@@ -24,11 +23,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
-
-        this.jwtAuthenticationFilter =
-                jwtAuthenticationFilter;
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     // =========================================================
@@ -37,7 +33,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-
         return new BCryptPasswordEncoder();
     }
 
@@ -47,14 +42,35 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        configuration.setAllowedOrigins(
+                List.of("http://localhost:5173"));
+
+        configuration.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
+                ));
+
+        configuration.setAllowedHeaders(
+                List.of(
+                        "Authorization",
+                        "Content-Type"
+                ));
+
         configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
@@ -67,105 +83,143 @@ public class SecurityConfig {
             HttpSecurity http) throws Exception {
 
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-            // Disable CSRF because JWT is used
+            // CORS
+            .cors(cors ->
+                cors.configurationSource(
+                    corsConfigurationSource()))
+
+            // JWT application - CSRF disabled
             .csrf(csrf -> csrf.disable())
 
-            // JWT authentication is stateless
+            // JWT is stateless
             .sessionManagement(session ->
-                    session.sessionCreationPolicy(
-                            SessionCreationPolicy.STATELESS
-                    )
-            )
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS))
+
+            // =================================================
+            // AUTHORIZATION
+            // =================================================
 
             .authorizeHttpRequests(auth -> auth
 
-                // =================================================
-                // PUBLIC AUTHENTICATION
-                // =================================================
+                // -------------------------------------------------
+                // PUBLIC AUTHENTICATION APIs
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/auth/register",
-                        "/api/auth/login",
-                        "/api/auth/forgot-password",
-                        "/api/auth/reset-password"
+                    "/api/auth/register",
+                    "/api/auth/login",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password"
                 ).permitAll()
 
-                // =================================================
-                // SWAGGER + PROPERTY IMAGES
-                // =================================================
+                // -------------------------------------------------
+                // SWAGGER
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/v3/api-docs/**",
-                        "/uploads/property-images/**"
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**"
                 ).permitAll()
 
-                // =================================================
+                // -------------------------------------------------
+                // PROPERTY IMAGES
+                // -------------------------------------------------
+
+                .requestMatchers(
+                    "/uploads/property-images/**"
+                ).permitAll()
+
+                // -------------------------------------------------
                 // CURRENT USER PROFILE
-                // ALL AUTHENTICATED ROLES
-                // =================================================
+                // ALL AUTHENTICATED USERS
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/users/me"
+                    "/api/users/me"
                 ).authenticated()
 
-                // =================================================
+                // -------------------------------------------------
                 // USER MANAGEMENT
-                // SUPER_ADMIN ONLY
-                // =================================================
+                // SUPER ADMIN ONLY
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/users/**"
+                    "/api/users/**"
                 ).hasRole("SUPER_ADMIN")
 
-                // =================================================
-                // FUTURE PROPERTY OWNER APIs
-                // =================================================
+                // -------------------------------------------------
+                // PROPERTY OWNER APIs
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/owner/**"
+                    "/api/owner/**"
                 ).hasRole("PROPERTY_OWNER")
 
-                // =================================================
-                // FUTURE PROPERTY MANAGER APIs
-                // =================================================
+                // -------------------------------------------------
+                // PROPERTY MANAGER APIs
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/manager/**"
+                    "/api/manager/**"
                 ).hasRole("PROPERTY_MANAGER")
 
-                // =================================================
-                // FUTURE TENANT APIs
-                // =================================================
+                // -------------------------------------------------
+                // TENANT APIs
+                // -------------------------------------------------
 
                 .requestMatchers(
-                        "/api/tenant/**"
+                    "/api/tenant/**"
                 ).hasRole("TENANT")
 
-                .requestMatchers(
-                        "/api/maintenance/**"
-                ).permitAll()
+                // -------------------------------------------------
+                // MAINTENANCE REQUEST
+                // Authentication required
+                // Actual roles handled by @PreAuthorize
+                // -------------------------------------------------
 
-                // =================================================
-                // ALL OTHER APIs
-                // =================================================
+                .requestMatchers(
+                    "/api/maintenance/**"
+                ).authenticated()
+
+                // -------------------------------------------------
+                // MAINTENANCE WORKER
+                // Authentication required
+                // Actual roles handled by @PreAuthorize
+                // -------------------------------------------------
+
+                .requestMatchers(
+                    "/api/maintenance-workers/**"
+                ).authenticated()
+
+                // -------------------------------------------------
+                // MAINTENANCE ASSIGNMENT
+                // Authentication required
+                // Actual roles handled by @PreAuthorize
+                // -------------------------------------------------
+
+                .requestMatchers(
+                    "/api/maintenance-assignments/**"
+                ).authenticated()
+
+                // -------------------------------------------------
+                // EVERYTHING ELSE
+                // -------------------------------------------------
 
                 .anyRequest().authenticated()
             )
 
-            // =====================================================
+            // =================================================
             // JWT FILTER
-            // =====================================================
+            // =================================================
 
             .addFilterBefore(
-                    jwtAuthenticationFilter,
-                    UsernamePasswordAuthenticationFilter.class
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
             );
 
         return http.build();
     }
 }
-

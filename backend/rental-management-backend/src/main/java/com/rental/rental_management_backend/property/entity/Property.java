@@ -65,7 +65,7 @@ public class Property {
     @Column(name = "status", nullable = false, length = 30)
     private PropertyStatus status = PropertyStatus.DRAFT;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 

@@ -90,7 +90,7 @@ public class Unit {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "floor_id", nullable = false)
     private Floor floor;
 

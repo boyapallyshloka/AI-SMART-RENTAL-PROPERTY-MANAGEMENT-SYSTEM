@@ -14,29 +14,23 @@ import com.rental.rental_management_backend.User.enums.UserStatus;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByEmail(String email);
+	Optional<User> findByEmail(String email);
 
-    Optional<User> findByPhone(String phone);
+	Optional<User> findByPhone(String phone);
 
-    boolean existsByEmail(String email);
+	boolean existsByEmail(String email);
 
-    boolean existsByPhone(String phone);
+	boolean existsByPhone(String phone);
 
-    boolean existsByEmailAndIdNot(String email, Long id);
+	boolean existsByEmailAndIdNot(String email, Long id);
 
-    boolean existsByPhoneAndIdNot(String phone, Long id);
+	boolean existsByPhoneAndIdNot(String phone, Long id);
 
-    Optional<User> findByEmailAndStatus(
-            String email,
-            UserStatus status
-    );
+	Optional<User> findByEmailAndStatus(String email, UserStatus status);
 
-    List<User> findByRole(RoleType role);
+	List<User> findByRole(RoleType role);
 
-    List<User> findByStatus(UserStatus status);
+	List<User> findByStatus(UserStatus status);
 
-    List<User> findByRoleAndStatus(
-            RoleType role,
-            UserStatus status
-    );
+	List<User> findByRoleAndStatus(RoleType role, UserStatus status);
 }

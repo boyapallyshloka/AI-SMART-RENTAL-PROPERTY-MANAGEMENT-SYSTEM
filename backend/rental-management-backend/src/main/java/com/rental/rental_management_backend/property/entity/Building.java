@@ -42,7 +42,7 @@ public class Building {
     @Column(name = "total_floors")
     private Integer totalFloors;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "property_id", nullable = false)
     private Property property;
 
