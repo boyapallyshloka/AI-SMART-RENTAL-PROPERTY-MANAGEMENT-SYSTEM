@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rental.rental_management_backend.User.Repository.PasswordResetTokenRepository;
@@ -29,6 +30,16 @@ import com.rental.rental_management_backend.User.security.JwtService;
 import com.rental.rental_management_backend.User.service.UserService;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
+
+
+
+//import org.springframework.security.core.userdetails.UserDetails;
+//import org.springframework.security.crypto.password.PasswordEncoder;
+//import org.springframework.stereotype.Service;
+//import org.springframework.transaction.annotation.Transactional;
+//
+
+//import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 
 @Service
 @Transactional
