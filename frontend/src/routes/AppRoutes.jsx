@@ -49,7 +49,9 @@ import ManagerDashboardPage from '../pages/manager/ManagerDashboardPage'
 import ManagerPropertiesPage from '../pages/manager/ManagerPropertiesPage'
 import ManagerPropertyDetailsPage from '../pages/manager/ManagerPropertyDetailsPage'
 import ManagerBuildingDetailsPage from '../pages/manager/ManagerBuildingDetailsPage'
+import ManagerApplicationsPage from '../pages/manager/ManagerApplicationsPage'
 import ManagerApplicationDetailsPage from '../pages/manager/ManagerApplicationDetailsPage'
+import ManagerMaintenancePage from '../pages/manager/ManagerMaintenancePage'
 
 // Admin Dashboard Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
@@ -271,7 +273,9 @@ export default function AppRoutes() {
                 <Route path="properties" element={<ManagerPropertiesPage />} />
                 <Route path="properties/:propertyId" element={<ManagerPropertyDetailsPage />} />
                 <Route path="properties/:propertyId/buildings/:buildingId" element={<ManagerBuildingDetailsPage />} />
+                <Route path="applications" element={<ManagerApplicationsPage />} />
                 <Route path="applications/:id" element={<ManagerApplicationDetailsPage />} />
+                <Route path="maintenance" element={<ManagerMaintenancePage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>

@@ -156,10 +156,12 @@ export default function Sidebar({
         navigate('/manager/dashboard')
       } else if (id === 'properties') {
         navigate('/manager/properties')
+      } else if (id === 'applications') {
+        navigate('/manager/applications')
+      } else if (id === 'maintenance') {
+        navigate('/manager/maintenance')
       } else {
         const itemLabels = {
-          applications: 'Applications Review',
-          maintenance: 'Maintenance & Service Requests',
           inspections: 'Property & Unit Inspections',
           agreements: 'Tenant Agreements',
           payments: 'Rent Payments & Invoices',
@@ -257,6 +259,14 @@ export default function Sidebar({
                 item.id === 'properties' &&
                 (location.pathname === '/manager/properties' ||
                   location.pathname.startsWith('/manager/properties/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'applications' &&
+                (location.pathname === '/manager/applications' ||
+                  location.pathname.startsWith('/manager/applications/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'maintenance' &&
+                (location.pathname === '/manager/maintenance' ||
+                  location.pathname.startsWith('/manager/maintenance/'))) ||
               (isPropertyManager(role) &&
                 item.id === 'dashboard' &&
                 location.pathname === '/manager/dashboard')

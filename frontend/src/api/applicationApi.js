@@ -87,7 +87,7 @@ export const getApplicationsForUnit = async (unitId) => {
 
 /**
  * OWNER / MANAGER - Review an application (Approve or Reject)
- * Endpoint: PATCH /api/rental-applications/{applicationId}/review
+ * Endpoint: PUT /api/rental-applications/{applicationId}/review
  *
  * @param {number|string} applicationId
  * @param {Object} reviewData
@@ -96,13 +96,27 @@ export const getApplicationsForUnit = async (unitId) => {
  * @returns {Promise<Object>} RentalApplicationResponse
  */
 export const reviewApplication = async (applicationId, { status, rejectionReason }) => {
-  return await axiosClient.patch(`/rental-applications/${applicationId}/review`, {
+  const payload = {
     status,
-    rejectionReason: rejectionReason || null,
-  })
+  }
+  if (status === APPLICATION_STATUSES.REJECTED && rejectionReason && rejectionReason.trim()) {
+    payload.rejectionReason = rejectionReason.trim()
+  }
+  return await axiosClient.put(`/rental-applications/${applicationId}/review`, payload)
 }
 
 // Alias for updateApplicationStatus
 export const updateApplicationStatus = async (applicationId, status, rejectionReason) => {
   return await reviewApplication(applicationId, { status, rejectionReason })
+}
+
+/**
+ * OWNER / MANAGER / ADMIN - Retrieve applications for a specific property
+ * Endpoint: GET /api/rental-applications/property/{propertyId}
+ *
+ * @param {number|string} propertyId
+ * @returns {Promise<Array<Object>>} List of RentalApplicationResponse
+ */
+export const getApplicationsForProperty = async (propertyId) => {
+  return await axiosClient.get(`/rental-applications/property/${propertyId}`)
 }
