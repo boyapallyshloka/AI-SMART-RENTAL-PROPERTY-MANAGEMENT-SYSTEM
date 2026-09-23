@@ -3,6 +3,17 @@ import { Building2, Users, IndianRupee, Home } from 'lucide-react'
 
 /**
  * KPI Summary Cards for Owner Properties
+ * Synchronized with real backend building, floor, and unit data.
+ * 
+ * Strict metrics:
+ * - totalUnits = sum of actual totalUnits
+ * - occupiedUnits = sum of actual occupiedUnits
+ * - vacantUnits = sum of actual vacantUnits
+ * - reservedUnits = sum of actual reservedUnits
+ * - maintenanceUnits = sum of actual maintenanceUnits
+ * - occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
+ * - monthlyRevenue = sum of monthlyRent for OCCUPIED units only
+ * 
  * @param {Object} props
  * @param {Array} props.properties
  */
@@ -10,7 +21,7 @@ export default function PropertySummaryCard({ properties = [] }) {
   const totalProperties = properties.length
 
   const totalUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.totalUnits) || 1),
+    (sum, p) => sum + (Number(p.totalUnits) || 0),
     0
   )
 
@@ -19,20 +30,32 @@ export default function PropertySummaryCard({ properties = [] }) {
     0
   )
 
+  const vacantUnits = properties.reduce(
+    (sum, p) => sum + (Number(p.vacantUnits) || 0),
+    0
+  )
+
+  const reservedUnits = properties.reduce(
+    (sum, p) => sum + (Number(p.reservedUnits) || 0),
+    0
+  )
+
+  const maintenanceUnits = properties.reduce(
+    (sum, p) => sum + (Number(p.maintenanceUnits) || 0),
+    0
+  )
+
   const occupancyRate =
     totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
 
   const monthlyRevenue = properties.reduce(
-    (sum, p) =>
-      sum + (Number(p.monthlyRent) || 0) * (Number(p.occupiedUnits) || 1),
+    (sum, p) => sum + (Number(p.occupiedRevenue) || 0),
     0
   )
 
-  const availableUnits = Math.max(0, totalUnits - occupiedUnits)
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-      {/* Total Properties */}
+      {/* 1. Total Properties */}
       <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
@@ -47,16 +70,18 @@ export default function PropertySummaryCard({ properties = [] }) {
             {totalProperties}
           </p>
           <p className="text-xs text-[#5B6875] mt-0.5">
-            Active managed real estate
+            Active real estate listings
           </p>
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
-          <span>Multi & Single family</span>
-          <span className="text-[#315A7D] font-semibold">100% Listed</span>
+          <span>Portfolio status</span>
+          <span className="text-[#315A7D] font-semibold">
+            {totalProperties > 0 ? 'Managed' : 'No properties'}
+          </span>
         </div>
       </div>
 
-      {/* Total Units */}
+      {/* 2. Total Units & Explicit Status Breakdown */}
       <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
@@ -70,19 +95,21 @@ export default function PropertySummaryCard({ properties = [] }) {
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
             {totalUnits}
           </p>
-          <p className="text-xs text-[#5B6875] mt-0.5">
-            {occupiedUnits} occupied &bull; {availableUnits} available
+          <p className="text-xs text-[#5B6875] mt-0.5 truncate">
+            {occupiedUnits} occupied &bull; {vacantUnits} vacant
+            {reservedUnits > 0 ? ` • ${reservedUnits} res.` : ''}
+            {maintenanceUnits > 0 ? ` • ${maintenanceUnits} maint.` : ''}
           </p>
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
-          <span>Vacant units</span>
+          <span>Ready to lease</span>
           <span className="text-[#3F7D58] font-semibold">
-            {availableUnits} Ready
+            {vacantUnits} Vacant
           </span>
         </div>
       </div>
 
-      {/* Occupancy Rate */}
+      {/* 3. Occupancy Rate */}
       <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
@@ -105,11 +132,13 @@ export default function PropertySummaryCard({ properties = [] }) {
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Target: &gt;90%</span>
-          <span className="text-[#315A7D] font-semibold">Healthy</span>
+          <span className="text-[#315A7D] font-semibold">
+            {occupancyRate >= 80 ? 'Healthy' : 'Below Target'}
+          </span>
         </div>
       </div>
 
-      {/* Estimated Monthly Revenue */}
+      {/* 4. Estimated Monthly Revenue (OCCUPIED Units Only) */}
       <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
@@ -124,12 +153,14 @@ export default function PropertySummaryCard({ properties = [] }) {
             ₹{Number(monthlyRevenue || 0).toLocaleString('en-IN')}
           </p>
           <p className="text-xs text-[#5B6875] mt-0.5">
-            Gross lease receivables
+            Occupied unit receivables
           </p>
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
-          <span>Collection rate</span>
-          <span className="text-[#B7791F] font-semibold">98.4%</span>
+          <span>Yielding units</span>
+          <span className="text-[#B7791F] font-semibold">
+            {occupiedUnits} Occupied
+          </span>
         </div>
       </div>
     </div>

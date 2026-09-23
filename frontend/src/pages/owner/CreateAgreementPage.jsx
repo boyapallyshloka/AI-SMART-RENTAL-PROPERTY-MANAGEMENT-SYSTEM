@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { getMyProperties, mapBackendPropertyToUi } from '../../api/propertyApi'
-import { getStoredApplications } from '../../utils/applicationMockData'
+import { getOwnerApplications } from '../../api/applicationApi'
 import { addAgreement } from '../../utils/agreementMockData'
 import {
   Button,
@@ -65,7 +65,18 @@ export default function CreateAgreementPage() {
 
       if (!isMounted) return
 
-      const appList = getStoredApplications()
+      let appList = []
+      try {
+        const rawApps = await getOwnerApplications()
+        appList = (Array.isArray(rawApps) ? rawApps : []).map((a) => ({
+          applicantName: a.tenantName || 'Applicant',
+          email: a.tenantEmail || '',
+          propertyName: a.propertyName || '',
+          unit: a.unitNumber || '',
+        }))
+      } catch (err) {
+        console.error('Failed to load owner applications for agreement:', err)
+      }
 
       setProperties(propList)
       setApplicants(appList)

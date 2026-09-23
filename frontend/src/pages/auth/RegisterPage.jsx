@@ -21,7 +21,7 @@ import {
   isTenant,
   isPropertyOwner,
   isPropertyManager,
-  isOwnerOrManager,
+  getDashboardPath,
 } from '../../utils/roles'
 
 export default function RegisterPage() {
@@ -110,9 +110,7 @@ export default function RegisterPage() {
           })
           setIsPendingApproval(true)
         } else {
-          const destination = isOwnerOrManager(role)
-            ? '/owner/dashboard'
-            : '/tenant/dashboard'
+          const destination = getDashboardPath(role)
           navigate(destination, { replace: true })
         }
       } else {

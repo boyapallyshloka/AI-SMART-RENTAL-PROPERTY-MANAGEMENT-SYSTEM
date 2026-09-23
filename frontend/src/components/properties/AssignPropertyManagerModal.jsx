@@ -55,11 +55,11 @@ export default function AssignPropertyManagerModal({
         }
       } catch (err) {
         if (isMounted) {
-          console.error('Failed to fetch eligible managers:', err)
+          console.error('Failed to fetch property managers:', err)
           const message =
             err?.response?.data?.message ||
             err?.message ||
-            'Unable to load eligible property managers. Please try again.'
+            'Unable to load property managers. Please try again.'
           setFetchError(message)
         }
       } finally {
@@ -225,7 +225,7 @@ export default function AssignPropertyManagerModal({
 
             {isLoadingManagers ? (
               <div className="py-8 flex flex-col items-center justify-center border border-[#D9E0E6] rounded-xl bg-[#F7F8FA]">
-                <Loader size="sm" text="Loading eligible managers..." center />
+                <Loader size="sm" text="Loading property managers..." center />
               </div>
             ) : fetchError ? (
               <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-xs text-red-800 space-y-2">
@@ -250,7 +250,7 @@ export default function AssignPropertyManagerModal({
                         setFetchError(
                           e?.response?.data?.message ||
                             e?.message ||
-                            'Failed to load eligible managers.'
+                            'Failed to load property managers.'
                         )
                       })
                       .finally(() => setIsLoadingManagers(false))
@@ -262,10 +262,10 @@ export default function AssignPropertyManagerModal({
             ) : managers.length === 0 ? (
               <div className="p-4 rounded-xl border border-dashed border-[#D9E0E6] bg-[#F7F8FA] text-center space-y-1">
                 <p className="text-xs font-semibold text-[#243447]">
-                  No Eligible Property Managers Found
+                  No Property Managers Found
                 </p>
                 <p className="text-[11px] text-[#5B6875]">
-                  Only active users registered with the Property Manager role are eligible for assignment.
+                  Only active users registered with the Property Manager role can be assigned.
                 </p>
               </div>
             ) : (
@@ -281,7 +281,7 @@ export default function AssignPropertyManagerModal({
                   className="w-full text-xs rounded-xl border border-[#D9E0E6] p-2.5 bg-white text-[#243447] focus:outline-none focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] cursor-pointer disabled:opacity-60"
                   required
                 >
-                  <option value="">-- Choose an eligible property manager --</option>
+                  <option value="">-- Select Property Manager --</option>
                   {managers.map((mgr) => {
                     const isCurrentlyAssigned =
                       property?.propertyManagerId != null &&

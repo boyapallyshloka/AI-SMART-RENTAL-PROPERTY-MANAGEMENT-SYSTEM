@@ -5,7 +5,7 @@ import { ROLES } from '../../utils/roles'
 import {
   getManagerAssignedPropertyById,
   getManagerAssignedPropertyDetails,
-  updateProperty,
+  updateManagerAssignedProperty,
 } from '../../api/propertyApi'
 import {
   getAddress,
@@ -242,7 +242,7 @@ export default function ManagerPropertyDetailsPage() {
     }
 
     try {
-      await updateProperty(propertyId, payload)
+      await updateManagerAssignedProperty(propertyId, payload)
       showToast('Property details updated successfully.')
       setIsEditPropertyOpen(false)
       await loadData()
@@ -251,8 +251,10 @@ export default function ManagerPropertyDetailsPage() {
       const status = err?.response?.status || err?.status
       if (status === 403) {
         setPropertyUpdateError(
-          'Backend Permission Notice: PUT /api/owner/properties/{id} currently requires the Property Owner role. The manager edit request has been formulated strictly according to specification.'
+          'You do not have permission to edit this property as it is not assigned to you.'
         )
+      } else if (status === 404) {
+        setPropertyUpdateError('Property not found or does not exist.')
       } else {
         setPropertyUpdateError(
           err?.response?.data?.message ||
@@ -485,7 +487,10 @@ export default function ManagerPropertyDetailsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsEditPropertyOpen(true)}
+              onClick={() => {
+                setPropertyUpdateError(null)
+                setIsEditPropertyOpen(true)
+              }}
               leftIcon={<Edit className="w-4 h-4 text-[#315A7D]" />}
             >
               Edit Property

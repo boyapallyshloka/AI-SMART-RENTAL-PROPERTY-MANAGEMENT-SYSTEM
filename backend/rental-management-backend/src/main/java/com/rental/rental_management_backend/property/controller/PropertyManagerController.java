@@ -7,13 +7,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 import com.rental.rental_management_backend.property.dto.PropertyManagerResponse;
+import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.service.PropertyManagerService;
-import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/property-manager")
@@ -86,5 +91,20 @@ public class PropertyManagerController {
 
         return ResponseEntity.ok(
                 propertyManagerService.getMyAssignedPropertyDetails(propertyId));
+    }
+
+    // ==========================================
+    // UPDATE ASSIGNED PROPERTY
+    // ==========================================
+
+    @PutMapping("/properties/{propertyId}")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public ResponseEntity<PropertyResponse> updateAssignedProperty(
+            @PathVariable Long propertyId,
+            @Valid @RequestBody PropertyRequest request) {
+
+        return ResponseEntity.ok(
+                propertyManagerService.updateAssignedProperty(propertyId, request)
+        );
     }
 }

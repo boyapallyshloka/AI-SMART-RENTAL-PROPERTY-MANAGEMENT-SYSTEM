@@ -29,10 +29,7 @@ export default function RoleRoute({ allowedRole, children }) {
   const allowedList = (Array.isArray(allowedRole) ? allowedRole : [allowedRole]).map(normalizeRole)
   const canonicalUserRole = normalizeRole(user.role)
 
-  // Manager is permitted on owner routes
-  const isAllowed =
-    allowedList.includes(canonicalUserRole) ||
-    (allowedList.includes(ROLES.PROPERTY_OWNER) && canonicalUserRole === ROLES.PROPERTY_MANAGER)
+  const isAllowed = allowedList.includes(canonicalUserRole)
 
   if (!isAllowed) {
     // Redirect unauthorized user to their respective valid dashboard

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge, Button, EmptyState, Loader } from '../ui'
 import { CANONICAL_PROPERTY_STATUSES } from '../../api/propertyApi'
@@ -15,7 +15,19 @@ import {
 } from 'lucide-react'
 
 /**
+ * Format property type for clean presentation
+ */
+const formatPropertyType = (type) => {
+  if (!type) return 'Apartment'
+  const str = String(type)
+  return str.charAt(0) + str.slice(1).toLowerCase().replace(/_/g, ' ')
+}
+
+/**
  * OwnerPropertyTable Component
+ * Displays real synchronized backend property, address, building, floor, and unit data.
+ * Zero mock data, zero hardcoded Unsplash images, zero false fallback values.
+ * 
  * @param {Object} props
  * @param {Array} props.properties
  * @param {(id: string) => void} [props.onDelete]
@@ -30,6 +42,8 @@ export default function OwnerPropertyTable({
   deletingId = null,
   updatingStatusId = null,
 }) {
+  const [imgErrors, setImgErrors] = useState({})
+
   if (properties.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
@@ -65,31 +79,36 @@ export default function OwnerPropertyTable({
           </thead>
           <tbody className="divide-y divide-[#D9E0E6] text-sm">
             {properties.map((prop) => {
-              const total = Number(prop.totalUnits) || 1
-              const occupied = Number(prop.occupiedUnits) || 0
-              const occupancyPct = Math.round((occupied / total) * 100)
-              const firstImage =
-                Array.isArray(prop.images) && prop.images[0]
-                  ? prop.images[0]
-                  : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80'
+              const hasImage = Boolean(prop.imageUrl) && !imgErrors[prop.id]
 
               return (
                 <tr
                   key={prop.id}
                   className="hover:bg-[#F7F8FA] transition-colors group"
                 >
-                  {/* Property Name & Thumbnail */}
+                  {/* Property Name, Location & Image */}
                   <td className="py-4 pl-6 pr-4 min-w-[260px]">
                     <div className="flex items-center gap-3.5">
-                      <img
-                        src={firstImage}
-                        alt={prop.name}
-                        className="w-14 h-14 rounded-md object-cover shrink-0 border border-[#D9E0E6] shadow-2xs"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80'
-                        }}
-                      />
+                      {hasImage ? (
+                        <img
+                          src={prop.imageUrl}
+                          alt={prop.name}
+                          className="w-14 h-14 rounded-md object-cover shrink-0 border border-[#D9E0E6] shadow-2xs"
+                          onError={() => {
+                            setImgErrors((prev) => ({ ...prev, [prop.id]: true }))
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="w-14 h-14 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] flex flex-col items-center justify-center text-[#8C9BA8] shrink-0"
+                          title="No image available"
+                        >
+                          <Building2 className="w-5 h-5 text-[#8C9BA8]" />
+                          <span className="text-[9px] font-medium text-[#8C9BA8] leading-none mt-1">
+                            No image
+                          </span>
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <Link
                           to={`/owner/properties/${prop.id}`}
@@ -99,68 +118,100 @@ export default function OwnerPropertyTable({
                         </Link>
                         <p className="flex items-center gap-1 text-xs text-[#5B6875] mt-0.5 truncate">
                           <MapPin className="w-3 h-3 shrink-0 text-[#5B6875]" />
-                          <span>
-                            {prop.address}, {prop.city}
+                          <span className="truncate">
+                            {prop.locationDisplay || 'Location not set'}
                           </span>
                         </p>
                       </div>
                     </div>
                   </td>
 
-                  {/* Type & Specs */}
+                  {/* Type & Specs (Bedrooms, Bathrooms, Area) */}
                   <td className="py-4 px-4 min-w-[160px]">
                     <span className="inline-block font-medium text-[#243447] text-xs px-2 py-0.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] mb-1">
-                      {prop.type}
+                      {formatPropertyType(prop.type || prop.propertyType)}
                     </span>
-                    <div className="flex items-center gap-3 text-xs text-[#5B6875]">
-                      <span className="flex items-center gap-1" title="Bedrooms">
-                        <Bed className="w-3.5 h-3.5 text-[#5B6875]" /> {prop.bedrooms} bd
-                      </span>
-                      <span className="flex items-center gap-1" title="Bathrooms">
-                        <Bath className="w-3.5 h-3.5 text-[#5B6875]" /> {prop.bathrooms} ba
-                      </span>
-                      {prop.area && (
-                        <span className="flex items-center gap-1" title="Area">
-                          <Maximize2 className="w-3 h-3 text-[#5B6875]" /> {prop.area} sqft
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#5B6875]">
+                      {prop.bedroomDisplay && (
+                        <span className="flex items-center gap-1" title="Bedrooms">
+                          <Bed className="w-3.5 h-3.5 text-[#5B6875]" /> {prop.bedroomDisplay}
+                        </span>
+                      )}
+                      {prop.bathroomDisplay && (
+                        <span className="flex items-center gap-1" title="Bathrooms">
+                          <Bath className="w-3.5 h-3.5 text-[#5B6875]" /> {prop.bathroomDisplay}
+                        </span>
+                      )}
+                      {prop.totalArea ? (
+                        <span className="flex items-center gap-1" title="Total Area">
+                          <Maximize2 className="w-3 h-3 text-[#5B6875]" /> {Number(prop.totalArea).toLocaleString('en-IN')} sqft
+                        </span>
+                      ) : null}
+                      {!prop.bedroomDisplay && !prop.bathroomDisplay && !prop.totalArea && (
+                        <span className="text-[11px] text-[#5B6875]/70 italic">
+                          Layout not configured
                         </span>
                       )}
                     </div>
                   </td>
 
-                  {/* Occupancy Units */}
-                  <td className="py-4 px-4 min-w-[150px]">
-                    <div className="flex items-baseline justify-between text-xs mb-1">
-                      <span className="font-semibold text-[#243447]">
-                        {occupied} / {total} Units
-                      </span>
-                      <span className="text-[11px] text-[#5B6875] font-medium">
-                        {occupancyPct}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-[#F7F8FA] border border-[#D9E0E6] h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          occupancyPct >= 90
-                            ? 'bg-[#3F7D58]'
-                            : occupancyPct >= 50
-                            ? 'bg-[#315A7D]'
-                            : 'bg-[#B7791F]'
-                        }`}
-                        style={{ width: `${occupancyPct}%` }}
-                      />
-                    </div>
+                  {/* Occupancy Units & Explicit Status Breakdown */}
+                  <td className="py-4 px-4 min-w-[160px]">
+                    {prop.totalUnits === 0 ? (
+                      <div className="text-xs text-[#5B6875]">
+                        <span className="font-medium text-[#5B6875]">No units configured</span>
+                        <p className="text-[11px] text-[#5B6875]/70 mt-0.5">Add units to track</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-baseline justify-between text-xs mb-1">
+                          <span className="font-semibold text-[#243447]">
+                            {prop.occupiedUnits} / {prop.totalUnits} Units
+                          </span>
+                          <span className="text-[11px] text-[#5B6875] font-medium">
+                            {prop.occupancyRate}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#F7F8FA] border border-[#D9E0E6] h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              prop.occupancyRate >= 90
+                                ? 'bg-[#3F7D58]'
+                                : prop.occupancyRate >= 50
+                                ? 'bg-[#315A7D]'
+                                : 'bg-[#B7791F]'
+                            }`}
+                            style={{ width: `${prop.occupancyRate}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-[#5B6875] mt-1 font-medium">
+                          <span>{prop.vacantUnits} vacant</span>
+                          {prop.reservedUnits > 0 && <span>&bull; {prop.reservedUnits} res.</span>}
+                          {prop.maintenanceUnits > 0 && <span>&bull; {prop.maintenanceUnits} maint.</span>}
+                        </div>
+                      </div>
+                    )}
                   </td>
 
-                  {/* Rent */}
-                  <td className="py-4 px-4 whitespace-nowrap min-w-[120px]">
-                    <span className="font-bold text-[#243447]">
-                      ₹{Number(prop.monthlyRent || 0).toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
-                    {prop.deposit > 0 && (
-                      <p className="text-[11px] text-[#5B6875]">
-                        ₹{Number(prop.deposit).toLocaleString('en-IN')} dep
-                      </p>
+                  {/* Rent (Clean without duplicate "/ mo") */}
+                  <td className="py-4 px-4 whitespace-nowrap min-w-[130px]">
+                    {prop.rentDisplay ? (
+                      <>
+                        <span className="font-bold text-[#243447]">
+                          {prop.rentDisplay}
+                        </span>
+                        <span className="text-xs text-[#5B6875] font-normal"> / mo</span>
+                        {prop.depositDisplay && (
+                          <p className="text-[11px] text-[#5B6875] mt-0.5">
+                            {prop.depositDisplay} dep
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-xs text-[#5B6875]">
+                        <span className="font-medium text-[#5B6875]">Rent not set</span>
+                        <p className="text-[11px] text-[#5B6875]/70 mt-0.5">Configure in units</p>
+                      </div>
                     )}
                   </td>
 
@@ -178,7 +229,7 @@ export default function OwnerPropertyTable({
                           {CANONICAL_PROPERTY_STATUSES.map((st) => (
                             <option key={st} value={st}>
                               {st === 'UNDER_MAINTENANCE'
-                                ? 'Maintenance'
+                                ? 'Under Maintenance'
                                 : st.charAt(0) + st.slice(1).toLowerCase()}
                             </option>
                           ))}

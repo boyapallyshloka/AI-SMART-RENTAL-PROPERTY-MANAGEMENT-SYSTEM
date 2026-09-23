@@ -3,6 +3,7 @@ package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -13,7 +14,9 @@ import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 import com.rental.rental_management_backend.property.dto.PropertyManagerResponse;
+import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
@@ -275,5 +278,50 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
         return propertyDetailsService.getPropertyDetailsForManager(
                 propertyId,
                 property);
+    }
+
+    @Override
+    public PropertyResponse updateAssignedProperty(
+            Long propertyId,
+            PropertyRequest request) {
+
+        User user = getLoggedInUser();
+
+        validatePropertyManager(user);
+
+        PropertyManager propertyManager =
+                propertyManagerRepository.findByUser(user)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property manager profile not found"));
+
+        Property property =
+                propertyRepository.findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with id: "
+                                                + propertyId));
+
+        if (property.getPropertyManager() == null ||
+                !property.getPropertyManager()
+                        .getPropertyManagerId()
+                        .equals(propertyManager.getPropertyManagerId())) {
+
+            throw new AccessDeniedException(
+                    "You do not have permission to edit this property as it is not assigned to you");
+        }
+
+        property.setPropertyName(request.getPropertyName());
+        property.setPropertyType(request.getPropertyType());
+        property.setDescription(request.getDescription());
+        property.setTotalArea(request.getTotalArea());
+        property.setFurnishingStatus(request.getFurnishingStatus());
+        property.setParkingAvailable(request.getParkingAvailable());
+        property.setYearBuilt(request.getYearBuilt());
+
+        Property updatedProperty =
+                propertyRepository.save(property);
+
+        return convertPropertyToResponse(updatedProperty);
     }
 }

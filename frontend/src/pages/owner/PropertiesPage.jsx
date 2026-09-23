@@ -4,7 +4,8 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertySummaryCard from '../../components/properties/PropertySummaryCard'
 import OwnerPropertyTable from '../../components/properties/OwnerPropertyTable'
 import {
-  getMyProperties,
+  getOwnerPropertiesWithDetails,
+  mapOwnerPropertyDetailsToUi,
   mapBackendPropertyToUi,
   deleteProperty,
   updatePropertyStatus,
@@ -22,7 +23,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 
-export { mapBackendPropertyToUi }
+export { mapOwnerPropertyDetailsToUi, mapBackendPropertyToUi }
 
 export default function PropertiesPage() {
   const location = useLocation()
@@ -50,12 +51,10 @@ export default function PropertiesPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await getMyProperties()
-      const data = Array.isArray(response) ? response : response?.data || []
-      const mapped = data.map(mapBackendPropertyToUi)
-      setProperties(mapped)
+      const data = await getOwnerPropertiesWithDetails()
+      setProperties(data)
     } catch (err) {
-      console.error('Failed to load properties from backend:', err)
+      console.error('Failed to load owner properties from backend:', err)
       const errorMsg =
         err?.response?.data?.message ||
         err?.message ||
@@ -120,16 +119,22 @@ export default function PropertiesPage() {
 
   // Filtered properties
   const filteredProperties = properties.filter((item) => {
-    const name = (item.name || '').toLowerCase()
-    const address = (item.address || '').toLowerCase()
+    const name = (item.name || item.propertyName || '').toLowerCase()
+    const address = (item.address || item.addressLine1 || '').toLowerCase()
+    const area = (item.area || '').toLowerCase()
     const city = (item.city || '').toLowerCase()
+    const state = (item.state || '').toLowerCase()
+    const fullLocation = (item.fullLocation || item.locationDisplay || '').toLowerCase()
     const query = searchQuery.trim().toLowerCase()
 
     const matchesSearch =
       query === '' ||
       name.includes(query) ||
       address.includes(query) ||
-      city.includes(query)
+      area.includes(query) ||
+      city.includes(query) ||
+      state.includes(query) ||
+      fullLocation.includes(query)
 
     const matchesType =
       typeFilter === 'all' ||

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertyDetailsSection from '../../components/properties/PropertyDetailsSection'
-import { getPropertyDetails, resolveImageUrl } from '../../api/propertyApi'
+import { getPublicPropertyDetails, resolveImageUrl } from '../../api/propertyApi'
 import { useAuth } from '../../context/AuthContext'
 import {
   ArrowLeft,
@@ -95,7 +95,7 @@ export default function PropertyDetailsPage({
     setError(null)
 
     try {
-      const data = await getPropertyDetails(activeId)
+      const data = await getPublicPropertyDetails(activeId)
       if (data && data.property) {
         setDetails({
           property: data.property,

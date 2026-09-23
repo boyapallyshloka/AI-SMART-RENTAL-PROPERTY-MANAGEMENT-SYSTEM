@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertyFilter from '../../components/properties/PropertyFilter'
 import PropertyGrid from '../../components/properties/PropertyGrid'
-import { getProperties } from '../../api/propertyApi'
+import { getPublicProperties, searchPublicProperties } from '../../api/propertyApi'
 import { Building2, IndianRupee, Sparkles, AlertCircle, RefreshCw } from 'lucide-react'
 
 const INITIAL_FILTERS = {
@@ -143,30 +143,59 @@ export default function PropertySearchPage() {
   const [filters, setFilters] = useState(INITIAL_FILTERS)
   const [sortBy, setSortBy] = useState('ai_match')
   const [favoriteIds, setFavoriteIds] = useState([])
+  const isFirstRender = useRef(true)
 
-  const loadProperties = async () => {
+  const hasActiveBackendFilters = (f) => {
+    return Boolean(
+      (f.searchQuery && f.searchQuery.trim()) ||
+      (f.city && f.city !== 'All Locations') ||
+      (f.propertyType && f.propertyType !== 'All Types') ||
+      (f.furnishing && f.furnishing !== 'All Furnishing') ||
+      (f.parking && f.parking !== 'All Parking') ||
+      (f.minRent !== undefined && f.minRent !== null && f.minRent !== '') ||
+      (f.maxRent !== undefined && f.maxRent !== null && f.maxRent !== '') ||
+      (f.bedrooms && f.bedrooms !== 'all')
+    )
+  }
+
+  const loadProperties = useCallback(async (currentFilters = filters) => {
     setIsLoading(true)
     setError(null)
     try {
-      const properties = await getProperties()
-      const list = Array.isArray(properties) ? properties : []
-      setRawProperties(list)
+      let list = []
+      if (hasActiveBackendFilters(currentFilters)) {
+        list = await searchPublicProperties(currentFilters)
+      } else {
+        list = await getPublicProperties()
+      }
+      setRawProperties(Array.isArray(list) ? list : [])
     } catch (err) {
       console.error('Failed to load available properties from backend:', err)
       const errorMsg =
-        err?.isAuthError
+        err?.isAuthError || err?.status === 401
           ? 'Authentication required or session expired. Please sign in to view properties.'
+          : err?.isForbidden || err?.status === 403
+          ? 'Access restricted: Please log in with a tenant account to browse available properties.'
           : err?.message || 'Unable to load rental properties. Please try again.'
       setError(errorMsg)
       setRawProperties([])
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filters])
 
   useEffect(() => {
-    loadProperties()
-  }, [])
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      loadProperties(INITIAL_FILTERS)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      loadProperties(filters)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [filters, loadProperties])
 
   // Filter & Sort Properties
   const filteredProperties = useMemo(() => {
@@ -273,7 +302,7 @@ export default function PropertySearchPage() {
             </div>
             <button
               type="button"
-              onClick={loadProperties}
+              onClick={() => loadProperties(filters)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#E02424] text-white text-xs font-semibold hover:bg-[#C81E1E] transition-colors shrink-0 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getProperties, getPropertyDetails } from '../../api/propertyApi'
+import { getPublicProperties, getPublicPropertyDetails } from '../../api/propertyApi'
 import { createApplication } from '../../api/applicationApi'
+import { uploadTenantDocument, getMyTenantDocuments } from '../../api/tenantDocumentApi'
 import {
   Button,
   Input,
@@ -26,6 +27,8 @@ import {
   ArrowLeft,
   Upload,
   RefreshCw,
+  X,
+  Check,
 } from 'lucide-react'
 
 // INR Currency Formatter
@@ -69,16 +72,167 @@ export default function SubmitApplicationPage() {
   )
   const [message, setMessage] = useState('')
 
-  // Document Filenames (Visual form preservation)
-  const [idFileName, setIdFileName] = useState('driver_license.pdf')
-  const [incomeProofFileName, setIncomeProofFileName] = useState('salary_slips_recent.pdf')
-  const [rentalHistoryFileName, setRentalHistoryFileName] = useState('prior_landlord_reference.pdf')
+  // Real Supporting Documents state (Spring Boot TenantDocumentController /api/tenants/me/documents)
+  const [photoIdType, setPhotoIdType] = useState('DRIVING_LICENSE')
+  const [selectedPhotoIdFile, setSelectedPhotoIdFile] = useState(null)
+  const [uploadedPhotoId, setUploadedPhotoId] = useState(null)
+  const [isUploadingPhotoId, setIsUploadingPhotoId] = useState(false)
+  const [photoIdError, setPhotoIdError] = useState(null)
+
+  const [selectedIncomeFile, setSelectedIncomeFile] = useState(null)
+  const [uploadedIncomeProof, setUploadedIncomeProof] = useState(null)
+  const [isUploadingIncome, setIsUploadingIncome] = useState(false)
+  const [incomeError, setIncomeError] = useState(null)
+
+  const [selectedOtherFile, setSelectedOtherFile] = useState(null)
+  const [uploadedOtherDoc, setUploadedOtherDoc] = useState(null)
+  const [isUploadingOther, setIsUploadingOther] = useState(false)
+  const [otherError, setOtherError] = useState(null)
 
   // UI state
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // Validation constants matching TenantDocumentServiceImpl backend rules
+  const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png']
+  const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+
+  const validateDocumentFile = (file) => {
+    if (!file) return 'Please select a file.'
+    const name = (file.name || '').toLowerCase()
+    const hasValidExt = ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext))
+    if (!hasValidExt) {
+      return 'Only PDF, JPG, JPEG and PNG documents are allowed.'
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return 'Document size must not exceed 10 MB.'
+    }
+    return null
+  }
+
+  // Load existing tenant documents from backend on mount
+  useEffect(() => {
+    let isMounted = true
+    const loadExistingDocs = async () => {
+      try {
+        const docs = await getMyTenantDocuments()
+        if (!isMounted) return
+        const validDocs = Array.isArray(docs) ? docs : []
+        const idDoc = validDocs.find((d) =>
+          ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'].includes(d.documentType)
+        )
+        const incDoc = validDocs.find((d) =>
+          ['INCOME_PROOF', 'EMPLOYMENT_PROOF'].includes(d.documentType)
+        )
+        const othDoc = validDocs.find((d) =>
+          ['OTHER', 'ADDRESS_PROOF'].includes(d.documentType)
+        )
+        if (idDoc) {
+          setUploadedPhotoId(idDoc)
+          if (idDoc.documentType) setPhotoIdType(idDoc.documentType)
+        }
+        if (incDoc) setUploadedIncomeProof(incDoc)
+        if (othDoc) setUploadedOtherDoc(othDoc)
+      } catch (err) {
+        // Non-blocking: tenant might not have uploaded documents yet
+        console.warn('Could not load existing tenant documents:', err)
+      }
+    }
+
+    loadExistingDocs()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const handleFileSelect = (slot, file) => {
+    if (!file) return
+    const validationErr = validateDocumentFile(file)
+    if (slot === 'photoId') {
+      setPhotoIdError(validationErr)
+      setSelectedPhotoIdFile(validationErr ? null : file)
+    } else if (slot === 'income') {
+      setIncomeError(validationErr)
+      setSelectedIncomeFile(validationErr ? null : file)
+    } else if (slot === 'other') {
+      setOtherError(validationErr)
+      setSelectedOtherFile(validationErr ? null : file)
+    }
+  }
+
+  const handleUploadPhotoId = async () => {
+    if (!selectedPhotoIdFile) return
+    const err = validateDocumentFile(selectedPhotoIdFile)
+    if (err) {
+      setPhotoIdError(err)
+      return
+    }
+    setIsUploadingPhotoId(true)
+    setPhotoIdError(null)
+    try {
+      const res = await uploadTenantDocument({
+        file: selectedPhotoIdFile,
+        documentType: photoIdType,
+      })
+      setUploadedPhotoId(res)
+      setSelectedPhotoIdFile(null)
+    } catch (err) {
+      console.error('Failed to upload photo ID:', err)
+      setPhotoIdError(err?.message || 'Failed to upload photo ID document.')
+    } finally {
+      setIsUploadingPhotoId(false)
+    }
+  }
+
+  const handleUploadIncome = async () => {
+    if (!selectedIncomeFile) return
+    const err = validateDocumentFile(selectedIncomeFile)
+    if (err) {
+      setIncomeError(err)
+      return
+    }
+    setIsUploadingIncome(true)
+    setIncomeError(null)
+    try {
+      const res = await uploadTenantDocument({
+        file: selectedIncomeFile,
+        documentType: 'INCOME_PROOF',
+      })
+      setUploadedIncomeProof(res)
+      setSelectedIncomeFile(null)
+    } catch (err) {
+      console.error('Failed to upload income proof:', err)
+      setIncomeError(err?.message || 'Failed to upload income proof.')
+    } finally {
+      setIsUploadingIncome(false)
+    }
+  }
+
+  const handleUploadOther = async () => {
+    if (!selectedOtherFile) return
+    const err = validateDocumentFile(selectedOtherFile)
+    if (err) {
+      setOtherError(err)
+      return
+    }
+    setIsUploadingOther(true)
+    setOtherError(null)
+    try {
+      const res = await uploadTenantDocument({
+        file: selectedOtherFile,
+        documentType: 'OTHER',
+      })
+      setUploadedOtherDoc(res)
+      setSelectedOtherFile(null)
+    } catch (err) {
+      console.error('Failed to upload reference document:', err)
+      setOtherError(err?.message || 'Failed to upload reference document.')
+    } finally {
+      setIsUploadingOther(false)
+    }
+  }
 
   // Load properties on mount
   useEffect(() => {
@@ -87,7 +241,7 @@ export default function SubmitApplicationPage() {
       setIsLoadingProps(true)
       setLoadError(null)
       try {
-        const list = await getProperties()
+        const list = await getPublicProperties()
         if (!isMounted) return
         const validList = Array.isArray(list) ? list : []
         setProperties(validList)
@@ -130,7 +284,7 @@ export default function SubmitApplicationPage() {
     const loadDetails = async () => {
       setIsLoadingDetails(true)
       try {
-        const data = await getPropertyDetails(selectedPropertyId)
+        const data = await getPublicPropertyDetails(selectedPropertyId)
         if (!isMounted) return
         setPropertyDetails(data)
 
@@ -152,8 +306,11 @@ export default function SubmitApplicationPage() {
         if (urlUnitId && rawUnits.some((u) => String(u.unitId) === String(urlUnitId))) {
           setSelectedUnitId(String(urlUnitId))
         } else if (rawUnits.length > 0) {
-          // Prefer available unit if possible
-          const firstVacant = rawUnits.find((u) => (u.status || '').toUpperCase() === 'AVAILABLE')
+          // Prefer vacant/available unit if possible
+          const firstVacant = rawUnits.find((u) => {
+            const st = (u.status || '').toUpperCase()
+            return st === 'VACANT' || st === 'AVAILABLE'
+          })
           setSelectedUnitId(String(firstVacant ? firstVacant.unitId : rawUnits[0].unitId))
         } else {
           setSelectedUnitId('')
@@ -246,6 +403,17 @@ export default function SubmitApplicationPage() {
       }
     }
 
+    if (message && message.length > 1000) {
+      errs.message = 'Message cannot exceed 1000 characters'
+    }
+
+    if (selectedUnitObj && selectedUnitObj.status) {
+      const st = String(selectedUnitObj.status).toUpperCase()
+      if (st !== 'VACANT' && st !== 'AVAILABLE') {
+        errs.unit = `Selected Unit ${selectedUnitObj.unitNumber || ''} is currently ${st}. Only vacant units are available for application.`
+      }
+    }
+
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -259,7 +427,33 @@ export default function SubmitApplicationPage() {
     setSubmitError(null)
 
     try {
-      // Strictly submit only fields supported by backend RentalApplicationCreateRequest
+      // 1. Upload any pending selected files before creating the application
+      if (selectedPhotoIdFile) {
+        const fileErr = validateDocumentFile(selectedPhotoIdFile)
+        if (fileErr) throw new Error(`Government Photo ID: ${fileErr}`)
+        await uploadTenantDocument({
+          file: selectedPhotoIdFile,
+          documentType: photoIdType,
+        })
+      }
+      if (selectedIncomeFile) {
+        const fileErr = validateDocumentFile(selectedIncomeFile)
+        if (fileErr) throw new Error(`Proof of Income: ${fileErr}`)
+        await uploadTenantDocument({
+          file: selectedIncomeFile,
+          documentType: 'INCOME_PROOF',
+        })
+      }
+      if (selectedOtherFile) {
+        const fileErr = validateDocumentFile(selectedOtherFile)
+        if (fileErr) throw new Error(`Rental Reference: ${fileErr}`)
+        await uploadTenantDocument({
+          file: selectedOtherFile,
+          documentType: 'OTHER',
+        })
+      }
+
+      // 2. Strictly submit only fields supported by backend RentalApplicationCreateRequest
       const payload = {
         unitId: Number(selectedUnitId),
         preferredMoveInDate: moveInDate || null,
@@ -559,54 +753,330 @@ export default function SubmitApplicationPage() {
                 placeholder="Include details about preferred lease term, co-occupants, references, or specific questions..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                error={errors.message}
+                maxLength={1000}
+                helperText={`${message ? message.length : 0}/1000 characters`}
                 rows={3}
               />
             </div>
           </div>
 
-          {/* Section 4: Document Uploads (Filename Placeholder) */}
+          {/* Section 4: Document Uploads (Real Multipart Upload) */}
           <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
               <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[#315A7D]" />
-                4. Supporting Documents (Filenames)
+                4. Supporting Documents (Verification)
               </h2>
-              <span className="text-[11px] text-[#5B6875]">Verified Profile Mode</span>
+              <span className="text-[11px] text-[#5B6875]">Verified Tenant Documents</span>
             </div>
 
             <p className="text-xs text-[#5B6875]">
-              Document verification files registered under your tenant account.
+              Upload verified documents stored under your tenant profile. Supported formats: PDF, JPG, JPEG, PNG (max 10 MB per file).
             </p>
 
-            <div className="space-y-3">
-              <div>
-                <Input
-                  label="Government Photo ID Filename"
-                  placeholder="e.g. aadhaar_pan_card.pdf"
-                  value={idFileName}
-                  onChange={(e) => setIdFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                />
+            <div className="space-y-4">
+              {/* Document 1: Government Photo ID */}
+              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#243447]">Government Photo ID</span>
+                    <select
+                      value={photoIdType}
+                      onChange={(e) => setPhotoIdType(e.target.value)}
+                      className="text-[11px] font-medium py-0.5 px-2 rounded border border-[#D9E0E6] bg-white text-[#243447] focus:outline-none focus:border-[#315A7D]"
+                    >
+                      <option value="DRIVING_LICENSE">Driving License</option>
+                      <option value="AADHAAR">Aadhaar Card</option>
+                      <option value="PAN">PAN Card</option>
+                      <option value="PASSPORT">Passport</option>
+                    </select>
+                  </div>
+                  {uploadedPhotoId ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      Uploaded ({uploadedPhotoId.verificationStatus || 'PENDING'})
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-[#5B6875]">Required for identity check</span>
+                  )}
+                </div>
+
+                {uploadedPhotoId && !selectedPhotoIdFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-medium text-[#243447] truncate">{uploadedPhotoId.fileName}</span>
+                    </div>
+                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                      <span>Replace</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {selectedPhotoIdFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-semibold text-[#243447] truncate">{selectedPhotoIdFile.name}</span>
+                      <span className="text-[11px] text-[#5B6875]">({(selectedPhotoIdFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isUploadingPhotoId}
+                        onClick={handleUploadPhotoId}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingPhotoId ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3 h-3" />
+                            <span>Upload</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUploadingPhotoId}
+                        onClick={() => { setSelectedPhotoIdFile(null); setPhotoIdError(null) }}
+                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!uploadedPhotoId && !selectedPhotoIdFile && (
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                      <span>Choose File</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
+                      />
+                    </label>
+                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                  </div>
+                )}
+
+                {photoIdError && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{photoIdError}</span>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Input
-                  label="Proof of Income Filename"
-                  placeholder="e.g. paystubs_recent.pdf"
-                  value={incomeProofFileName}
-                  onChange={(e) => setIncomeProofFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                />
+              {/* Document 2: Proof of Income */}
+              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-semibold text-[#243447]">Proof of Income</span>
+                    <span className="text-[11px] text-[#5B6875] ml-2">(Salary slips / Bank statement)</span>
+                  </div>
+                  {uploadedIncomeProof ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      Uploaded ({uploadedIncomeProof.verificationStatus || 'PENDING'})
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-[#5B6875]">Income verification</span>
+                  )}
+                </div>
+
+                {uploadedIncomeProof && !selectedIncomeFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-medium text-[#243447] truncate">{uploadedIncomeProof.fileName}</span>
+                    </div>
+                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                      <span>Replace</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('income', e.target.files[0])}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {selectedIncomeFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-semibold text-[#243447] truncate">{selectedIncomeFile.name}</span>
+                      <span className="text-[11px] text-[#5B6875]">({(selectedIncomeFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isUploadingIncome}
+                        onClick={handleUploadIncome}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingIncome ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3 h-3" />
+                            <span>Upload</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUploadingIncome}
+                        onClick={() => { setSelectedIncomeFile(null); setIncomeError(null) }}
+                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!uploadedIncomeProof && !selectedIncomeFile && (
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                      <span>Choose File</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('income', e.target.files[0])}
+                      />
+                    </label>
+                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                  </div>
+                )}
+
+                {incomeError && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{incomeError}</span>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Input
-                  label="Rental Reference / History Filename (Optional)"
-                  placeholder="e.g. landlord_recommendation.pdf"
-                  value={rentalHistoryFileName}
-                  onChange={(e) => setRentalHistoryFileName(e.target.value)}
-                  leftIcon={<Upload className="w-4 h-4 text-[#5B6875]" />}
-                />
+              {/* Document 3: Rental Reference / Other Supporting Document */}
+              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-semibold text-[#243447]">Rental Reference / Additional Document</span>
+                    <span className="text-[11px] text-[#5B6875] ml-2">(Optional)</span>
+                  </div>
+                  {uploadedOtherDoc ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      Uploaded ({uploadedOtherDoc.verificationStatus || 'PENDING'})
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-[#5B6875]">Reference or history</span>
+                  )}
+                </div>
+
+                {uploadedOtherDoc && !selectedOtherFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-medium text-[#243447] truncate">{uploadedOtherDoc.fileName}</span>
+                    </div>
+                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                      <span>Replace</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('other', e.target.files[0])}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {selectedOtherFile && (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                      <span className="font-semibold text-[#243447] truncate">{selectedOtherFile.name}</span>
+                      <span className="text-[11px] text-[#5B6875]">({(selectedOtherFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isUploadingOther}
+                        onClick={handleUploadOther}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingOther ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3 h-3" />
+                            <span>Upload</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUploadingOther}
+                        onClick={() => { setSelectedOtherFile(null); setOtherError(null) }}
+                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!uploadedOtherDoc && !selectedOtherFile && (
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                      <span>Choose File</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('other', e.target.files[0])}
+                      />
+                    </label>
+                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                  </div>
+                )}
+
+                {otherError && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{otherError}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
