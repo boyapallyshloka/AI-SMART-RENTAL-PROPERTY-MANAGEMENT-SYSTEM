@@ -4,7 +4,45 @@ import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
 import { Mail, Lock, LogIn } from 'lucide-react'
-import { getDashboardPath } from '../../utils/roles'
+import { getDashboardPath, ROLES, normalizeRole } from '../../utils/roles'
+
+/**
+ * Validates whether a saved redirect destination path is authorized for the given role.
+ * Prevents cross-role navigation leakage (e.g. manager redirected to owner routes).
+ *
+ * @param {string} pathname
+ * @param {string} role
+ * @returns {boolean}
+ */
+const isDestinationValidForRole = (pathname, role) => {
+  if (!pathname || typeof pathname !== 'string') return false
+  const canonicalRole = normalizeRole(role)
+
+  // Disallow root, login, or public auth pages as valid destinations
+  if (
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password')
+  ) {
+    return false
+  }
+
+  if (canonicalRole === ROLES.PROPERTY_MANAGER) {
+    return pathname.startsWith('/manager/') || pathname === '/manager'
+  }
+  if (canonicalRole === ROLES.PROPERTY_OWNER) {
+    return pathname.startsWith('/owner/') || pathname === '/owner'
+  }
+  if (canonicalRole === ROLES.TENANT) {
+    return pathname.startsWith('/tenant/') || pathname === '/tenant'
+  }
+  if (canonicalRole === ROLES.SUPER_ADMIN) {
+    return pathname.startsWith('/admin/') || pathname === '/admin'
+  }
+  return false
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -47,12 +85,13 @@ export default function LoginPage() {
     try {
       const result = await login(email, password)
       if (result.success) {
-        let destination = location.state?.from?.pathname
+        const savedDestination = location.state?.from?.pathname
 
-        // If no prior location or trying to go to login/root, route by role
-        if (!destination || destination === '/login' || destination === '/') {
-          destination = getDashboardPath(result.user.role)
-        }
+        // Only honor saved destination if it is valid for the authenticated user's role
+        const destination =
+          isDestinationValidForRole(savedDestination, result.user.role)
+            ? savedDestination
+            : getDashboardPath(result.user.role)
 
         navigate(destination, { replace: true })
       } else {

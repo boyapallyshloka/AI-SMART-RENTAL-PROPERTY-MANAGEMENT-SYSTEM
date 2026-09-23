@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 // Auth Pages
@@ -46,7 +46,12 @@ import TenantApplicationDetailsPage from '../pages/tenant/TenantApplicationDetai
 
 // Manager Dashboard Pages
 import ManagerDashboardPage from '../pages/manager/ManagerDashboardPage'
+import ManagerPropertiesPage from '../pages/manager/ManagerPropertiesPage'
+import ManagerPropertyDetailsPage from '../pages/manager/ManagerPropertyDetailsPage'
+import ManagerBuildingDetailsPage from '../pages/manager/ManagerBuildingDetailsPage'
+import ManagerApplicationsPage from '../pages/manager/ManagerApplicationsPage'
 import ManagerApplicationDetailsPage from '../pages/manager/ManagerApplicationDetailsPage'
+import ManagerMaintenancePage from '../pages/manager/ManagerMaintenancePage'
 
 // Admin Dashboard Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
@@ -68,11 +73,10 @@ import ContactPage from '../pages/ContactPage'
 // Route Guards
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
-import { ROLES, getDashboardPath, isPropertyOwner } from '../utils/roles'
+import { ROLES, getDashboardPath, isPropertyOwner, isPropertyManager, normalizeRole } from '../utils/roles'
 
 /**
  * Root Redirector: Sends authenticated user to their role dashboard or /login
- * Note: Manager goes to /owner/dashboard per requirements
  */
 function RootRedirect() {
   const { user, loading } = useAuth()
@@ -89,13 +93,54 @@ function RootRedirect() {
 
 /**
  * Guard specifically for Owner-only Building & Unit routes.
- * Prevents managers from accessing building management until explicitly enabled.
+ * Ensures non-owners are redirected to their own role dashboard.
  */
 function OwnerOnlyBuildingRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return null
   if (user && !isPropertyOwner(user.role)) {
-    return <Navigate to="/owner/dashboard" replace />
+    return <Navigate to={getDashboardPath(user.role)} replace />
+  }
+  return children
+}
+
+/**
+ * Guard specifically for Owner-only Application routes.
+ * If user is PROPERTY_MANAGER: immediately redirects to /manager/applications
+ * If user is not PROPERTY_OWNER (and not SUPER_ADMIN): redirects to their role dashboard
+ */
+function OwnerOnlyApplicationRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+
+  const role = normalizeRole(user.role)
+  if (role === ROLES.PROPERTY_MANAGER) {
+    return <Navigate to="/manager/applications" replace />
+  }
+  if (role !== ROLES.PROPERTY_OWNER && role !== ROLES.SUPER_ADMIN) {
+    return <Navigate to={getDashboardPath(role)} replace />
+  }
+  return children
+}
+
+/**
+ * Guard specifically for Owner-only Application Details routes.
+ * If user is PROPERTY_MANAGER: immediately redirects to /manager/applications/:id
+ * If user is not PROPERTY_OWNER (and not SUPER_ADMIN): redirects to their role dashboard
+ */
+function OwnerOnlyApplicationDetailsRoute({ children }) {
+  const { user, loading } = useAuth()
+  const { id } = useParams()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+
+  const role = normalizeRole(user.role)
+  if (role === ROLES.PROPERTY_MANAGER) {
+    return <Navigate to={id ? `/manager/applications/${id}` : '/manager/applications'} replace />
+  }
+  if (role !== ROLES.PROPERTY_OWNER && role !== ROLES.SUPER_ADMIN) {
+    return <Navigate to={getDashboardPath(role)} replace />
   }
   return children
 }
@@ -124,12 +169,12 @@ export default function AppRoutes() {
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/support" element={<Navigate to="/contact" replace />} />
 
-      {/* Protected Owner & Manager Routes */}
+      {/* Protected Owner Routes */}
       <Route
         path="/owner/*"
         element={
           <ProtectedRoute>
-            <RoleRoute allowedRole={[ROLES.PROPERTY_OWNER, ROLES.PROPERTY_MANAGER]}>
+            <RoleRoute allowedRole={[ROLES.PROPERTY_OWNER]}>
               <Routes>
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
                 <Route path="properties" element={<PropertiesPage />} />
@@ -188,8 +233,22 @@ export default function AppRoutes() {
                     </OwnerOnlyBuildingRoute>
                   }
                 />
-                <Route path="applications" element={<ApplicationsPage />} />
-                <Route path="applications/:id" element={<ApplicationDetailsPage />} />
+                <Route
+                  path="applications"
+                  element={
+                    <OwnerOnlyApplicationRoute>
+                      <ApplicationsPage />
+                    </OwnerOnlyApplicationRoute>
+                  }
+                />
+                <Route
+                  path="applications/:id"
+                  element={
+                    <OwnerOnlyApplicationDetailsRoute>
+                      <ApplicationDetailsPage />
+                    </OwnerOnlyApplicationDetailsRoute>
+                  }
+                />
                 <Route path="payments" element={<PaymentsPage />} />
                 <Route path="payments/:id" element={<PaymentDetailsPage />} />
                 <Route path="maintenance" element={<MaintenancePage />} />
@@ -265,7 +324,12 @@ export default function AppRoutes() {
             <RoleRoute allowedRole={[ROLES.PROPERTY_MANAGER]}>
               <Routes>
                 <Route path="dashboard" element={<ManagerDashboardPage />} />
+                <Route path="properties" element={<ManagerPropertiesPage />} />
+                <Route path="properties/:propertyId" element={<ManagerPropertyDetailsPage />} />
+                <Route path="properties/:propertyId/buildings/:buildingId" element={<ManagerBuildingDetailsPage />} />
+                <Route path="applications" element={<ManagerApplicationsPage />} />
                 <Route path="applications/:id" element={<ManagerApplicationDetailsPage />} />
+                <Route path="maintenance" element={<ManagerMaintenancePage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>

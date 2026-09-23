@@ -1,6 +1,5 @@
 package com.rental.rental_management_backend.property.controller;
 
-
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -23,7 +22,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/units")
-@PreAuthorize("hasRole('PROPERTY_OWNER')")
+@PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
 public class UnitController {
 
     private final UnitService unitService;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home,
   LayoutDashboard,
@@ -32,8 +32,15 @@ import {
   getPortalName,
 } from '../../utils/roles'
 
-const MANAGER_MENU = [
+export const MANAGER_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: 'properties', label: 'Assigned Properties', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" /> },
+  { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
+  { id: 'inspections', label: 'Inspections', icon: <ShieldCheck className="w-4 h-4" /> },
+  { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
+  { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
+  { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
 ]
 
 const OWNER_MENU = [
@@ -84,6 +91,7 @@ export default function Sidebar({
   onClose,
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { openScout } = useScout()
   const [propertyCount, setPropertyCount] = useState(null)
 
@@ -144,7 +152,24 @@ export default function Sidebar({
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
       else if (id === 'settings' || id === 'system-settings') navigate('/admin/system-settings')
     } else if (isPropertyManager(role)) {
-      if (id === 'dashboard') navigate('/manager/dashboard')
+      if (id === 'dashboard') {
+        navigate('/manager/dashboard')
+      } else if (id === 'properties') {
+        navigate('/manager/properties')
+      } else if (id === 'applications') {
+        navigate('/manager/applications')
+      } else if (id === 'maintenance') {
+        navigate('/manager/maintenance')
+      } else {
+        const itemLabels = {
+          inspections: 'Property & Unit Inspections',
+          agreements: 'Tenant Agreements',
+          payments: 'Rent Payments & Invoices',
+          reports: 'Operational & Financial Reports',
+        }
+        const label = itemLabels[id] || 'This feature'
+        alert(`${label} will be available in an upcoming Manager Portal update.`)
+      }
     } else if (isPropertyOwner(role)) {
       if (id === 'dashboard') navigate('/owner/dashboard')
       else if (id === 'properties') navigate('/owner/properties')
@@ -227,16 +252,36 @@ export default function Sidebar({
           <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#5B6875]">
             Navigation
           </p>
-          {menuItems.map((item) => (
-            <NavItem
-              key={item.id}
-              icon={item.icon}
-              label={item.label}
-              badge={item.badge}
-              isActive={activeItem === item.id}
-              onClick={() => handleItemClick(item.id)}
-            />
-          ))}
+          {menuItems.map((item) => {
+            const isActive =
+              activeItem === item.id ||
+              (isPropertyManager(role) &&
+                item.id === 'properties' &&
+                (location.pathname === '/manager/properties' ||
+                  location.pathname.startsWith('/manager/properties/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'applications' &&
+                (location.pathname === '/manager/applications' ||
+                  location.pathname.startsWith('/manager/applications/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'maintenance' &&
+                (location.pathname === '/manager/maintenance' ||
+                  location.pathname.startsWith('/manager/maintenance/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'dashboard' &&
+                location.pathname === '/manager/dashboard')
+
+            return (
+              <NavItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                badge={item.badge}
+                isActive={isActive}
+                onClick={() => handleItemClick(item.id)}
+              />
+            )
+          })}
         </nav>
 
         {/* SCOUT Assistant Sidebar Section */}

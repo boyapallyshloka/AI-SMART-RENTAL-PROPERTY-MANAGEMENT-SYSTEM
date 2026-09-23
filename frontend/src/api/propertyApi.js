@@ -177,6 +177,10 @@ export const buildPropertyRequestPayload = (data = {}) => {
   delete payload.imageUrl
   delete payload.totalUnits
   delete payload.occupiedUnits
+  delete payload.propertyManagerId
+  delete payload.managerName
+  delete payload.managerEmail
+  delete payload.managerPhone
 
   return Object.fromEntries(
     Object.entries(payload).filter(([_, v]) => v !== undefined)
@@ -314,6 +318,35 @@ export const mapBackendPropertyToUi = (prop) => {
     propertyName: prop.propertyName ?? prop.name,
     type,
     propertyType: prop.propertyType ?? prop.type,
+    // Property Manager fields (canonical backend contract with defensive fallbacks)
+    propertyManagerId:
+      prop.propertyManagerId ??
+      prop.property_manager_id ??
+      prop.managerId ??
+      prop.manager_id ??
+      prop.propertyManager?.propertyManagerId ??
+      prop.propertyManager?.id ??
+      null,
+    managerName:
+      prop.managerName ??
+      prop.manager_name ??
+      (prop.propertyManager
+        ? [prop.propertyManager.firstName, prop.propertyManager.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || prop.propertyManager.name
+        : null) ??
+      null,
+    managerEmail:
+      prop.managerEmail ??
+      prop.manager_email ??
+      prop.propertyManager?.email ??
+      null,
+    managerPhone:
+      prop.managerPhone ??
+      prop.manager_phone ??
+      prop.propertyManager?.phone ??
+      null,
     // Address fields: keep in current fallback/empty state until Phase 4 Address integration
     address: prop.address || '',
     city: prop.city || '',
@@ -391,6 +424,312 @@ export const mapBackendPropertyToUi = (prop) => {
   }
 }
 
+/**
+ * Maps Spring Boot PropertyDetailsResponse (consolidating property, address, buildings, floors, units, images)
+ * to the exact UI representation for Owner Property List and related components.
+ * 
+ * Sources of truth:
+ * - PropertyResponse: core metadata (propertyName, propertyType, status, totalArea, furnishingStatus, parkingAvailable, yearBuilt)
+ * - PropertyAddressResponse: addressLine1, addressLine2, area, city, state, country, pincode
+ * - List<BuildingDetailsResponse> -> List<FloorDetailsResponse> -> List<UnitResponse>
+ * - List<PropertyImageResponse>: imageId, imageUrl, imageType, isPrimary
+ */
+export const mapOwnerPropertyDetailsToUi = (details, fallbackProp = {}) => {
+  if (!details && !fallbackProp) return null
+
+  const prop = details?.property || fallbackProp || details || {}
+  const fallback = fallbackProp || {}
+
+  const id =
+    prop.propertyId != null
+      ? String(prop.propertyId)
+      : prop.id != null
+      ? String(prop.id)
+      : fallback.propertyId != null
+      ? String(fallback.propertyId)
+      : fallback.id != null
+      ? String(fallback.id)
+      : ''
+  const propertyId = prop.propertyId ?? prop.id ?? fallback.propertyId ?? fallback.id ?? null
+  const propertyName = prop.propertyName || prop.name || fallback.propertyName || fallback.name || 'Unnamed Property'
+  const propertyType = prop.propertyType || prop.type || fallback.propertyType || fallback.type || 'APARTMENT'
+  const status = prop.status || fallback.status || 'AVAILABLE'
+  const description = prop.description || fallback.description || ''
+  const totalArea =
+    prop.totalArea != null && !isNaN(Number(prop.totalArea))
+      ? Number(prop.totalArea)
+      : fallback.totalArea != null && !isNaN(Number(fallback.totalArea))
+      ? Number(fallback.totalArea)
+      : null
+  const furnishingStatus =
+    prop.furnishingStatus || fallback.furnishingStatus || 'UNFURNISHED'
+  const parkingAvailable =
+    prop.parkingAvailable != null
+      ? Boolean(prop.parkingAvailable)
+      : fallback.parkingAvailable != null
+      ? Boolean(fallback.parkingAvailable)
+      : false
+  const yearBuilt =
+    prop.yearBuilt != null && !isNaN(Number(prop.yearBuilt))
+      ? Number(prop.yearBuilt)
+      : fallback.yearBuilt != null && !isNaN(Number(fallback.yearBuilt))
+      ? Number(fallback.yearBuilt)
+      : null
+
+  // 1. ADDRESS EXTRACTION & CLEAN FORMATTING (Zero dangling commas)
+  const addr = details?.address || prop.address || fallback.address || null
+  let addressLine1 = ''
+  let addressLine2 = ''
+  let area = ''
+  let city = ''
+  let state = ''
+  let pincode = ''
+
+  if (addr && typeof addr === 'object') {
+    addressLine1 = (addr.addressLine1 || '').trim()
+    addressLine2 = (addr.addressLine2 || '').trim()
+    area = (addr.area || '').trim()
+    city = (addr.city || '').trim()
+    state = (addr.state || '').trim()
+    pincode = (addr.pincode || '').trim()
+  } else if (typeof addr === 'string') {
+    addressLine1 = addr.trim()
+  }
+
+  let locationDisplay = null
+  const primaryLoc = addressLine1 || area
+  const secondaryLoc = [city, state].filter(Boolean).join(', ')
+
+  if (primaryLoc && secondaryLoc) {
+    locationDisplay = `${primaryLoc}, ${secondaryLoc}`
+  } else if (primaryLoc) {
+    locationDisplay = primaryLoc
+  } else if (secondaryLoc) {
+    locationDisplay = secondaryLoc
+  } else if (city) {
+    locationDisplay = city
+  } else if (state) {
+    locationDisplay = state
+  }
+
+  const fullLocation = [addressLine1, addressLine2, area, city, state, pincode]
+    .filter(Boolean)
+    .join(', ')
+
+  // 2. BUILDINGS, FLOORS, UNITS EXTRACTION
+  const allUnits = []
+  if (Array.isArray(details?.buildings)) {
+    details.buildings.forEach((b) => {
+      if (Array.isArray(b?.floors)) {
+        b.floors.forEach((f) => {
+          if (Array.isArray(f?.units)) {
+            f.units.forEach((u) => {
+              if (u) allUnits.push(u)
+            })
+          }
+        })
+      }
+    })
+  } else if (Array.isArray(prop.units)) {
+    prop.units.forEach((u) => {
+      if (u) allUnits.push(u)
+    })
+  }
+
+  // Explicit Unit Status Categorization (VACANT, OCCUPIED, RESERVED, MAINTENANCE)
+  const totalUnits = allUnits.length
+  const vacantUnits = allUnits.filter((u) => u.status === 'VACANT').length
+  const occupiedUnits = allUnits.filter((u) => u.status === 'OCCUPIED').length
+  const reservedUnits = allUnits.filter((u) => u.status === 'RESERVED').length
+  const maintenanceUnits = allUnits.filter((u) => u.status === 'MAINTENANCE').length
+
+  const occupancyRate =
+    totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
+
+  // Monthly Revenue: Sum of monthlyRent for OCCUPIED units only
+  const occupiedRevenue = allUnits
+    .filter((u) => u.status === 'OCCUPIED')
+    .reduce((sum, u) => {
+      const rent = Number(u.monthlyRent)
+      return sum + (!isNaN(rent) && rent > 0 ? rent : 0)
+    }, 0)
+
+  // 3. RENT EXTRACTION (Stored clean without "/ mo")
+  const unitRents = allUnits
+    .map((u) => Number(u.monthlyRent))
+    .filter((r) => !isNaN(r) && r > 0)
+
+  let minRent = null
+  let maxRent = null
+  let rentDisplay = null
+
+  if (unitRents.length > 0) {
+    minRent = Math.min(...unitRents)
+    maxRent = Math.max(...unitRents)
+    rentDisplay =
+      minRent === maxRent
+        ? `₹${minRent.toLocaleString('en-IN')}`
+        : `₹${minRent.toLocaleString('en-IN')} – ₹${maxRent.toLocaleString('en-IN')}`
+  } else if (prop.monthlyRent != null && Number(prop.monthlyRent) > 0) {
+    minRent = Number(prop.monthlyRent)
+    maxRent = Number(prop.monthlyRent)
+    rentDisplay = `₹${minRent.toLocaleString('en-IN')}`
+  }
+
+  // Security Deposit
+  const unitDeposits = allUnits
+    .map((u) => Number(u.securityDeposit))
+    .filter((d) => !isNaN(d) && d > 0)
+
+  let minDeposit = null
+  let maxDeposit = null
+  let depositDisplay = null
+
+  if (unitDeposits.length > 0) {
+    minDeposit = Math.min(...unitDeposits)
+    maxDeposit = Math.max(...unitDeposits)
+    depositDisplay =
+      minDeposit === maxDeposit
+        ? `₹${minDeposit.toLocaleString('en-IN')}`
+        : `₹${minDeposit.toLocaleString('en-IN')} – ₹${maxDeposit.toLocaleString('en-IN')}`
+  } else if (prop.securityDeposit != null && Number(prop.securityDeposit) > 0) {
+    minDeposit = Number(prop.securityDeposit)
+    maxDeposit = Number(prop.securityDeposit)
+    depositDisplay = `₹${minDeposit.toLocaleString('en-IN')}`
+  }
+
+  // 4. BEDROOMS & BATHROOMS EXTRACTION
+  const unitBeds = allUnits
+    .map((u) => Number(u.bedrooms))
+    .filter((b) => !isNaN(b) && b > 0)
+  const unitBaths = allUnits
+    .map((u) => Number(u.bathrooms))
+    .filter((b) => !isNaN(b) && b > 0)
+
+  let minBed = null
+  let maxBed = null
+  let bedroomDisplay = null
+
+  if (unitBeds.length > 0) {
+    minBed = Math.min(...unitBeds)
+    maxBed = Math.max(...unitBeds)
+    bedroomDisplay = minBed === maxBed ? `${minBed} bd` : `${minBed} – ${maxBed} bd`
+  } else if (prop.bedrooms != null && Number(prop.bedrooms) > 0) {
+    minBed = Number(prop.bedrooms)
+    maxBed = Number(prop.bedrooms)
+    bedroomDisplay = `${minBed} bd`
+  }
+
+  let minBath = null
+  let maxBath = null
+  let bathroomDisplay = null
+
+  if (unitBaths.length > 0) {
+    minBath = Math.min(...unitBaths)
+    maxBath = Math.max(...unitBaths)
+    bathroomDisplay = minBath === maxBath ? `${minBath} ba` : `${minBath} – ${maxBath} ba`
+  } else if (prop.bathrooms != null && Number(prop.bathrooms) > 0) {
+    minBath = Number(prop.bathrooms)
+    maxBath = Number(prop.bathrooms)
+    bathroomDisplay = `${minBath} ba`
+  }
+
+  // 5. IMAGE EXTRACTION (Zero fake or Unsplash images)
+  // Hierarchy:
+  // 1. Primary image (isPrimary === true)
+  // 2. Secondary image (first valid image from images list)
+  // 3. null (UI renders neutral "No image available" placeholder)
+  const rawImages = Array.isArray(details?.images) && details.images.length > 0
+    ? details.images
+    : Array.isArray(prop.images) && prop.images.length > 0
+    ? prop.images
+    : []
+
+  const validImages = rawImages
+    .map((img) => {
+      if (typeof img === 'string') {
+        const trimmed = img.trim()
+        return trimmed ? { imageUrl: resolveImageUrl(trimmed), isPrimary: false } : null
+      }
+      if (img && typeof img === 'object' && img.imageUrl) {
+        return {
+          ...img,
+          imageUrl: resolveImageUrl(img.imageUrl),
+          isPrimary: Boolean(img.isPrimary),
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+
+  const primaryImageObj = validImages.find((img) => img.isPrimary) || validImages[0] || null
+  const imageUrl = primaryImageObj?.imageUrl || (prop.imageUrl ? resolveImageUrl(prop.imageUrl) : null)
+
+  return {
+    ...prop,
+    id,
+    propertyId,
+    name: propertyName,
+    propertyName,
+    type: propertyType,
+    propertyType,
+    status,
+    description,
+    totalArea,
+    area: totalArea,
+    furnishingStatus,
+    parkingAvailable,
+    yearBuilt,
+    // Address
+    addressData: addr,
+    address: addressLine1 || area || '',
+    addressLine1,
+    addressLine2,
+    area,
+    city,
+    state,
+    pincode,
+    locationDisplay,
+    fullLocation,
+    // Units
+    units: allUnits,
+    totalUnits,
+    vacantUnits,
+    occupiedUnits,
+    reservedUnits,
+    maintenanceUnits,
+    occupancyRate,
+    occupiedRevenue,
+    // Financials
+    minRent,
+    maxRent,
+    monthlyRent: minRent,
+    rentDisplay,
+    minDeposit,
+    maxDeposit,
+    securityDeposit: minDeposit,
+    deposit: minDeposit,
+    depositDisplay,
+    // Specs
+    bedrooms: minBed,
+    bathrooms: minBath,
+    bedroomDisplay,
+    bathroomDisplay,
+    // Images
+    images: validImages,
+    imageUrl, // null if no real backend image exists
+    // Manager
+    propertyManagerId: prop.propertyManagerId ?? fallback.propertyManagerId ?? null,
+    managerName: prop.managerName ?? fallback.managerName ?? null,
+    managerEmail: prop.managerEmail ?? fallback.managerEmail ?? null,
+    managerPhone: prop.managerPhone ?? fallback.managerPhone ?? null,
+    ownerId: prop.ownerId ?? fallback.ownerId,
+    ownerName: prop.ownerName ?? fallback.ownerName,
+    createdAt: prop.createdAt ?? fallback.createdAt,
+    updatedAt: prop.updatedAt ?? fallback.updatedAt,
+  }
+}
+
 // ============================================================================
 // Real Backend Property Fetching
 // Retrieves all properties from real Spring Boot backend /api/owner/properties
@@ -400,3 +739,246 @@ export const getProperties = async () => {
   const data = Array.isArray(response) ? response : response?.data || []
   return data.map(mapBackendPropertyToUi)
 }
+
+/**
+ * Retrieves all properties belonging to the authenticated Property Owner
+ * and enriches each property with full backend details (address, buildings, floors, units, images)
+ * via GET /api/owner/properties/{id}/details.
+ * 
+ * @returns {Promise<Array<Object>>} List of enriched Owner property UI objects
+ */
+export const getOwnerPropertiesWithDetails = async () => {
+  const response = await getMyProperties()
+  const rawProperties = Array.isArray(response) ? response : response?.data || []
+
+  if (rawProperties.length === 0) {
+    return []
+  }
+
+  const detailsResults = await Promise.allSettled(
+    rawProperties.map(async (prop) => {
+      const propId = prop.propertyId ?? prop.id
+      if (!propId) {
+        return mapOwnerPropertyDetailsToUi(null, prop)
+      }
+      try {
+        const detailsRes = await getPropertyDetails(propId)
+        const detailsData = detailsRes?.data || detailsRes
+        return mapOwnerPropertyDetailsToUi(detailsData, prop)
+      } catch (err) {
+        console.warn(`Failed to fetch details for property ${propId}:`, err)
+        return mapOwnerPropertyDetailsToUi(null, prop)
+      }
+    })
+  )
+
+  return detailsResults.map((res, index) => {
+    if (res.status === 'fulfilled' && res.value) {
+      return res.value
+    }
+    return mapOwnerPropertyDetailsToUi(null, rawProperties[index])
+  })
+}
+
+/**
+ * GET /api/owner/managers
+ * Retrieve all active Property Manager profiles for assignment
+ */
+export const getEligiblePropertyManagers = async () => {
+  return axiosClient.get('/owner/managers')
+}
+
+/**
+ * PUT /api/owner/properties/{propertyId}/manager/{propertyManagerId}
+ * Assign or replace a Property Manager for a property
+ */
+export const assignPropertyManager = async (propertyId, propertyManagerId) => {
+  return axiosClient.put(`/owner/properties/${propertyId}/manager/${propertyManagerId}`)
+}
+
+/**
+ * DELETE /api/owner/properties/{propertyId}/manager
+ * Remove the assigned Property Manager from a property
+ */
+export const removePropertyManager = async (propertyId) => {
+  return axiosClient.delete(`/owner/properties/${propertyId}/manager`)
+}
+
+// ============================================================================
+// Property Manager Assigned Properties API Layer
+// Controller: PropertyManagerController (/api/property-manager)
+// Role: PROPERTY_MANAGER
+// ============================================================================
+
+/**
+ * GET /api/property-manager/properties
+ * Retrieve all properties assigned to the authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @returns {Promise<Array<Object>>} List of PropertyResponse
+ */
+export const getManagerAssignedProperties = async () => {
+  return axiosClient.get('/property-manager/properties')
+}
+
+/**
+ * GET /api/property-manager/properties/{propertyId}
+ * Retrieve single assigned property details summary by ID for authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @param {number|string} propertyId
+ * @returns {Promise<Object>} PropertyResponse
+ */
+export const getManagerAssignedPropertyById = async (propertyId) => {
+  return axiosClient.get(`/property-manager/properties/${propertyId}`)
+}
+
+/**
+ * GET /api/property-manager/me
+ * Retrieve profile information for the authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @returns {Promise<Object>} PropertyManagerResponse
+ */
+export const getManagerProfile = async () => {
+  return axiosClient.get('/property-manager/me')
+}
+
+/**
+ * GET /api/property-manager/properties/{propertyId}/details
+ * Retrieve full property details (including address, buildings, images) for authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @param {number|string} propertyId
+ * @returns {Promise<Object>} PropertyDetailsResponse
+ */
+export const getManagerAssignedPropertyDetails = async (propertyId) => {
+  return axiosClient.get(`/property-manager/properties/${propertyId}/details`)
+}
+
+/**
+ * PUT /api/property-manager/properties/{propertyId}
+ * Update an assigned property by authenticated Property Manager
+ * Role: PROPERTY_MANAGER
+ * @param {number|string} propertyId
+ * @param {Object} propertyData
+ * @returns {Promise<Object>} PropertyResponse
+ */
+export const updateManagerAssignedProperty = async (
+  propertyId,
+  propertyData
+) => {
+  const payload = formatPropertyRequest(propertyData)
+
+  return axiosClient.put(
+    `/property-manager/properties/${propertyId}`,
+    payload
+  )
+}
+
+// ============================================================================
+// Tenant / Public Property API Layer
+// Controller: PropertyPublicController (/api/properties)
+// Role: TENANT
+// ============================================================================
+
+/**
+ * GET /api/properties/public
+ * Used by tenants to browse properties that are currently available for rental.
+ * Role: TENANT
+ * @returns {Promise<Array<Object>>} List of mapped PropertyResponse objects
+ */
+export const getPublicProperties = async () => {
+  const response = await axiosClient.get('/properties/public')
+  const data = Array.isArray(response) ? response : response?.data || []
+  return data.map(mapBackendPropertyToUi)
+}
+
+/**
+ * GET /api/properties/public/search
+ * Used by tenants to search available properties using optional filters.
+ * Role: TENANT
+ * Supported backend query params:
+ * - searchQuery (string)
+ * - city (string)
+ * - propertyType (APARTMENT, HOUSE, VILLA, PG, HOSTEL, COMMERCIAL)
+ * - furnishingStatus (UNFURNISHED, SEMI_FURNISHED, FULLY_FURNISHED)
+ * - parkingAvailable (boolean)
+ * - minRent (double)
+ * - maxRent (double)
+ * - bedrooms (integer)
+ *
+ * @param {Object} [filters={}]
+ * @returns {Promise<Array<Object>>} List of mapped PropertyResponse objects
+ */
+export const searchPublicProperties = async (filters = {}) => {
+  const params = {}
+
+  if (filters.searchQuery && String(filters.searchQuery).trim()) {
+    params.searchQuery = String(filters.searchQuery).trim()
+  }
+
+  if (filters.city && filters.city !== 'All Locations' && String(filters.city).trim()) {
+    const rawCity = String(filters.city).split(',')[0].trim()
+    if (rawCity) {
+      params.city = rawCity
+    }
+  }
+
+  const rawType = filters.propertyType || filters.type
+  if (rawType && rawType !== 'All Types') {
+    params.propertyType = mapPropertyTypeToBackend(rawType)
+  }
+
+  const rawFurn = filters.furnishingStatus || filters.furnishing
+  if (rawFurn && rawFurn !== 'All Furnishing') {
+    params.furnishingStatus = mapFurnishingStatusToBackend(rawFurn)
+  }
+
+  const rawParking = filters.parkingAvailable != null ? filters.parkingAvailable : filters.parking
+  if (rawParking != null && rawParking !== 'All Parking') {
+    params.parkingAvailable = mapParkingAvailableToBackend(rawParking)
+  }
+
+  if (
+    filters.minRent !== undefined &&
+    filters.minRent !== null &&
+    filters.minRent !== '' &&
+    !isNaN(Number(filters.minRent))
+  ) {
+    const min = Number(filters.minRent)
+    if (min >= 0) params.minRent = min
+  }
+
+  if (
+    filters.maxRent !== undefined &&
+    filters.maxRent !== null &&
+    filters.maxRent !== '' &&
+    !isNaN(Number(filters.maxRent))
+  ) {
+    const max = Number(filters.maxRent)
+    if (max >= 0) params.maxRent = max
+  }
+
+  if (filters.bedrooms != null && filters.bedrooms !== '' && filters.bedrooms !== 'all') {
+    const parsed = parseInt(filters.bedrooms, 10)
+    if (!isNaN(parsed) && parsed >= 0) {
+      params.bedrooms = parsed
+    }
+  }
+
+  const response = await axiosClient.get('/properties/public/search', { params })
+  const data = Array.isArray(response) ? response : response?.data || []
+  return data.map(mapBackendPropertyToUi)
+}
+
+/**
+ * GET /api/properties/public/{propertyId}
+ * Used by tenants to view complete details of one available property.
+ * Role: TENANT
+ * Response structure: { property, address, buildings, amenities, images }
+ *
+ * @param {number|string} propertyId
+ * @returns {Promise<Object>} PropertyDetailsResponse
+ */
+export const getPublicPropertyDetails = async (propertyId) => {
+  return axiosClient.get(`/properties/public/${propertyId}`)
+}
+
+

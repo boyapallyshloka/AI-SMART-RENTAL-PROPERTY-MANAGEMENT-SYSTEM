@@ -1,6 +1,6 @@
+
 package com.rental.rental_management_backend.tenant.serviceimpl;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -13,15 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+
+import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.entity.Amenity;
 import com.rental.rental_management_backend.property.repository.AmenityRepository;
-import com.rental.rental_management_backend.rental.entity.TenantPreference;
-import com.rental.rental_management_backend.tenant.dto.AmenityResponseDTO;
+
 import com.rental.rental_management_backend.tenant.dto.TenantPreferenceDTO;
 import com.rental.rental_management_backend.tenant.dto.TenantPreferenceResponseDTO;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
-import com.rental.rental_management_backend.tenant.repository.TenantPreferenceRepository;
+import com.rental.rental_management_backend.tenant.entity.TenantPreference;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
+import com.rental.rental_management_backend.tenant.repository.TenantPreferenceRepository;
 import com.rental.rental_management_backend.tenant.service.TenantPreferenceService;
 
 @Service
@@ -31,26 +33,19 @@ public class TenantPreferenceServiceImpl
 
     private final TenantPreferenceRepository tenantPreferenceRepository;
     private final TenantRepository tenantRepository;
-    private final AmenityRepository amenityRepository;
     private final UserRepository userRepository;
+    private final AmenityRepository amenityRepository;
 
     public TenantPreferenceServiceImpl(
             TenantPreferenceRepository tenantPreferenceRepository,
             TenantRepository tenantRepository,
-            AmenityRepository amenityRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            AmenityRepository amenityRepository) {
 
-        this.tenantPreferenceRepository =
-                tenantPreferenceRepository;
-
-        this.tenantRepository =
-                tenantRepository;
-
-        this.amenityRepository =
-                amenityRepository;
-
-        this.userRepository =
-                userRepository;
+        this.tenantPreferenceRepository = tenantPreferenceRepository;
+        this.tenantRepository = tenantRepository;
+        this.userRepository = userRepository;
+        this.amenityRepository = amenityRepository;
     }
 
     @Override
@@ -60,27 +55,20 @@ public class TenantPreferenceServiceImpl
         Tenant tenant = getAuthenticatedTenant();
 
         if (tenantPreferenceRepository.existsByTenant(tenant)) {
-
             throw new RuntimeException(
-                    "Tenant preferences already exist. Use update instead.");
+                    "Tenant preference already exists");
         }
 
-        TenantPreference preference =
-                new TenantPreference();
+        TenantPreference preference = new TenantPreference();
 
         preference.setTenant(tenant);
 
         mapDtoToEntity(dto, preference);
 
-        LocalDateTime now = LocalDateTime.now();
-
-        preference.setCreatedAt(now);
-        preference.setUpdatedAt(now);
-
-        TenantPreference savedPreference =
+        TenantPreference saved =
                 tenantPreferenceRepository.save(preference);
 
-        return mapToResponseDTO(savedPreference);
+        return mapToResponseDTO(saved);
     }
 
     @Override
@@ -94,7 +82,7 @@ public class TenantPreferenceServiceImpl
                         .findByTenant(tenant)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Tenant preferences not found."));
+                                        "Tenant preference not found"));
 
         return mapToResponseDTO(preference);
     }
@@ -110,16 +98,14 @@ public class TenantPreferenceServiceImpl
                         .findByTenant(tenant)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Tenant preferences not found. Create preferences first."));
+                                        "Tenant preference not found"));
 
         mapDtoToEntity(dto, preference);
 
-        preference.setUpdatedAt(LocalDateTime.now());
-
-        TenantPreference updatedPreference =
+        TenantPreference updated =
                 tenantPreferenceRepository.save(preference);
 
-        return mapToResponseDTO(updatedPreference);
+        return mapToResponseDTO(updated);
     }
 
     @Override
@@ -132,7 +118,7 @@ public class TenantPreferenceServiceImpl
                         .findByTenant(tenant)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Tenant preferences not found."));
+                                        "Tenant preference not found"));
 
         tenantPreferenceRepository.delete(preference);
     }
@@ -144,133 +130,133 @@ public class TenantPreferenceServiceImpl
                         .getContext()
                         .getAuthentication();
 
-        if (authentication == null ||
-                !authentication.isAuthenticated()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
 
             throw new RuntimeException(
-                    "User is not authenticated.");
+                    "User is not authenticated");
         }
 
         String email = authentication.getName();
 
-        User user =
-                userRepository.findByEmail(email)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Authenticated user not found."));
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Authenticated user not found"));
 
-        Tenant tenant =
-                tenantRepository.findByUser(user)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Tenant profile not found for the authenticated user."));
-
-        return tenant;
+        return tenantRepository
+                .findByUser(user)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Tenant profile not found"));
     }
 
     private void mapDtoToEntity(
             TenantPreferenceDTO dto,
-            TenantPreference preference) {
+            TenantPreference entity) {
 
-        preference.setPreferredCity(
+        entity.setPreferredCity(
                 dto.getPreferredCity());
 
-        preference.setMaxBudget(
+        entity.setMaxBudget(
                 dto.getMaxBudget());
 
-        preference.setMinBedrooms(
+        entity.setMinBedrooms(
                 dto.getMinBedrooms());
 
-        preference.setFurnishingPreference(
+        entity.setPreferredPropertyType(
+                dto.getPreferredPropertyType());
+
+        entity.setFurnishingPreference(
                 dto.getFurnishingPreference());
 
-        preference.setParkingRequired(
+        entity.setParkingRequired(
                 dto.getParkingRequired());
 
-        preference.setPreferredLatitude(
+        entity.setPreferredLatitude(
                 dto.getPreferredLatitude());
 
-        preference.setPreferredLongitude(
+        entity.setPreferredLongitude(
                 dto.getPreferredLongitude());
 
-        preference.setMaxDistanceKm(
+        entity.setMaxDistanceKm(
                 dto.getMaxDistanceKm());
 
-        Set<Amenity> amenities =
-                new HashSet<>();
+        Set<Amenity> amenities = new HashSet<>();
 
-        List<Long> amenityIds =
-                dto.getPreferredAmenityIds();
+        if (dto.getPreferredAmenityIds() != null
+                && !dto.getPreferredAmenityIds().isEmpty()) {
 
-        if (amenityIds != null &&
-                !amenityIds.isEmpty()) {
+            List<Amenity> foundAmenities =
+                    amenityRepository.findAllById(
+                            dto.getPreferredAmenityIds());
 
-            for (Long amenityId : amenityIds) {
+            if (foundAmenities.size()
+                    != dto.getPreferredAmenityIds().size()) {
 
-                Amenity amenity =
-                        amenityRepository
-                                .findById(amenityId)
-                                .orElseThrow(() ->
-                                        new RuntimeException(
-                                                "Amenity not found with ID: "
-                                                        + amenityId));
-
-                amenities.add(amenity);
+                throw new RuntimeException(
+                        "One or more preferred amenity IDs are invalid");
             }
+
+            amenities.addAll(foundAmenities);
         }
 
-        preference.setPreferredAmenities(amenities);
+        entity.setPreferredAmenities(amenities);
     }
 
     private TenantPreferenceResponseDTO mapToResponseDTO(
-            TenantPreference preference) {
+            TenantPreference entity) {
 
         TenantPreferenceResponseDTO response =
                 new TenantPreferenceResponseDTO();
 
         response.setPreferenceId(
-                preference.getPreferenceId());
+                entity.getPreferenceId());
 
         response.setPreferredCity(
-                preference.getPreferredCity());
+                entity.getPreferredCity());
 
         response.setMaxBudget(
-                preference.getMaxBudget());
+                entity.getMaxBudget());
 
         response.setMinBedrooms(
-                preference.getMinBedrooms());
+                entity.getMinBedrooms());
+
+        response.setPreferredPropertyType(
+                entity.getPreferredPropertyType());
 
         response.setFurnishingPreference(
-                preference.getFurnishingPreference());
+                entity.getFurnishingPreference());
 
         response.setParkingRequired(
-                preference.getParkingRequired());
+                entity.getParkingRequired());
 
         response.setPreferredLatitude(
-                preference.getPreferredLatitude());
+                entity.getPreferredLatitude());
 
         response.setPreferredLongitude(
-                preference.getPreferredLongitude());
+                entity.getPreferredLongitude());
 
         response.setMaxDistanceKm(
-                preference.getMaxDistanceKm());
+                entity.getMaxDistanceKm());
 
         response.setCreatedAt(
-                preference.getCreatedAt());
+                entity.getCreatedAt());
 
         response.setUpdatedAt(
-                preference.getUpdatedAt());
+                entity.getUpdatedAt());
 
-        List<AmenityResponseDTO> amenityResponses =
+        List<AmenityResponse> amenityResponses =
                 new ArrayList<>();
 
-        if (preference.getPreferredAmenities() != null) {
+        if (entity.getPreferredAmenities() != null) {
 
             for (Amenity amenity :
-                    preference.getPreferredAmenities()) {
+                    entity.getPreferredAmenities()) {
 
-                AmenityResponseDTO amenityResponse =
-                        new AmenityResponseDTO();
+                AmenityResponse amenityResponse =
+                        new AmenityResponse();
 
                 amenityResponse.setAmenityId(
                         amenity.getAmenityId());
@@ -278,10 +264,8 @@ public class TenantPreferenceServiceImpl
                 amenityResponse.setAmenityName(
                         amenity.getAmenityName());
 
-                amenityResponse.setDescription(
-                        amenity.getDescription());
-
-                amenityResponses.add(amenityResponse);
+                amenityResponses.add(
+                        amenityResponse);
             }
         }
 

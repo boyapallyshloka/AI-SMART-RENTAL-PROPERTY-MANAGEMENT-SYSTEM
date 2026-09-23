@@ -1,9 +1,10 @@
-package com.rental.rental_management_backend.tenant.dto;
 
+package com.rental.rental_management_backend.tenant.dto;
 
 import java.util.List;
 
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -13,11 +14,13 @@ public class TenantPreferenceDTO {
 
     private String preferredCity;
 
-    @Min(value = 0, message = "Maximum budget cannot be negative")
+    @Min(0)
     private Integer maxBudget;
 
-    @Min(value = 0, message = "Minimum bedrooms cannot be negative")
+    @Min(0)
     private Integer minBedrooms;
+
+    private PropertyType preferredPropertyType;
 
     private FurnishingStatus furnishingPreference;
 
@@ -25,15 +28,15 @@ public class TenantPreferenceDTO {
 
     private List<Long> preferredAmenityIds;
 
-    @DecimalMin(value = "-90.0", message = "Invalid latitude")
-    @DecimalMax(value = "90.0", message = "Invalid latitude")
+    @DecimalMin("-90.0")
+    @DecimalMax("90.0")
     private Double preferredLatitude;
 
-    @DecimalMin(value = "-180.0", message = "Invalid longitude")
-    @DecimalMax(value = "180.0", message = "Invalid longitude")
+    @DecimalMin("-180.0")
+    @DecimalMax("180.0")
     private Double preferredLongitude;
 
-    @DecimalMin(value = "0.0", message = "Maximum distance cannot be negative")
+    @DecimalMin("0.0")
     private Double maxDistanceKm;
 
     public TenantPreferenceDTO() {
@@ -61,6 +64,14 @@ public class TenantPreferenceDTO {
 
     public void setMinBedrooms(Integer minBedrooms) {
         this.minBedrooms = minBedrooms;
+    }
+
+    public PropertyType getPreferredPropertyType() {
+        return preferredPropertyType;
+    }
+
+    public void setPreferredPropertyType(PropertyType preferredPropertyType) {
+        this.preferredPropertyType = preferredPropertyType;
     }
 
     public FurnishingStatus getFurnishingPreference() {

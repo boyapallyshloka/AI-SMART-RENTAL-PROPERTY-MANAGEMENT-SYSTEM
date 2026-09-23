@@ -1,12 +1,13 @@
+
 package com.rental.rental_management_backend.tenant.repository;
 
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.rental.rental_management_backend.rental.entity.TenantPreference;
-import com.rental.rental_management_backend.tenant.entity.Tenant;
 
+import com.rental.rental_management_backend.tenant.entity.Tenant;
+import com.rental.rental_management_backend.tenant.entity.TenantPreference;
 
 public interface TenantPreferenceRepository
         extends JpaRepository<TenantPreference, Long> {
@@ -19,3 +20,4 @@ public interface TenantPreferenceRepository
 
     boolean existsByTenant_TenantId(Long tenantId);
 }
+

@@ -1,10 +1,9 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
-
-
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -28,11 +27,8 @@ import jakarta.transaction.Transactional;
 public class AmenityServiceImpl implements AmenityService {
 
     private final AmenityRepository amenityRepository;
-
     private final PropertyAmenityRepository propertyAmenityRepository;
-
     private final PropertyRepository propertyRepository;
-
     private final UserRepository userRepository;
 
     public AmenityServiceImpl(
@@ -50,6 +46,7 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // CREATE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @Override
@@ -122,6 +119,7 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // UPDATE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @Override
@@ -174,6 +172,7 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // DELETE AMENITY
+    // PROPERTY OWNER ONLY
     // =========================================================
 
     @Override
@@ -208,6 +207,7 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // ADD AMENITY TO PROPERTY
+    // OWNER + MANAGER
     // =========================================================
 
     @Override
@@ -215,17 +215,13 @@ public class AmenityServiceImpl implements AmenityService {
             Long propertyId,
             Long amenityId) {
 
-        User owner =
+        User authenticatedUser =
                 getAuthenticatedUser();
 
         Property property =
-                propertyRepository
-                        .findByPropertyIdAndOwner(
-                                propertyId,
-                                owner)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Property not found or you are not the owner"));
+                getAccessibleProperty(
+                        propertyId,
+                        authenticatedUser);
 
         Amenity amenity =
                 amenityRepository
@@ -260,6 +256,7 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // REMOVE AMENITY FROM PROPERTY
+    // OWNER + MANAGER
     // =========================================================
 
     @Override
@@ -267,17 +264,13 @@ public class AmenityServiceImpl implements AmenityService {
             Long propertyId,
             Long amenityId) {
 
-        User owner =
+        User authenticatedUser =
                 getAuthenticatedUser();
 
         Property property =
-                propertyRepository
-                        .findByPropertyIdAndOwner(
-                                propertyId,
-                                owner)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Property not found or you are not the owner"));
+                getAccessibleProperty(
+                        propertyId,
+                        authenticatedUser);
 
         PropertyAmenity propertyAmenity =
                 propertyAmenityRepository
@@ -294,23 +287,20 @@ public class AmenityServiceImpl implements AmenityService {
 
     // =========================================================
     // GET PROPERTY AMENITIES
+    // OWNER + MANAGER
     // =========================================================
 
     @Override
     public List<AmenityResponse> getPropertyAmenities(
             Long propertyId) {
 
-        User owner =
+        User authenticatedUser =
                 getAuthenticatedUser();
 
         Property property =
-                propertyRepository
-                        .findByPropertyIdAndOwner(
-                                propertyId,
-                                owner)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Property not found or you are not the owner"));
+                getAccessibleProperty(
+                        propertyId,
+                        authenticatedUser);
 
         return propertyAmenityRepository
                 .findByProperty(property)
@@ -318,6 +308,50 @@ public class AmenityServiceImpl implements AmenityService {
                 .map(PropertyAmenity::getAmenity)
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    // =========================================================
+    // GET ACCESSIBLE PROPERTY
+    // =========================================================
+
+    private Property getAccessibleProperty(
+            Long propertyId,
+            User authenticatedUser) {
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Property not found with ID: "
+                                                + propertyId));
+
+        /*
+         * PROPERTY OWNER
+         */
+        if (property.getOwner() != null
+                && property.getOwner()
+                        .getId()
+                        .equals(authenticatedUser.getId())) {
+
+            return property;
+        }
+
+        /*
+         * PROPERTY MANAGER
+         */
+        if (property.getPropertyManager() != null
+                && property.getPropertyManager().getUser() != null
+                && property.getPropertyManager()
+                        .getUser()
+                        .getId()
+                        .equals(authenticatedUser.getId())) {
+
+            return property;
+        }
+
+        throw new AccessDeniedException(
+                "You are not authorized to access this property");
     }
 
     // =========================================================
@@ -334,7 +368,7 @@ public class AmenityServiceImpl implements AmenityService {
         if (authentication == null
                 || !authentication.isAuthenticated()) {
 
-            throw new RuntimeException(
+            throw new AccessDeniedException(
                     "User is not authenticated");
         }
 
@@ -369,6 +403,11 @@ public class AmenityServiceImpl implements AmenityService {
 
         return response;
     }
+
+    // =========================================================
+    // PUBLIC PROPERTY AMENITIES
+    // =========================================================
+
     @Override
     public List<AmenityResponse> getPublicPropertyAmenities(
             Long propertyId) {

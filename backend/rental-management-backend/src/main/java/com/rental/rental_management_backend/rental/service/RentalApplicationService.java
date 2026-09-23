@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.rental.service;
 
 import java.util.List;
@@ -5,6 +6,8 @@ import java.util.List;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationCreateRequest;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationResponse;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationReviewRequest;
+
+
 
 public interface RentalApplicationService {
 
@@ -37,4 +40,8 @@ public interface RentalApplicationService {
             Long applicationId,
             String email
     );
+    List<RentalApplicationResponse> getApplicationsForProperty(
+            Long propertyId
+    );
 }
+

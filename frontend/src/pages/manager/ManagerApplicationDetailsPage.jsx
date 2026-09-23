@@ -2,12 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { ROLES } from '../../utils/roles'
-import { getApplicationById } from '../../api/applicationApi'
+import {
+  getApplicationById,
+  reviewApplication,
+  APPLICATION_STATUSES,
+} from '../../api/applicationApi'
 import {
   Button,
   StatusBadge,
   EmptyState,
   Loader,
+  Textarea,
 } from '../../components/ui'
 import {
   ArrowLeft,
@@ -22,6 +27,10 @@ import {
   RefreshCw,
   ShieldAlert,
   UserCheck,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Check,
 } from 'lucide-react'
 
 // INR Currency Formatter
@@ -69,12 +78,37 @@ const formatDateTime = (dateStr) => {
 }
 
 /**
+ * Format error messages safely based on backend response status
+ */
+const getReviewErrorMessage = (err) => {
+  if (err?.isAuthError || err?.status === 401) {
+    return 'Your session has expired. Please sign in again to submit an application review.'
+  }
+  if (err?.isForbidden || err?.status === 403) {
+    return 'You are not authorized to review this application. Only assigned property managers can review.'
+  }
+  if (err?.isNotFound || err?.status === 404) {
+    return 'This application was not found on the server.'
+  }
+  if (err?.isNetworkError) {
+    return 'Network connection error. Please verify your internet connection and try again.'
+  }
+  if (err?.isServerError || (err?.status && err.status >= 500)) {
+    return 'A server error occurred while reviewing the application. Please try again later.'
+  }
+  return (
+    err?.message ||
+    err?.data?.message ||
+    'Failed to submit review decision. Please try again.'
+  )
+}
+
+/**
  * ManagerApplicationDetailsPage
  *
- * Dedicated READ-ONLY view for Property Managers to inspect existing rental applications.
+ * View and review rental application records for assigned properties.
  * Fetches real backend data via GET /api/rental-applications/{applicationId}.
- * Strictly displays only fields returned by RentalApplicationResponse without mock data
- * or fabricated fields (no scores, no fake documents, no approve/reject controls).
+ * Allows reviewing (Approve / Reject) only when application status === 'PENDING'.
  */
 export default function ManagerApplicationDetailsPage() {
   const { id } = useParams()
@@ -83,6 +117,15 @@ export default function ManagerApplicationDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [errorType, setErrorType] = useState(null) // '404' | '401' | '403' | 'network' | 'server'
+
+  // Review Workflow State
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [rejectionError, setRejectionError] = useState('')
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState(null)
+  const [successBanner, setSuccessBanner] = useState(null) // { type: 'approved' | 'rejected', message: string }
 
   const loadApplication = useCallback(async () => {
     if (!id) return
@@ -122,8 +165,125 @@ export default function ManagerApplicationDetailsPage() {
     loadApplication()
   }, [loadApplication])
 
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isSubmittingReview) {
+        if (showApproveModal || showRejectModal) {
+          closeModals()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showApproveModal, showRejectModal, isSubmittingReview])
+
+  const openApproveModal = () => {
+    setReviewError(null)
+    setShowApproveModal(true)
+  }
+
+  const openRejectModal = () => {
+    setReviewError(null)
+    setRejectionReason('')
+    setRejectionError('')
+    setShowRejectModal(true)
+  }
+
+  const closeModals = () => {
+    if (isSubmittingReview) return
+    setShowApproveModal(false)
+    setShowRejectModal(false)
+    setReviewError(null)
+    setRejectionError('')
+  }
+
+  // Handle Approve Application
+  const handleConfirmApprove = async () => {
+    if (isSubmittingReview || !application) return
+    setIsSubmittingReview(true)
+    setReviewError(null)
+
+    try {
+      const updatedResponse = await reviewApplication(application.applicationId, {
+        status: APPLICATION_STATUSES.APPROVED,
+      })
+
+      const updatedData = updatedResponse?.data || updatedResponse
+      setApplication((prev) => ({
+        ...prev,
+        ...updatedData,
+        status: APPLICATION_STATUSES.APPROVED,
+        rejectionReason: null,
+        reviewedAt: updatedData?.reviewedAt || new Date().toISOString(),
+      }))
+
+      setShowApproveModal(false)
+      setSuccessBanner({
+        type: 'approved',
+        message: `Application #${application.applicationId} has been successfully approved.`,
+      })
+    } catch (err) {
+      console.error('[Manager] Failed to approve application:', err)
+      setReviewError(getReviewErrorMessage(err))
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
+
+  // Handle Reject Application
+  const handleConfirmReject = async () => {
+    if (isSubmittingReview || !application) return
+
+    const trimmedReason = (rejectionReason || '').trim()
+    if (!trimmedReason) {
+      setRejectionError('Rejection reason is required.')
+      return
+    }
+
+    if (trimmedReason.length > 1000) {
+      setRejectionError('Rejection reason cannot exceed 1000 characters.')
+      return
+    }
+
+    setIsSubmittingReview(true)
+    setReviewError(null)
+    setRejectionError('')
+
+    try {
+      const updatedResponse = await reviewApplication(application.applicationId, {
+        status: APPLICATION_STATUSES.REJECTED,
+        rejectionReason: trimmedReason,
+      })
+
+      const updatedData = updatedResponse?.data || updatedResponse
+      setApplication((prev) => ({
+        ...prev,
+        ...updatedData,
+        status: APPLICATION_STATUSES.REJECTED,
+        rejectionReason: trimmedReason,
+        reviewedAt: updatedData?.reviewedAt || new Date().toISOString(),
+      }))
+
+      setShowRejectModal(false)
+      setRejectionReason('')
+      setSuccessBanner({
+        type: 'rejected',
+        message: `Application #${application.applicationId} has been rejected.`,
+      })
+    } catch (err) {
+      console.error('[Manager] Failed to reject application:', err)
+      setReviewError(getReviewErrorMessage(err))
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
+
   const rentFormatted = formatInr(application?.monthlyRent)
   const depositFormatted = formatInr(application?.securityDeposit)
+  const isPending =
+    application &&
+    String(application.status || '').toUpperCase() === APPLICATION_STATUSES.PENDING
 
   return (
     <DashboardLayout
@@ -136,11 +296,11 @@ export default function ManagerApplicationDetailsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <Link
-              to="/manager/dashboard"
+              to="/manager/applications"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315A7D] hover:text-[#214363] transition-colors mb-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Dashboard</span>
+              <span>Back to Applications</span>
             </Link>
             <div className="flex items-center gap-3">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
@@ -153,16 +313,64 @@ export default function ManagerApplicationDetailsPage() {
               )}
             </div>
             <p className="text-xs sm:text-sm text-[#5B6875]">
-              Read-only view of rental application record and applicant submission details
+              Rental application record, applicant submission details, and review workflow
             </p>
           </div>
 
-          {/* Manager Read-Only Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6] self-start sm:self-center">
-            <UserCheck className="w-3.5 h-3.5 text-[#315A7D]" />
-            <span>Property Manager Oversight (Read-Only)</span>
-          </div>
+          {/* Header Action / Review Controls (Approve / Reject only for PENDING) */}
+          {isPending ? (
+            <div className="flex items-center gap-2.5 self-start sm:self-center">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openApproveModal}
+                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+              >
+                Approve Application
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={openRejectModal}
+                leftIcon={<XCircle className="w-3.5 h-3.5" />}
+              >
+                Reject Application
+              </Button>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6] self-start sm:self-center">
+              <UserCheck className="w-3.5 h-3.5 text-[#315A7D]" />
+              <span>Property Manager Oversight</span>
+            </div>
+          )}
         </div>
+
+        {/* Success Banner */}
+        {successBanner && (
+          <div
+            className={`rounded-lg p-4 flex items-center justify-between gap-3 border shadow-2xs ${
+              successBanner.type === 'approved'
+                ? 'bg-[#EDF7EE] border-[#C6DEC8] text-[#2A583B]'
+                : 'bg-[#FDF2F2] border-[#EFC8C7] text-[#8A2E2C]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              {successBanner.type === 'approved' ? (
+                <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
+              ) : (
+                <XCircle className="w-5 h-5 text-[#B94A48] shrink-0" />
+              )}
+              <span className="text-sm font-medium">{successBanner.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessBanner(null)}
+              className="text-xs font-semibold underline hover:opacity-75 focus:outline-none"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
@@ -178,9 +386,9 @@ export default function ManagerApplicationDetailsPage() {
                 title="Application Not Found"
                 message={error}
                 action={
-                  <Link to="/manager/dashboard">
+                  <Link to="/manager/applications">
                     <Button variant="primary" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                      Back to Dashboard
+                      Back to Applications
                     </Button>
                   </Link>
                 }
@@ -233,9 +441,9 @@ export default function ManagerApplicationDetailsPage() {
                   >
                     Try Again
                   </Button>
-                  <Link to="/manager/dashboard">
+                  <Link to="/manager/applications">
                     <Button variant="outline">
-                      Back to Dashboard
+                      Back to Applications
                     </Button>
                   </Link>
                 </div>
@@ -282,6 +490,39 @@ export default function ManagerApplicationDetailsPage() {
                 )}
               </div>
             </div>
+
+            {/* Pending Review Callout Banner (Shown ONLY for PENDING applications) */}
+            {isPending && (
+              <div className="bg-[#FEF7EC] border border-[#F4E2B6] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+                <div className="flex items-center gap-2.5 text-[#8A5B16]">
+                  <Clock className="w-4 h-4 text-[#B7791F] shrink-0" />
+                  <div>
+                    <span className="font-bold text-sm block">Decision Pending</span>
+                    <span className="text-xs text-[#8A5B16]/90">
+                      This application is awaiting your review. Verify the details below and select Approve or Reject.
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={openApproveModal}
+                    leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={openRejectModal}
+                    leftIcon={<XCircle className="w-3.5 h-3.5" />}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Rejection Alert (Only displayed when rejectionReason is provided by backend) */}
             {application.rejectionReason && (
@@ -456,6 +697,152 @@ export default function ManagerApplicationDetailsPage() {
             </div>
           </div>
         ) : null}
+
+        {/* Approve Confirmation Modal */}
+        {showApproveModal && application && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="approve-modal-title"
+          >
+            <div className="bg-white rounded-xl border border-[#D9E0E6] max-w-md w-full p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#EDF7EE] border border-[#C6DEC8] flex items-center justify-center text-[#2A583B] shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-[#3F7D58]" />
+                </div>
+                <div className="space-y-1">
+                  <h3 id="approve-modal-title" className="text-base font-bold text-[#243447]">
+                    Approve Rental Application
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
+                    Are you sure you want to approve the application for{' '}
+                    <strong className="text-[#243447]">{application.tenantName || 'Applicant'}</strong>{' '}
+                    for{' '}
+                    <strong className="text-[#243447]">
+                      {application.propertyName || 'Property'}
+                      {application.unitNumber ? ` · Unit ${application.unitNumber}` : ''}
+                    </strong>
+                    ?
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-[#EAF2F7] border border-[#D9E0E6] text-xs text-[#274B68] leading-relaxed">
+                <p className="font-semibold">Workflow Notice:</p>
+                <p className="mt-0.5">
+                  Approving changes the application status to <strong>APPROVED</strong>. This marks the application as officially accepted for this property.
+                </p>
+              </div>
+
+              {reviewError && (
+                <div className="p-3 rounded-lg bg-[#FDF2F2] border border-[#EFC8C7] text-xs text-[#8A2E2C]">
+                  <p className="font-semibold">Review Submission Failed:</p>
+                  <p className="mt-0.5">{reviewError}</p>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={closeModals}
+                  disabled={isSubmittingReview}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={handleConfirmApprove}
+                  isLoading={isSubmittingReview}
+                  leftIcon={<Check className="w-3.5 h-3.5" />}
+                >
+                  Confirm Approval
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Confirmation Modal */}
+        {showRejectModal && application && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs animate-in fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-modal-title"
+          >
+            <div className="bg-white rounded-xl border border-[#D9E0E6] max-w-lg w-full p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#FDF2F2] border border-[#EFC8C7] flex items-center justify-center text-[#B94A48] shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 id="reject-modal-title" className="text-base font-bold text-[#243447]">
+                    Reject Rental Application
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
+                    You are rejecting the rental application for{' '}
+                    <strong className="text-[#243447]">{application.tenantName || 'Applicant'}</strong>.
+                    Please provide an explicit reason below for the applicant and records.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-left">
+                <Textarea
+                  id="rejection-reason"
+                  label="Reason for Rejection"
+                  required
+                  rows={4}
+                  maxLength={1000}
+                  disabled={isSubmittingReview}
+                  value={rejectionReason}
+                  onChange={(e) => {
+                    setRejectionReason(e.target.value)
+                    if (rejectionError) setRejectionError('')
+                    if (reviewError) setReviewError(null)
+                  }}
+                  placeholder="Please provide a clear and professional reason for declining this application (e.g., credit criteria not met, incomplete documentation, unit already leased)..."
+                  error={rejectionError}
+                  helperText={`${rejectionReason.length} / 1000 characters (required)`}
+                />
+              </div>
+
+              {reviewError && (
+                <div className="p-3 rounded-lg bg-[#FDF2F2] border border-[#EFC8C7] text-xs text-[#8A2E2C]">
+                  <p className="font-semibold">Review Submission Failed:</p>
+                  <p className="mt-0.5">{reviewError}</p>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={closeModals}
+                  disabled={isSubmittingReview}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  onClick={handleConfirmReject}
+                  isLoading={isSubmittingReview}
+                  leftIcon={<XCircle className="w-3.5 h-3.5" />}
+                >
+                  Confirm Rejection
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

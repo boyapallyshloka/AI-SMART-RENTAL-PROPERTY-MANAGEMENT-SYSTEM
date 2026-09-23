@@ -3,6 +3,9 @@ package com.rental.rental_management_backend.rental.serviceImpl;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +16,8 @@ import com.rental.rental_management_backend.property.entity.Building;
 import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
+import com.rental.rental_management_backend.property.enums.UnitStatus;
+import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationCreateRequest;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationResponse;
@@ -30,24 +35,41 @@ public class RentalApplicationServiceImpl
         implements RentalApplicationService {
 
     private final RentalApplicationRepository rentalApplicationRepository;
+
     private final TenantRepository tenantRepository;
+
     private final UserRepository userRepository;
+
     private final UnitRepository unitRepository;
+
+    private final PropertyRepository propertyRepository;
 
     public RentalApplicationServiceImpl(
             RentalApplicationRepository rentalApplicationRepository,
             TenantRepository tenantRepository,
             UserRepository userRepository,
-            UnitRepository unitRepository) {
+            UnitRepository unitRepository,
+            PropertyRepository propertyRepository) {
 
-        this.rentalApplicationRepository = rentalApplicationRepository;
-        this.tenantRepository = tenantRepository;
-        this.userRepository = userRepository;
-        this.unitRepository = unitRepository;
+        this.rentalApplicationRepository =
+                rentalApplicationRepository;
+
+        this.tenantRepository =
+                tenantRepository;
+
+        this.userRepository =
+                userRepository;
+
+        this.unitRepository =
+                unitRepository;
+
+        this.propertyRepository =
+                propertyRepository;
     }
 
     // ============================================================
     // CREATE APPLICATION
+    // TENANT ONLY
     // ============================================================
 
     @Override
@@ -55,27 +77,27 @@ public class RentalApplicationServiceImpl
             String email,
             RentalApplicationCreateRequest request) {
 
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Authenticated user email is required");
-        }
+        validateEmail(email);
 
         if (request == null) {
+
             throw new IllegalArgumentException(
                     "Application request is required");
         }
 
-        User user = userRepository
-                .findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with email: " + email));
+        User user = findUserByEmail(email);
 
         Tenant tenant = tenantRepository
                 .findByUser_Id(user.getId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Tenant profile not found for user"));
+
+        if (request.getUnitId() == null) {
+
+            throw new IllegalArgumentException(
+                    "Unit ID is required");
+        }
 
         Unit unit = unitRepository
                 .findById(request.getUnitId())
@@ -84,20 +106,30 @@ public class RentalApplicationServiceImpl
                                 "Unit not found with ID: "
                                         + request.getUnitId()));
 
-        /*
-         * Prevent the same tenant from having
-         * multiple pending applications for
-         * the same unit.
-         */
+        // --------------------------------------------------------
+        // ONLY VACANT UNITS CAN RECEIVE APPLICATIONS
+        // --------------------------------------------------------
+
+        if (unit.getStatus() != UnitStatus.VACANT) {
+
+            throw new IllegalArgumentException(
+                    "Applications can only be submitted "
+                            + "for vacant units");
+        }
+
+        // --------------------------------------------------------
+        // PREVENT DUPLICATE PENDING APPLICATION
+        // --------------------------------------------------------
+
         boolean alreadyApplied =
                 rentalApplicationRepository
                         .existsByTenant_TenantIdAndUnit_UnitIdAndStatus(
                                 tenant.getTenantId(),
                                 unit.getUnitId(),
-                                RentalApplicationStatus.PENDING
-                        );
+                                RentalApplicationStatus.PENDING);
 
         if (alreadyApplied) {
+
             throw new IllegalArgumentException(
                     "You already have a pending application "
                             + "for this unit");
@@ -107,6 +139,7 @@ public class RentalApplicationServiceImpl
                 new RentalApplication();
 
         application.setTenant(tenant);
+
         application.setUnit(unit);
 
         application.setPreferredMoveInDate(
@@ -126,12 +159,30 @@ public class RentalApplicationServiceImpl
 
     // ============================================================
     // GET APPLICATION BY ID
+    //
+    // TENANT
+    //     -> own application only
+    //
+    // PROPERTY_OWNER
+    //     -> applications for owned properties only
+    //
+    // PROPERTY_MANAGER
+    //     -> applications for assigned properties only
+    //
+    // SUPER_ADMIN
+    //     -> any application
     // ============================================================
 
     @Override
     @Transactional(readOnly = true)
     public RentalApplicationResponse getApplicationById(
             Long applicationId) {
+
+        if (applicationId == null) {
+
+            throw new IllegalArgumentException(
+                    "Application ID is required");
+        }
 
         RentalApplication application =
                 rentalApplicationRepository
@@ -142,11 +193,98 @@ public class RentalApplicationServiceImpl
                                                 + "with ID: "
                                                 + applicationId));
 
-        return mapToResponse(application);
+        String email = getAuthenticatedEmail();
+
+        String role = getAuthenticatedRole();
+
+        // --------------------------------------------------------
+        // SUPER ADMIN CAN VIEW ANY APPLICATION
+        // --------------------------------------------------------
+
+        if ("ROLE_SUPER_ADMIN".equals(role)) {
+
+            return mapToResponse(application);
+        }
+
+        // --------------------------------------------------------
+        // TENANT CAN VIEW ONLY THEIR OWN APPLICATION
+        // --------------------------------------------------------
+
+        if ("ROLE_TENANT".equals(role)) {
+
+            Tenant tenant = tenantRepository
+                    .findByUser_Id(
+                            findUserByEmail(email).getId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Tenant profile not found for user"));
+
+            if (application.getTenant() == null
+                    || !application.getTenant()
+                            .getTenantId()
+                            .equals(tenant.getTenantId())) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "this application");
+            }
+
+            return mapToResponse(application);
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY OWNER CAN VIEW ONLY THEIR PROPERTY APPLICATIONS
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_OWNER".equals(role)) {
+
+            Property property =
+                    getPropertyFromApplication(application);
+
+            User owner = property.getOwner();
+
+            if (owner == null
+                    || owner.getEmail() == null
+                    || !owner.getEmail()
+                            .equalsIgnoreCase(email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "this application");
+            }
+
+            return mapToResponse(application);
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY MANAGER CAN VIEW ONLY ASSIGNED PROPERTY
+        // APPLICATIONS
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_MANAGER".equals(role)) {
+
+            Property property =
+                    getPropertyFromApplication(application);
+
+            if (!isPropertyManagerAssignedToProperty(
+                    property,
+                    email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "this application");
+            }
+
+            return mapToResponse(application);
+        }
+
+        throw new IllegalArgumentException(
+                "You are not authorized to view applications");
     }
 
     // ============================================================
     // GET MY APPLICATIONS
+    // TENANT ONLY
     // ============================================================
 
     @Override
@@ -154,16 +292,9 @@ public class RentalApplicationServiceImpl
     public List<RentalApplicationResponse> getMyApplications(
             String email) {
 
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Authenticated user email is required");
-        }
+        validateEmail(email);
 
-        User user = userRepository
-                .findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with email: " + email));
+        User user = findUserByEmail(email);
 
         Tenant tenant = tenantRepository
                 .findByUser_Id(user.getId())
@@ -172,7 +303,8 @@ public class RentalApplicationServiceImpl
                                 "Tenant profile not found for user"));
 
         return rentalApplicationRepository
-                .findByTenant_TenantId(tenant.getTenantId())
+                .findByTenant_TenantId(
+                        tenant.getTenantId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -180,6 +312,15 @@ public class RentalApplicationServiceImpl
 
     // ============================================================
     // GET APPLICATIONS FOR UNIT
+    //
+    // PROPERTY_OWNER
+    //     -> own property only
+    //
+    // PROPERTY_MANAGER
+    //     -> assigned property only
+    //
+    // SUPER_ADMIN
+    //     -> any unit
     // ============================================================
 
     @Override
@@ -187,26 +328,110 @@ public class RentalApplicationServiceImpl
     public List<RentalApplicationResponse> getApplicationsForUnit(
             Long unitId) {
 
-        unitRepository.findById(unitId)
+        if (unitId == null) {
+
+            throw new IllegalArgumentException(
+                    "Unit ID is required");
+        }
+
+        Unit unit = unitRepository
+                .findById(unitId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Unit not found with ID: "
                                         + unitId));
 
-        return rentalApplicationRepository
-                .findByUnit_UnitId(unitId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        String email = getAuthenticatedEmail();
+
+        String role = getAuthenticatedRole();
+
+        // --------------------------------------------------------
+        // SUPER ADMIN
+        // --------------------------------------------------------
+
+        if ("ROLE_SUPER_ADMIN".equals(role)) {
+
+            return rentalApplicationRepository
+                    .findByUnit_UnitId(unitId)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY OWNER
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_OWNER".equals(role)) {
+
+            Property property =
+                    getPropertyFromUnit(unit);
+
+            User owner = property.getOwner();
+
+            if (owner == null
+                    || owner.getEmail() == null
+                    || !owner.getEmail()
+                            .equalsIgnoreCase(email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "applications for this unit");
+            }
+
+            return rentalApplicationRepository
+                    .findByUnit_UnitId(unitId)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY MANAGER
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_MANAGER".equals(role)) {
+
+            Property property =
+                    getPropertyFromUnit(unit);
+
+            if (!isPropertyManagerAssignedToProperty(
+                    property,
+                    email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "applications for this unit");
+            }
+
+            return rentalApplicationRepository
+                    .findByUnit_UnitId(unitId)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        throw new IllegalArgumentException(
+                "You are not authorized to view "
+                        + "applications for this unit");
     }
 
     // ============================================================
     // GET ALL APPLICATIONS
+    // SUPER ADMIN ONLY
     // ============================================================
 
     @Override
     @Transactional(readOnly = true)
     public List<RentalApplicationResponse> getAllApplications() {
+
+        String role = getAuthenticatedRole();
+
+        if (!"ROLE_SUPER_ADMIN".equals(role)) {
+
+            throw new IllegalArgumentException(
+                    "Only SUPER_ADMIN can view all applications");
+        }
 
         return rentalApplicationRepository
                 .findAll()
@@ -217,6 +442,15 @@ public class RentalApplicationServiceImpl
 
     // ============================================================
     // REVIEW APPLICATION
+    //
+    // PROPERTY OWNER
+    //     -> can approve/reject applications for their properties
+    //
+    // PROPERTY MANAGER
+    //     -> can approve/reject applications for properties
+    //        assigned to them
+    //
+    // ONLY PENDING APPLICATIONS CAN BE REVIEWED
     // ============================================================
 
     @Override
@@ -225,19 +459,24 @@ public class RentalApplicationServiceImpl
             String email,
             RentalApplicationReviewRequest request) {
 
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Authenticated user email is required");
-        }
+        validateEmail(email);
 
         if (request == null) {
+
             throw new IllegalArgumentException(
                     "Review request is required");
         }
 
         if (request.getStatus() == null) {
+
             throw new IllegalArgumentException(
                     "Application status is required");
+        }
+
+        if (applicationId == null) {
+
+            throw new IllegalArgumentException(
+                    "Application ID is required");
         }
 
         RentalApplication application =
@@ -249,9 +488,10 @@ public class RentalApplicationServiceImpl
                                                 + "with ID: "
                                                 + applicationId));
 
-        /*
-         * Only PENDING applications can be reviewed.
-         */
+        // --------------------------------------------------------
+        // ONLY PENDING APPLICATIONS CAN BE REVIEWED
+        // --------------------------------------------------------
+
         if (application.getStatus()
                 != RentalApplicationStatus.PENDING) {
 
@@ -259,63 +499,56 @@ public class RentalApplicationServiceImpl
                     "Only pending applications can be reviewed");
         }
 
-        /*
-         * Find the property through:
-         *
-         * Application
-         *      ↓
-         * Unit
-         *      ↓
-         * Floor
-         *      ↓
-         * Building
-         *      ↓
-         * Property
-         *      ↓
-         * Owner
-         */
-        Unit unit = application.getUnit();
-
-        if (unit == null) {
-            throw new ResourceNotFoundException(
-                    "Unit not found for this application");
-        }
-
-        Floor floor = unit.getFloor();
-
-        if (floor == null) {
-            throw new ResourceNotFoundException(
-                    "Floor not found for this unit");
-        }
-
-        Building building = floor.getBuilding();
-
-        if (building == null) {
-            throw new ResourceNotFoundException(
-                    "Building not found for this floor");
-        }
-
-        Property property = building.getProperty();
-
-        if (property == null) {
-            throw new ResourceNotFoundException(
-                    "Property not found for this building");
-        }
+        Property property =
+                getPropertyFromApplication(application);
 
         User owner = property.getOwner();
 
         if (owner == null) {
+
             throw new ResourceNotFoundException(
                     "Property owner not found");
         }
 
-        /*
-         * Only the owner of the property can
-         * approve or reject the application.
-         */
-        if (owner.getEmail() == null
-                || !owner.getEmail()
-                        .equalsIgnoreCase(email.trim())) {
+        String role = getAuthenticatedRole();
+
+        // --------------------------------------------------------
+        // PROPERTY OWNER
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_OWNER".equals(role)) {
+
+            if (owner.getEmail() == null
+                    || !owner.getEmail()
+                            .equalsIgnoreCase(email.trim())) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to review "
+                                + "this application");
+            }
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY MANAGER
+        // --------------------------------------------------------
+
+        else if ("ROLE_PROPERTY_MANAGER".equals(role)) {
+
+            if (!isPropertyManagerAssignedToProperty(
+                    property,
+                    email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to review "
+                                + "this application");
+            }
+        }
+
+        // --------------------------------------------------------
+        // ANY OTHER ROLE
+        // --------------------------------------------------------
+
+        else {
 
             throw new IllegalArgumentException(
                     "You are not authorized to review "
@@ -325,12 +558,10 @@ public class RentalApplicationServiceImpl
         RentalApplicationStatus newStatus =
                 request.getStatus();
 
-        /*
-         * Review operation supports only:
-         *
-         * APPROVED
-         * REJECTED
-         */
+        // --------------------------------------------------------
+        // ONLY APPROVED OR REJECTED
+        // --------------------------------------------------------
+
         if (newStatus != RentalApplicationStatus.APPROVED
                 && newStatus != RentalApplicationStatus.REJECTED) {
 
@@ -340,15 +571,17 @@ public class RentalApplicationServiceImpl
         }
 
         // --------------------------------------------------------
-        // REJECT APPLICATION
+        // REJECT
         // --------------------------------------------------------
 
         if (newStatus == RentalApplicationStatus.REJECTED) {
 
             String rejectionReason =
-                    cleanString(request.getRejectionReason());
+                    cleanString(
+                            request.getRejectionReason());
 
             if (rejectionReason == null) {
+
                 throw new IllegalArgumentException(
                         "Rejection reason is required");
             }
@@ -358,10 +591,11 @@ public class RentalApplicationServiceImpl
         }
 
         // --------------------------------------------------------
-        // APPROVE APPLICATION
+        // APPROVE
         // --------------------------------------------------------
 
         else {
+
             application.setRejectionReason(null);
         }
 
@@ -379,6 +613,7 @@ public class RentalApplicationServiceImpl
 
     // ============================================================
     // WITHDRAW APPLICATION
+    // TENANT ONLY
     // ============================================================
 
     @Override
@@ -386,9 +621,12 @@ public class RentalApplicationServiceImpl
             Long applicationId,
             String email) {
 
-        if (email == null || email.isBlank()) {
+        validateEmail(email);
+
+        if (applicationId == null) {
+
             throw new IllegalArgumentException(
-                    "Authenticated user email is required");
+                    "Application ID is required");
         }
 
         RentalApplication application =
@@ -400,12 +638,7 @@ public class RentalApplicationServiceImpl
                                                 + "with ID: "
                                                 + applicationId));
 
-        User user = userRepository
-                .findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with email: "
-                                        + email));
+        User user = findUserByEmail(email);
 
         Tenant tenant = tenantRepository
                 .findByUser_Id(user.getId())
@@ -413,10 +646,10 @@ public class RentalApplicationServiceImpl
                         new ResourceNotFoundException(
                                 "Tenant profile not found for user"));
 
-        /*
-         * Make sure the logged-in tenant owns
-         * this application.
-         */
+        // --------------------------------------------------------
+        // TENANT MUST OWN APPLICATION
+        // --------------------------------------------------------
+
         if (application.getTenant() == null
                 || !application.getTenant()
                         .getTenantId()
@@ -427,9 +660,10 @@ public class RentalApplicationServiceImpl
                             + "this application");
         }
 
-        /*
-         * Only pending applications can be withdrawn.
-         */
+        // --------------------------------------------------------
+        // ONLY PENDING APPLICATIONS CAN BE WITHDRAWN
+        // --------------------------------------------------------
+
         if (application.getStatus()
                 != RentalApplicationStatus.PENDING) {
 
@@ -444,6 +678,296 @@ public class RentalApplicationServiceImpl
     }
 
     // ============================================================
+    // GET ALL APPLICATIONS FOR PROPERTY
+    //
+    // PROPERTY_OWNER
+    //     -> own property only
+    //
+    // PROPERTY_MANAGER
+    //     -> assigned property only
+    //
+    // SUPER_ADMIN
+    //     -> any property
+    //
+    // TENANT
+    //     -> not allowed
+    //
+    // IMPORTANT:
+    // A valid property with zero applications returns []
+    // instead of 404.
+    // ============================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RentalApplicationResponse> getApplicationsForProperty(
+            Long propertyId) {
+
+        if (propertyId == null) {
+
+            throw new IllegalArgumentException(
+                    "Property ID is required");
+        }
+
+        // --------------------------------------------------------
+        // FIND PROPERTY FIRST
+        //
+        // This is important because a property can exist even
+        // when it has no rental applications yet.
+        // --------------------------------------------------------
+
+        Property property =
+                propertyRepository
+                        .findById(propertyId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Property not found with ID: "
+                                                + propertyId));
+
+        String email = getAuthenticatedEmail();
+
+        String role = getAuthenticatedRole();
+
+        // --------------------------------------------------------
+        // GET APPLICATIONS FOR PROPERTY
+        // --------------------------------------------------------
+
+        List<RentalApplication> applications =
+                rentalApplicationRepository
+                        .findByUnit_Floor_Building_Property_PropertyId(
+                                propertyId);
+
+        // --------------------------------------------------------
+        // SUPER ADMIN
+        // --------------------------------------------------------
+
+        if ("ROLE_SUPER_ADMIN".equals(role)) {
+
+            return applications
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY OWNER
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_OWNER".equals(role)) {
+
+            User owner = property.getOwner();
+
+            if (owner == null
+                    || owner.getEmail() == null
+                    || !owner.getEmail()
+                            .equalsIgnoreCase(email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "applications for this property");
+            }
+
+            return applications
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // --------------------------------------------------------
+        // PROPERTY MANAGER
+        // --------------------------------------------------------
+
+        if ("ROLE_PROPERTY_MANAGER".equals(role)) {
+
+            if (!isPropertyManagerAssignedToProperty(
+                    property,
+                    email)) {
+
+                throw new IllegalArgumentException(
+                        "You are not authorized to view "
+                                + "applications for this property");
+            }
+
+            return applications
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // --------------------------------------------------------
+        // OTHER ROLES
+        // --------------------------------------------------------
+
+        throw new IllegalArgumentException(
+                "You are not authorized to view "
+                        + "applications for this property");
+    }
+
+    // ============================================================
+    // CHECK PROPERTY MANAGER ACCESS
+    // ============================================================
+
+    private boolean isPropertyManagerAssignedToProperty(
+            Property property,
+            String managerEmail) {
+
+        if (property == null
+                || property.getPropertyManager() == null
+                || property.getPropertyManager().getUser() == null
+                || property.getPropertyManager().getUser()
+                        .getEmail() == null
+                || managerEmail == null
+                || managerEmail.isBlank()) {
+
+            return false;
+        }
+
+        return property.getPropertyManager()
+                .getUser()
+                .getEmail()
+                .equalsIgnoreCase(
+                        managerEmail.trim());
+    }
+
+    // ============================================================
+    // GET PROPERTY FROM APPLICATION
+    // ============================================================
+
+    private Property getPropertyFromApplication(
+            RentalApplication application) {
+
+        if (application.getUnit() == null) {
+
+            throw new ResourceNotFoundException(
+                    "Unit not found for this application");
+        }
+
+        return getPropertyFromUnit(
+                application.getUnit());
+    }
+
+    // ============================================================
+    // GET PROPERTY FROM UNIT
+    // ============================================================
+
+    private Property getPropertyFromUnit(Unit unit) {
+
+        Floor floor = unit.getFloor();
+
+        if (floor == null) {
+
+            throw new ResourceNotFoundException(
+                    "Floor not found for this unit");
+        }
+
+        Building building = floor.getBuilding();
+
+        if (building == null) {
+
+            throw new ResourceNotFoundException(
+                    "Building not found for this floor");
+        }
+
+        Property property = building.getProperty();
+
+        if (property == null) {
+
+            throw new ResourceNotFoundException(
+                    "Property not found for this building");
+        }
+
+        return property;
+    }
+
+    // ============================================================
+    // FIND USER BY EMAIL
+    // ============================================================
+
+    private User findUserByEmail(String email) {
+
+        return userRepository
+                .findByEmail(
+                        email.trim().toLowerCase())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: "
+                                        + email));
+    }
+
+    // ============================================================
+    // AUTHENTICATED EMAIL
+    // ============================================================
+
+    private String getAuthenticatedEmail() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Authenticated user is required");
+        }
+
+        return authentication.getName()
+                .trim()
+                .toLowerCase();
+    }
+
+    // ============================================================
+    // AUTHENTICATED ROLE
+    // ============================================================
+
+    private String getAuthenticatedRole() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+
+            throw new IllegalArgumentException(
+                    "Authenticated user is required");
+        }
+
+        for (GrantedAuthority authority :
+                authentication.getAuthorities()) {
+
+            String role = authority.getAuthority();
+
+            if ("ROLE_SUPER_ADMIN".equals(role)
+                    || "ROLE_PROPERTY_OWNER".equals(role)
+                    || "ROLE_PROPERTY_MANAGER".equals(role)
+                    || "ROLE_TENANT".equals(role)) {
+
+                return role;
+            }
+        }
+
+        throw new IllegalArgumentException(
+                "User role not found");
+    }
+
+    // ============================================================
+    // VALIDATE EMAIL
+    // ============================================================
+
+    private void validateEmail(String email) {
+
+        if (email == null || email.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Authenticated user email is required");
+        }
+    }
+
+    // ============================================================
     // MAP ENTITY TO RESPONSE
     // ============================================================
 
@@ -454,24 +978,26 @@ public class RentalApplicationServiceImpl
                 new RentalApplicationResponse();
 
         // --------------------------------------------------------
-        // Application ID
+        // APPLICATION ID
         // --------------------------------------------------------
 
         response.setApplicationId(
                 application.getApplicationId());
 
         // --------------------------------------------------------
-        // Tenant
+        // TENANT
         // --------------------------------------------------------
 
-        Tenant tenant = application.getTenant();
+        Tenant tenant =
+                application.getTenant();
 
         if (tenant != null) {
 
             response.setTenantId(
                     tenant.getTenantId());
 
-            User user = tenant.getUser();
+            User user =
+                    tenant.getUser();
 
             if (user != null) {
 
@@ -500,10 +1026,11 @@ public class RentalApplicationServiceImpl
         }
 
         // --------------------------------------------------------
-        // Unit
+        // UNIT
         // --------------------------------------------------------
 
-        Unit unit = application.getUnit();
+        Unit unit =
+                application.getUnit();
 
         if (unit != null) {
 
@@ -520,10 +1047,11 @@ public class RentalApplicationServiceImpl
                     unit.getSecurityDeposit());
 
             // ----------------------------------------------------
-            // Floor
+            // FLOOR
             // ----------------------------------------------------
 
-            Floor floor = unit.getFloor();
+            Floor floor =
+                    unit.getFloor();
 
             if (floor != null) {
 
@@ -531,7 +1059,7 @@ public class RentalApplicationServiceImpl
                         floor.getFloorId());
 
                 // ------------------------------------------------
-                // Building
+                // BUILDING
                 // ------------------------------------------------
 
                 Building building =
@@ -546,7 +1074,7 @@ public class RentalApplicationServiceImpl
                             building.getBuildingName());
 
                     // --------------------------------------------
-                    // Property
+                    // PROPERTY
                     // --------------------------------------------
 
                     Property property =
@@ -565,7 +1093,7 @@ public class RentalApplicationServiceImpl
         }
 
         // --------------------------------------------------------
-        // Application Details
+        // APPLICATION DETAILS
         // --------------------------------------------------------
 
         response.setApplicationDate(
@@ -602,15 +1130,19 @@ public class RentalApplicationServiceImpl
     private String cleanString(String value) {
 
         if (value == null) {
+
             return null;
         }
 
-        String cleaned = value.trim();
+        String cleaned =
+                value.trim();
 
         if (cleaned.isEmpty()) {
+
             return null;
         }
 
         return cleaned;
     }
 }
+

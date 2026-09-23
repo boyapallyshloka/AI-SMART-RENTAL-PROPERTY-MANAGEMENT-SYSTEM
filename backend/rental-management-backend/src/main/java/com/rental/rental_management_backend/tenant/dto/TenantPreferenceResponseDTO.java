@@ -1,10 +1,13 @@
+
 package com.rental.rental_management_backend.tenant.dto;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
 
 public class TenantPreferenceResponseDTO {
 
@@ -16,11 +19,13 @@ public class TenantPreferenceResponseDTO {
 
     private Integer minBedrooms;
 
+    private PropertyType preferredPropertyType;
+
     private FurnishingStatus furnishingPreference;
 
     private Boolean parkingRequired;
 
-    private List<AmenityResponseDTO> preferredAmenities = new ArrayList<>();
+    private List<AmenityResponse> preferredAmenities = new ArrayList<>();
 
     private Double preferredLatitude;
 
@@ -67,13 +72,19 @@ public class TenantPreferenceResponseDTO {
         this.minBedrooms = minBedrooms;
     }
 
+    public PropertyType getPreferredPropertyType() {
+        return preferredPropertyType;
+    }
+
+    public void setPreferredPropertyType(PropertyType preferredPropertyType) {
+        this.preferredPropertyType = preferredPropertyType;
+    }
+
     public FurnishingStatus getFurnishingPreference() {
         return furnishingPreference;
     }
 
-    public void setFurnishingPreference(
-            FurnishingStatus furnishingPreference) {
-
+    public void setFurnishingPreference(FurnishingStatus furnishingPreference) {
         this.furnishingPreference = furnishingPreference;
     }
 
@@ -85,13 +96,11 @@ public class TenantPreferenceResponseDTO {
         this.parkingRequired = parkingRequired;
     }
 
-    public List<AmenityResponseDTO> getPreferredAmenities() {
+    public List<AmenityResponse> getPreferredAmenities() {
         return preferredAmenities;
     }
 
-    public void setPreferredAmenities(
-            List<AmenityResponseDTO> preferredAmenities) {
-
+    public void setPreferredAmenities(List<AmenityResponse> preferredAmenities) {
         this.preferredAmenities = preferredAmenities;
     }
 

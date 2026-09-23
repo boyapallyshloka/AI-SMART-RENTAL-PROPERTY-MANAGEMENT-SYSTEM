@@ -133,7 +133,7 @@ const STATUS_CONFIG = {
     dot: 'bg-[#315A7D]',
   },
 
-  // Neutral / Secondary
+  // Neutral / Secondary / Inactive / Cancelled / Withdrawn
   occupied: {
     label: 'Occupied',
     badge: 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]',
@@ -143,6 +143,16 @@ const STATUS_CONFIG = {
     label: 'Closed',
     badge: 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]',
     dot: 'bg-[#5B6875]',
+  },
+  withdrawn: {
+    label: 'Withdrawn',
+    badge: 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]',
+    dot: 'bg-[#5B6875]',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    badge: 'bg-[#FDF2F2] text-[#8A2E2C] border-[#EFC8C7]',
+    dot: 'bg-[#B94A48]',
   },
   draft: {
     label: 'Draft',

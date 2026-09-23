@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.controller;
 
 import org.springframework.http.HttpStatus;
@@ -32,8 +33,9 @@ public class TenantPreferenceController {
     }
 
     @PostMapping
-    public ResponseEntity<TenantPreferenceResponseDTO> createPreference(
-            @Valid @RequestBody TenantPreferenceDTO dto) {
+    public ResponseEntity<TenantPreferenceResponseDTO>
+            createPreference(
+                    @Valid @RequestBody TenantPreferenceDTO dto) {
 
         TenantPreferenceResponseDTO response =
                 tenantPreferenceService.createPreference(dto);
@@ -44,26 +46,25 @@ public class TenantPreferenceController {
     }
 
     @GetMapping
-    public ResponseEntity<TenantPreferenceResponseDTO> getMyPreference() {
+    public ResponseEntity<TenantPreferenceResponseDTO>
+            getMyPreference() {
 
-        TenantPreferenceResponseDTO response =
-                tenantPreferenceService.getMyPreference();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                tenantPreferenceService.getMyPreference());
     }
 
     @PutMapping
-    public ResponseEntity<TenantPreferenceResponseDTO> updatePreference(
-            @Valid @RequestBody TenantPreferenceDTO dto) {
+    public ResponseEntity<TenantPreferenceResponseDTO>
+            updatePreference(
+                    @Valid @RequestBody TenantPreferenceDTO dto) {
 
-        TenantPreferenceResponseDTO response =
-                tenantPreferenceService.updatePreference(dto);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                tenantPreferenceService.updatePreference(dto));
     }
 
     @DeleteMapping
-    public ResponseEntity<Void> deleteMyPreference() {
+    public ResponseEntity<Void>
+            deleteMyPreference() {
 
         tenantPreferenceService.deleteMyPreference();
 
