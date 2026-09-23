@@ -3,9 +3,15 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
-  getStoredMaintenanceRequests,
+  getMaintenanceRequests,
+  getMaintenanceRequestById,
   MAINTENANCE_STATUSES,
-} from '../../utils/maintenanceMockData'
+  MAINTENANCE_PRIORITIES,
+  formatStatusLabel,
+  formatPriorityLabel,
+  formatCategoryLabel,
+  getPriorityBadgeClass,
+} from '../../api/maintenanceApi'
 import {
   Button,
   Input,
@@ -25,6 +31,9 @@ import {
   Clock,
   CheckCircle2,
   Info,
+  Eye,
+  X,
+  ImageIcon,
 } from 'lucide-react'
 
 export default function TenantMaintenancePage() {
@@ -34,79 +43,101 @@ export default function TenantMaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [noticeMessage, setNoticeMessage] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [selectedTicket, setSelectedTicket] = useState(null)
   const [successMessage, setSuccessMessage] = useState(
     location.state?.successMessage || ''
   )
+  const [fetchError, setFetchError] = useState('')
 
   const tenantEmail = (user?.email || 'tenant@homesphere.com').toLowerCase().trim()
   const tenantName = (user?.name || 'Elena Rostova').toLowerCase().trim()
 
-  useEffect(() => {
-    // Read from shared maintenance requests storage
-    const timer = setTimeout(() => {
-      const allRequests = getStoredMaintenanceRequests()
-      const myRequests = allRequests.filter((req) => {
-        const emailMatch = (req.tenantEmail || '').toLowerCase().trim() === tenantEmail
-        const nameMatch = (req.tenantName || '').toLowerCase().trim() === tenantName
-        return emailMatch || nameMatch
-      })
-      setRequests(myRequests)
-      setLoading(false)
-    }, 200)
+  const loadTenantRequests = async () => {
+    setLoading(true)
+    setFetchError('')
+    let loadedRequests = []
 
-    return () => clearTimeout(timer)
-  }, [tenantEmail, tenantName])
+    // 1. Try backend GET /api/maintenance
+    try {
+      const allBackendRequests = await getMaintenanceRequests()
+      if (Array.isArray(allBackendRequests)) {
+        loadedRequests = allBackendRequests
+      }
+    } catch (err) {
+      // If 403 Forbidden (backend role limitation for TENANT on getAll), fetch tracked ticket IDs
+      try {
+        const storedIds = JSON.parse(
+          localStorage.getItem('tenant_maintenance_ticket_ids') || '[]'
+        )
 
-  const handleCreateRequest = () => {
-    setNoticeMessage('Create Maintenance Request form - Coming soon!')
-    setTimeout(() => {
-      setNoticeMessage('')
-    }, 3500)
+        if (Array.isArray(storedIds) && storedIds.length > 0) {
+          const promises = storedIds.map((id) =>
+            getMaintenanceRequestById(id).catch(() => null)
+          )
+          const results = await Promise.all(promises)
+          loadedRequests = results.filter(Boolean)
+        }
+      } catch (innerErr) {
+        console.warn('Unable to load tenant-tracked ticket IDs:', innerErr)
+      }
+    }
+
+    setRequests(loadedRequests)
+    setLoading(false)
   }
+
+  useEffect(() => {
+    loadTenantRequests()
+  }, [])
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
-    ...MAINTENANCE_STATUSES.map((st) => ({ value: st, label: st })),
+    ...MAINTENANCE_STATUSES.map((st) => ({
+      value: st,
+      label: formatStatusLabel(st),
+    })),
   ]
 
-  // Filtered requests based on search and status
+  const priorityOptions = [
+    { value: 'all', label: 'All Priorities' },
+    ...MAINTENANCE_PRIORITIES.map((pr) => ({
+      value: pr,
+      label: `${formatPriorityLabel(pr)} Priority`,
+    })),
+  ]
+
+  // Filtered requests based on search, status, and priority
   const filteredRequests = requests.filter((req) => {
     const query = searchQuery.toLowerCase().trim()
+    const ticketIdStr = String(req.requestId || req.id || req.ticketNumber || '').toLowerCase()
+    const desc = (req.description || '').toLowerCase()
+    const cat = (req.category || '').toLowerCase()
+
     const matchesSearch =
       query === '' ||
-      req.ticketNumber.toLowerCase().includes(query) ||
-      req.propertyName.toLowerCase().includes(query) ||
-      req.unitNumber.toLowerCase().includes(query) ||
-      req.category.toLowerCase().includes(query) ||
-      (req.title && req.title.toLowerCase().includes(query))
+      ticketIdStr.includes(query) ||
+      desc.includes(query) ||
+      cat.includes(query)
 
+    const reqStatus = String(req.status || '').toUpperCase()
     const matchesStatus =
-      statusFilter === 'all' ||
-      req.status.toLowerCase() === statusFilter.toLowerCase()
+      statusFilter === 'all' || reqStatus === statusFilter.toUpperCase()
 
-    return matchesSearch && matchesStatus
+    const reqPriority = String(req.priority || '').toUpperCase()
+    const matchesPriority =
+      priorityFilter === 'all' || reqPriority === priorityFilter.toUpperCase()
+
+    return matchesSearch && matchesStatus && matchesPriority
   })
 
-  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all'
+  const hasActiveFilters =
+    searchQuery !== '' || statusFilter !== 'all' || priorityFilter !== 'all'
 
   const resetFilters = () => {
     setSearchQuery('')
     setStatusFilter('all')
-  }
-
-  const getPriorityBadgeClass = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'emergency':
-        return 'bg-[#FDF2F2] text-[#8A2E2C] border-[#F4B4B4] font-semibold'
-      case 'high':
-        return 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
-      case 'medium':
-        return 'bg-[#EAF2F7] text-[#315A7D] border-[#C2D8E8]'
-      case 'low':
-      default:
-        return 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
-    }
+    setPriorityFilter('all')
   }
 
   return (
@@ -133,23 +164,6 @@ export default function TenantMaintenancePage() {
           </div>
         )}
 
-        {/* Notice Message Banner */}
-        {noticeMessage && (
-          <div className="p-4 rounded-lg bg-[#EAF2F7] border border-[#C2D8E8] text-[#315A7D] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-[#315A7D] shrink-0" />
-              <span>{noticeMessage}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setNoticeMessage('')}
-              className="text-[#315A7D] hover:text-[#274B68] font-bold px-1"
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -170,22 +184,30 @@ export default function TenantMaintenancePage() {
 
         {/* Search & Status Filter Bar */}
         <div className="bg-white rounded-lg border border-[#D9E0E6] p-4 sm:p-5 shadow-2xs space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-            <div className="sm:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div className="lg:col-span-2">
               <Input
-                placeholder="Search by ticket #, category, title, or property..."
+                placeholder="Search by ticket #, category, description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
               />
             </div>
 
+            <div>
+              <Select
+                options={statusOptions}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <Select
-                  options={statusOptions}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  options={priorityOptions}
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
                 />
               </div>
 
@@ -255,80 +277,202 @@ export default function TenantMaintenancePage() {
                 <thead>
                   <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
                     <th className="py-3.5 pl-6 pr-4">Ticket #</th>
-                    <th className="py-3.5 px-4">Property & Unit</th>
                     <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Description</th>
                     <th className="py-3.5 px-4">Priority</th>
                     <th className="py-3.5 px-4">Submitted Date</th>
-                    <th className="py-3.5 pl-4 pr-6 text-right">Status</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D9E0E6] text-sm">
-                  {filteredRequests.map((req) => (
-                    <tr
-                      key={req.id}
-                      className="hover:bg-[#F7F8FA] transition-colors"
-                    >
-                      {/* Ticket Number */}
-                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
-                        <div>
-                          <span>{req.ticketNumber}</span>
-                          {req.title && (
-                            <p className="font-sans font-normal text-[#5B6875] text-xs truncate max-w-xs mt-0.5">
-                              {req.title}
-                            </p>
-                          )}
-                        </div>
-                      </td>
+                  {filteredRequests.map((req) => {
+                    const ticketId = req.requestId || req.id || req.ticketNumber || '—'
+                    const dateStr = req.requestedDate
+                      ? new Date(req.requestedDate).toLocaleDateString()
+                      : req.submittedDate || 'Recent'
 
-                      {/* Property & Unit */}
-                      <td className="py-4 px-4 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-[#5B6875] shrink-0" />
-                          <div>
-                            <p className="font-semibold text-[#243447] text-xs">
-                              {req.propertyName}
-                            </p>
-                            <span className="text-xs text-[#5B6875]">
-                              {req.unitNumber}
-                            </span>
+                    return (
+                      <tr
+                        key={req.requestId || req.id || Math.random()}
+                        className="hover:bg-[#F7F8FA] transition-colors"
+                      >
+                        {/* Ticket Number */}
+                        <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
+                          #{ticketId}
+                        </td>
+
+                        {/* Category */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
+                            {formatCategoryLabel(req.category)}
+                          </span>
+                        </td>
+
+                        {/* Description */}
+                        <td className="py-4 px-4 min-w-[200px] max-w-xs">
+                          <p className="font-medium text-[#243447] text-xs truncate">
+                            {req.description || 'No description provided'}
+                          </p>
+                        </td>
+
+                        {/* Priority */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs border ${getPriorityBadgeClass(
+                              req.priority
+                            )}`}
+                          >
+                            {formatPriorityLabel(req.priority)}
+                          </span>
+                        </td>
+
+                        {/* Submitted Date */}
+                        <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <span>{dateStr}</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Category */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
-                          {req.category}
-                        </span>
-                      </td>
+                        {/* Status */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <StatusBadge status={formatStatusLabel(req.status)} size="sm" />
+                        </td>
 
-                      {/* Priority */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs border ${getPriorityBadgeClass(
-                            req.priority
-                          )}`}
-                        >
-                          {req.priority}
-                        </span>
-                      </td>
-
-                      {/* Submitted Date */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                          <span>{req.submittedDate}</span>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                        <StatusBadge status={req.status} size="sm" />
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Actions: View Details */}
+                        <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                            onClick={() => setSelectedTicket(req)}
+                          >
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Ticket Details Inspection Modal */}
+        {selectedTicket && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-[#D9E0E6] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-lg font-bold text-[#243447] font-mono">
+                    Ticket #{selectedTicket.requestId || selectedTicket.id}
+                  </h3>
+                  <StatusBadge status={formatStatusLabel(selectedTicket.status)} size="sm" />
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${getPriorityBadgeClass(
+                      selectedTicket.priority
+                    )}`}
+                  >
+                    {formatPriorityLabel(selectedTicket.priority)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTicket(null)}
+                  className="p-1 rounded-md text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-sm">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-[#5B6875] block">Category:</span>
+                    <strong className="text-[#243447]">
+                      {formatCategoryLabel(selectedTicket.category)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[#5B6875] block">Submitted Date:</span>
+                    <strong className="text-[#243447]">
+                      {selectedTicket.requestedDate
+                        ? new Date(selectedTicket.requestedDate).toLocaleString()
+                        : selectedTicket.submittedDate || 'Recent'}
+                    </strong>
+                  </div>
+                </div>
+
+                {selectedTicket.propertyId && (
+                  <div className="grid grid-cols-2 gap-4 text-xs pt-2 border-t border-[#D9E0E6]">
+                    <div>
+                      <span className="text-[#5B6875] block">Property ID:</span>
+                      <strong className="text-[#243447]">#{selectedTicket.propertyId}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[#5B6875] block">Unit ID:</span>
+                      <strong className="text-[#243447]">#{selectedTicket.unitId}</strong>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-[#D9E0E6] space-y-1">
+                  <span className="text-xs font-semibold text-[#243447] block">
+                    Issue Description:
+                  </span>
+                  <p className="text-xs text-[#243447] leading-relaxed bg-[#F7F8FA] p-3 rounded-xl border border-[#D9E0E6]">
+                    {selectedTicket.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                {selectedTicket.imageUrl && (
+                  <div className="pt-2 border-t border-[#D9E0E6] space-y-1">
+                    <span className="text-xs font-semibold text-[#243447] block">
+                      Attached Photo:
+                    </span>
+                    <div className="rounded-xl border border-[#D9E0E6] overflow-hidden max-h-48 bg-[#F7F8FA] flex items-center justify-center">
+                      <img
+                        src={selectedTicket.imageUrl}
+                        alt="Maintenance issue"
+                        className="w-full h-auto object-contain max-h-48"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedTicket.completedDate && (
+                  <div className="p-3 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-xs space-y-1 text-[#2A583B]">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-[#3F7D58]" />
+                      <span>Ticket Completed</span>
+                    </div>
+                    <p>
+                      Completed on: {new Date(selectedTicket.completedDate).toLocaleString()}
+                    </p>
+                    {selectedTicket.cost && (
+                      <p>Total Maintenance Cost: ₹{selectedTicket.cost}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-[#D9E0E6] bg-[#F7F8FA] flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedTicket(null)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}

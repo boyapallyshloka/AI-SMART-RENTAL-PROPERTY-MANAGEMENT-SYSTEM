@@ -1,20 +1,20 @@
 {
   "model_version": "m3_v1_gb",
   "model_type": "GradientBoostingRegressor",
-  "mae": 0.43299032068777693,
-  "rmse": 0.6324489504074963,
+  "mae": 0.4330362121676501,
+  "rmse": 0.6326017689084057,
   "binarized_accuracy": 0.7589643380556913,
   "binarized_f1": 0.527485156100364,
-  "roc_auc": 0.7568365837096749,
+  "roc_auc": 0.7568366307602087,
   "confusion_matrix": {
     "tn": 6391,
     "fp": 948,
     "fn": 1519,
     "tp": 1377
   },
-  "r2_score": 0.39355646421079227,
-  "regressor_only_mae": 0.8372282203545637,
-  "regressor_only_rmse": 1.0301838812791597,
+  "r2_score": 0.3932633591670368,
+  "regressor_only_mae": 0.8373904093381623,
+  "regressor_only_rmse": 1.0305154385336508,
   "train_range": "2024-01 to 2025-06",
   "test_range": "2025-07 to 2025-11",
   "features": [

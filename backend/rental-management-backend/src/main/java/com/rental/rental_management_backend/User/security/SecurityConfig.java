@@ -23,98 +23,93 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
+        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        }
 
-    // =========================================================
-    // PASSWORD ENCODER
-    // =========================================================
+        // =========================================================
+        // PASSWORD ENCODER
+        // =========================================================
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    // =========================================================
-    // CORS CONFIGURATION
-    // =========================================================
+        // =========================================================
+        // CORS CONFIGURATION
+        // =========================================================
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+                CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173"));
+                configuration.setAllowedOrigins(
+                                List.of("http://localhost:5173"));
 
-        configuration.setAllowedMethods(
-                List.of(
-                        "GET",
-                        "POST",
-                        "PUT",
-                        "PATCH",
-                        "DELETE",
-                        "OPTIONS"
-                ));
+                configuration.setAllowedMethods(
+                                List.of(
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE",
+                                                "OPTIONS"));
 
-        configuration.setAllowedHeaders(
-                List.of(
-                        "Authorization",
-                        "Content-Type"
-                ));
+                configuration.setAllowedHeaders(
+                                List.of(
+                                                "Authorization",
+                                                "Content-Type"));
 
-        configuration.setAllowCredentials(true);
+                configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+                source.registerCorsConfiguration("/**", configuration);
 
-        return source;
-    }
+                return source;
+        }
 
-    // =========================================================
-    // SECURITY FILTER CHAIN
-    // =========================================================
+        // =========================================================
+        // SECURITY FILTER CHAIN
+        // =========================================================
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+        @Bean
+        public SecurityFilterChain securityFilterChain(
+                        HttpSecurity http) throws Exception {
 
-        http
+                http
 
-            // CORS
-            .cors(cors ->
-                cors.configurationSource(
-                    corsConfigurationSource()))
+                                // CORS
+                                .cors(cors -> cors.configurationSource(
+                                                corsConfigurationSource()))
 
-            // JWT application - CSRF disabled
-            .csrf(csrf -> csrf.disable())
+                                // JWT application - CSRF disabled
+                                .csrf(csrf -> csrf.disable())
 
-            // JWT is stateless
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(
-                    SessionCreationPolicy.STATELESS))
+                                // JWT is stateless
+                                .sessionManagement(session -> session.sessionCreationPolicy(
+                                                SessionCreationPolicy.STATELESS))
 
-            // =================================================
-            // AUTHORIZATION
-            // =================================================
+                                // =================================================
+                                // AUTHORIZATION
+                                // =================================================
 
-            .authorizeHttpRequests(auth -> auth
+                                .authorizeHttpRequests(auth -> auth
 
-                // -------------------------------------------------
-                // PUBLIC AUTHENTICATION APIs
-                // -------------------------------------------------
+                                                // -------------------------------------------------
+                                                // PUBLIC AUTHENTICATION APIs
+                                                // -------------------------------------------------
 
-                .requestMatchers(
-                    "/api/auth/register",
-                    "/api/auth/login",
-                    "/api/auth/forgot-password",
-                    "/api/auth/reset-password"
-                ).permitAll()
+                                                .requestMatchers(
+                                                                "/api/auth/register",
+                                                                "/api/auth/login",
+                                                                "/api/auth/forgot-password",
+                                                                "/api/auth/reset-password")
+                                                .permitAll()
 
                 // -------------------------------------------------
                 // SWAGGER + UPLOADED FILES
@@ -125,7 +120,8 @@ public class SecurityConfig {
                     "/swagger-ui.html",
                     "/v3/api-docs/**",
                     "/uploads/property-images/**",
-                    "/uploads/tenant-documents/**"
+                    "/uploads/tenant-documents/**",
+                    "/uploads/maintenance/**"
                 ).permitAll()
 
                 // -------------------------------------------------

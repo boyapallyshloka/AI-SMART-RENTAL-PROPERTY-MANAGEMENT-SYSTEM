@@ -12,7 +12,7 @@ public class MaintenanceAiServiceClient {
 
     private final RestClient restClient;
 
-    public MaintenanceAiServiceClient(@Value("${ai.service.url:http://127.0.0.1:8005}") String aiUrl) {
+    public MaintenanceAiServiceClient(@Value("${ai.service.url=http://127.0.0.1:8000/m5}") String aiUrl) {
         this.restClient = RestClient.builder()
                 .baseUrl(aiUrl)
                 .build();

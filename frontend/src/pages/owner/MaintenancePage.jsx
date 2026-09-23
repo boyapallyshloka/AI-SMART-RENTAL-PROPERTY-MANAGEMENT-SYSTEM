@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import {
-  MOCK_MAINTENANCE_REQUESTS,
-  MAINTENANCE_CATEGORIES,
-  MAINTENANCE_PRIORITIES,
+  getMaintenanceRequests,
   MAINTENANCE_STATUSES,
-  getStoredMaintenanceRequests,
-} from '../../utils/maintenanceMockData'
+  MAINTENANCE_PRIORITIES,
+  formatCategoryLabel,
+  formatPriorityLabel,
+  formatStatusLabel,
+  getPriorityBadgeClass,
+} from '../../api/maintenanceApi'
 import {
   Button,
   Input,
@@ -27,6 +29,8 @@ import {
   Info,
   CheckCircle2,
   Clock,
+  History,
+  DollarSign,
 } from 'lucide-react'
 
 export default function MaintenancePage() {
@@ -35,49 +39,80 @@ export default function MaintenancePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
-  const [noticeMessage, setNoticeMessage] = useState('')
+  const [activeTab, setActiveTab] = useState('active') // 'active' | 'history' | 'all'
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const fetchTickets = async () => {
+    setLoading(true)
+    setErrorMessage('')
+    try {
+      const data = await getMaintenanceRequests()
+      if (Array.isArray(data)) {
+        setRequests(data)
+      } else {
+        setRequests([])
+      }
+    } catch (err) {
+      const msg =
+        err?.message ||
+        err?.originalError?.message ||
+        'Unable to load maintenance requests from the server.'
+      setErrorMessage(msg)
+      setRequests([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    // Brief simulated loading to showcase Loader component
-    const timer = setTimeout(() => {
-      setRequests(getStoredMaintenanceRequests())
-      setLoading(false)
-    }, 250)
-    return () => clearTimeout(timer)
+    fetchTickets()
   }, [])
-
-  const handleViewDetails = (ticketNumber) => {
-    setNoticeMessage(`Maintenance details for ${ticketNumber} - Coming soon!`)
-    setTimeout(() => setNoticeMessage(''), 3500)
-  }
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
-    ...MAINTENANCE_STATUSES.map((st) => ({ value: st, label: st })),
+    ...MAINTENANCE_STATUSES.map((st) => ({
+      value: st,
+      label: formatStatusLabel(st),
+    })),
   ]
 
   const priorityOptions = [
     { value: 'all', label: 'All Priorities' },
-    ...MAINTENANCE_PRIORITIES.map((pr) => ({ value: pr, label: pr })),
+    ...MAINTENANCE_PRIORITIES.map((pr) => ({
+      value: pr,
+      label: `${formatPriorityLabel(pr)} Priority`,
+    })),
   ]
 
-  // Filter requests by search, status, and priority
+  // Filter requests by Tab (Active vs. History/Past vs. All), Search, Status, and Priority
   const filteredRequests = requests.filter((req) => {
+    const reqStatus = String(req.status || '').toUpperCase()
+    const isPastRecord = reqStatus === 'COMPLETED' || reqStatus === 'CANCELLED'
+
+    // Tab filtering
+    if (activeTab === 'active' && isPastRecord) return false
+    if (activeTab === 'history' && !isPastRecord) return false
+
+    // Search query
     const query = searchQuery.toLowerCase().trim()
+    const ticketStr = String(req.requestId || req.id || req.ticketNumber || '').toLowerCase()
+    const desc = (req.description || '').toLowerCase()
+    const cat = (req.category || '').toLowerCase()
+
     const matchesSearch =
       query === '' ||
-      req.ticketNumber.toLowerCase().includes(query) ||
-      req.tenantName.toLowerCase().includes(query) ||
-      req.propertyName.toLowerCase().includes(query) ||
-      req.unitNumber.toLowerCase().includes(query)
+      ticketStr.includes(query) ||
+      desc.includes(query) ||
+      cat.includes(query)
 
+    // Status filter
     const matchesStatus =
-      statusFilter === 'all' ||
-      req.status.toLowerCase() === statusFilter.toLowerCase()
+      statusFilter === 'all' || reqStatus === statusFilter.toUpperCase()
 
+    // Priority filter
+    const reqPriority = String(req.priority || '').toUpperCase()
     const matchesPriority =
-      priorityFilter === 'all' ||
-      req.priority.toLowerCase() === priorityFilter.toLowerCase()
+      priorityFilter === 'all' || reqPriority === priorityFilter.toUpperCase()
 
     return matchesSearch && matchesStatus && matchesPriority
   })
@@ -91,20 +126,13 @@ export default function MaintenancePage() {
     setPriorityFilter('all')
   }
 
-  // Priority color-coded badge style helper
-  const getPriorityBadgeClass = (priority) => {
-    switch (priority) {
-      case 'Emergency':
-        return 'bg-[#FDF2F2] text-[#8A2E2C] border-[#F4B4B4]'
-      case 'High':
-        return 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
-      case 'Medium':
-        return 'bg-[#EAF2F7] text-[#315A7D] border-[#D9E0E6]'
-      case 'Low':
-      default:
-        return 'bg-[#F7F8FA] text-[#5B6875] border-[#D9E0E6]'
-    }
-  }
+  const activeCount = requests.filter(
+    (r) => String(r.status || '').toUpperCase() !== 'COMPLETED' && String(r.status || '').toUpperCase() !== 'CANCELLED'
+  ).length
+
+  const historyCount = requests.filter(
+    (r) => String(r.status || '').toUpperCase() === 'COMPLETED' || String(r.status || '').toUpperCase() === 'CANCELLED'
+  ).length
 
   return (
     <DashboardLayout
@@ -113,20 +141,16 @@ export default function MaintenancePage() {
       pageTitle="Maintenance"
     >
       <div className="space-y-6">
-        {/* Notice Banner */}
-        {noticeMessage && (
-          <div className="p-3.5 rounded-xl bg-[#EAF2F7] border border-[#D9E0E6] text-[#243447] text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-[#FDF2F2] border border-[#F4B4B4] text-[#8A2E2C] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-[#315A7D] shrink-0" />
-              <span>{noticeMessage}</span>
+              <AlertCircle className="w-5 h-5 text-[#8A2E2C] shrink-0" />
+              <span>{errorMessage}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setNoticeMessage('')}
-              className="text-[#5B6875] hover:text-[#243447] font-bold px-1"
-            >
-              &times;
-            </button>
+            <Button size="xs" variant="outline" onClick={fetchTickets}>
+              Retry
+            </Button>
           </div>
         )}
 
@@ -137,9 +161,83 @@ export default function MaintenancePage() {
               Maintenance Requests
             </h1>
             <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
-              Review and manage tenant repair tickets, issues, and contractor dispatches
+              Review and manage tenant repair tickets, issues, worker dispatches, and maintenance history
             </p>
           </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
+              onClick={fetchTickets}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation Tabs: Active vs. Maintenance History vs. All */}
+        <div className="flex items-center gap-2 border-b border-[#D9E0E6] pb-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('active')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+              activeTab === 'active'
+                ? 'bg-[#315A7D] text-white shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Active Tickets</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#EAF2F7] text-[#315A7D]'
+              }`}
+            >
+              {activeCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+              activeTab === 'history'
+                ? 'bg-[#315A7D] text-white shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Maintenance History</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-[#EDF7EE] text-[#2A583B]'
+              }`}
+            >
+              {historyCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+              activeTab === 'all'
+                ? 'bg-[#315A7D] text-white shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            }`}
+          >
+            <span>All Records</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#F7F8FA] text-[#5B6875]'
+              }`}
+            >
+              {requests.length}
+            </span>
+          </button>
         </div>
 
         {/* Search & Filters Bar */}
@@ -147,7 +245,7 @@ export default function MaintenancePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div className="lg:col-span-2">
               <Input
-                placeholder="Search by ticket number, tenant, or property..."
+                placeholder="Search by ticket number, category, description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
@@ -191,7 +289,7 @@ export default function MaintenancePage() {
               <strong className="text-[#243447]">
                 {filteredRequests.length}
               </strong>{' '}
-              of {requests.length} maintenance tickets
+              of {requests.length} maintenance records
             </span>
             {hasActiveFilters && (
               <span className="text-[#315A7D] font-medium">
@@ -204,20 +302,34 @@ export default function MaintenancePage() {
         {/* Loading State */}
         {loading ? (
           <div className="bg-white rounded-xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
-            <Loader text="Loading maintenance tickets..." size="md" center />
+            <Loader text="Loading maintenance records..." size="md" center />
           </div>
         ) : filteredRequests.length === 0 ? (
           /* Empty State */
           <div className="bg-white rounded-xl border border-[#D9E0E6] p-8 shadow-xs">
             <EmptyState
-              icon={<Wrench className="w-8 h-8" />}
-              title="No maintenance requests found"
-              message="No repair tickets match your current search query or filter selection."
-              action={{
-                label: 'Reset Filters',
-                onClick: resetFilters,
-                variant: 'outline',
-              }}
+              icon={activeTab === 'history' ? <History className="w-8 h-8" /> : <Wrench className="w-8 h-8" />}
+              title={
+                activeTab === 'history'
+                  ? 'No completed maintenance history'
+                  : 'No maintenance requests found'
+              }
+              message={
+                hasActiveFilters
+                  ? 'No records match your search query or filter selection.'
+                  : activeTab === 'history'
+                  ? 'No maintenance tickets have been resolved or closed yet.'
+                  : 'There are currently no active maintenance tickets reported.'
+              }
+              action={
+                hasActiveFilters
+                  ? {
+                      label: 'Reset Filters',
+                      onClick: resetFilters,
+                      variant: 'outline',
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (
@@ -229,91 +341,115 @@ export default function MaintenancePage() {
                   <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
                     <th className="py-3.5 pl-6 pr-4">Ticket #</th>
                     <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Property & Unit</th>
-                    <th className="py-3.5 px-4">Tenant</th>
+                    <th className="py-3.5 px-4">Description</th>
                     <th className="py-3.5 px-4">Priority</th>
                     <th className="py-3.5 px-4">Submitted Date</th>
+                    {activeTab === 'history' && (
+                      <>
+                        <th className="py-3.5 px-4">Completed Date</th>
+                        <th className="py-3.5 px-4">Cost</th>
+                      </>
+                    )}
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D9E0E6] text-sm">
-                  {filteredRequests.map((req) => (
-                    <tr
-                      key={req.id}
-                      className="hover:bg-[#F7F8FA]/80 transition-colors"
-                    >
-                      {/* Ticket Number */}
-                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
-                        <Link
-                          to={`/owner/maintenance/${req.id}`}
-                          className="hover:underline flex items-center gap-1"
-                        >
-                          {req.ticketNumber}
-                        </Link>
-                      </td>
+                  {filteredRequests.map((req) => {
+                    const ticketId = req.requestId || req.id || req.ticketNumber
+                    const submittedDateStr = req.requestedDate
+                      ? new Date(req.requestedDate).toLocaleDateString()
+                      : req.submittedDate || '—'
+                    const completedDateStr = req.completedDate
+                      ? new Date(req.completedDate).toLocaleDateString()
+                      : '—'
 
-                      {/* Category */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
-                          <Wrench className="w-3 h-3 text-[#5B6875]" />
-                          {req.category}
-                        </span>
-                      </td>
-
-                      {/* Property & Unit */}
-                      <td className="py-4 px-4 min-w-[200px]">
-                        <p className="font-semibold text-[#243447] text-xs truncate">
-                          {req.propertyName}
-                        </p>
-                        <span className="text-xs text-[#5B6875]">
-                          {req.unitNumber}
-                        </span>
-                      </td>
-
-                      {/* Tenant Name */}
-                      <td className="py-4 px-4 font-medium text-[#243447] whitespace-nowrap">
-                        {req.tenantName}
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getPriorityBadgeClass(
-                            req.priority
-                          )}`}
-                        >
-                          {req.priority}
-                        </span>
-                      </td>
-
-                      {/* Submitted Date */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                          <span>{req.submittedDate}</span>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <StatusBadge status={req.status} size="sm" />
-                      </td>
-
-                      {/* Actions: View Details */}
-                      <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                        <Link to={`/owner/maintenance/${req.id}`}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            leftIcon={<Eye className="w-3.5 h-3.5" />}
+                    return (
+                      <tr
+                        key={ticketId || Math.random()}
+                        className="hover:bg-[#F7F8FA]/80 transition-colors"
+                      >
+                        {/* Ticket Number */}
+                        <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
+                          <Link
+                            to={`/owner/maintenance/${ticketId}`}
+                            className="hover:underline flex items-center gap-1"
                           >
-                            View Details
-                          </Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                            #{ticketId}
+                          </Link>
+                        </td>
+
+                        {/* Category */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
+                            <Wrench className="w-3 h-3 text-[#5B6875]" />
+                            {formatCategoryLabel(req.category)}
+                          </span>
+                        </td>
+
+                        {/* Description */}
+                        <td className="py-4 px-4 min-w-[200px] max-w-xs">
+                          <p className="font-medium text-[#243447] text-xs truncate">
+                            {req.description || 'No description provided'}
+                          </p>
+                          {req.propertyId && (
+                            <span className="text-[11px] text-[#5B6875] block mt-0.5">
+                              Property #{req.propertyId} {req.unitId ? `• Unit #${req.unitId}` : ''}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Priority */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getPriorityBadgeClass(
+                              req.priority
+                            )}`}
+                          >
+                            {formatPriorityLabel(req.priority)}
+                          </span>
+                        </td>
+
+                        {/* Submitted Date */}
+                        <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <span>{submittedDateStr}</span>
+                          </div>
+                        </td>
+
+                        {/* Completed Date (History Tab) */}
+                        {activeTab === 'history' && (
+                          <>
+                            <td className="py-4 px-4 whitespace-nowrap text-xs text-[#2A583B]">
+                              {completedDateStr}
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap text-xs font-medium text-[#243447]">
+                              {req.cost != null ? `₹${req.cost}` : '—'}
+                            </td>
+                          </>
+                        )}
+
+                        {/* Status */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <StatusBadge status={formatStatusLabel(req.status)} size="sm" />
+                        </td>
+
+                        {/* Actions: View Details */}
+                        <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
+                          <Link to={`/owner/maintenance/${ticketId}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              leftIcon={<Eye className="w-3.5 h-3.5" />}
+                            >
+                              View Details
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

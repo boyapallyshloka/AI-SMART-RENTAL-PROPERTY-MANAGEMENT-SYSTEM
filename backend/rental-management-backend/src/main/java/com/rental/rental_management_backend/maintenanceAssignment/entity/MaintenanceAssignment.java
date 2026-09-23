@@ -22,6 +22,7 @@ public class MaintenanceAssignment {
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "maintenance_request_id", nullable = false)
+    @JsonIgnoreProperties({"property", "tenant", "unit", "hibernateLazyInitializer", "handler"})
     private MaintenanceRequest maintenanceRequest;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)

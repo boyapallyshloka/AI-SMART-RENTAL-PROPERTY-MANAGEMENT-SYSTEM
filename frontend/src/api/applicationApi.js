@@ -121,7 +121,6 @@ export const updateApplicationStatus = async (applicationId, status, rejectionRe
 export const getApplicationsForProperty = async (propertyId) => {
   return await axiosClient.get(`/rental-applications/property/${propertyId}`)
 }
-
 /**
  * SUPER ADMIN - Retrieve all rental applications
  * Endpoint: GET /api/rental-applications

@@ -246,6 +246,39 @@ public class MaintenanceRequestServiceImpl
     @Transactional(readOnly = true)
     public List<MaintenanceRequestResponse> getAllRequests() {
 
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        boolean isTenant = authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities()
+                        .stream()
+                        .anyMatch(authority ->
+                                authority
+                                        .getAuthority()
+                                        .equals("ROLE_TENANT"));
+
+        if (isTenant) {
+
+            User user = getLoggedInUser();
+
+            Tenant tenant = tenantRepository
+                    .findByUser(user)
+                    .orElse(null);
+
+            if (tenant == null) {
+                return List.of();
+            }
+
+            return maintenanceRequestRepository
+                    .findByTenant_TenantId(tenant.getTenantId())
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
         return maintenanceRequestRepository
                 .findAll()
                 .stream()

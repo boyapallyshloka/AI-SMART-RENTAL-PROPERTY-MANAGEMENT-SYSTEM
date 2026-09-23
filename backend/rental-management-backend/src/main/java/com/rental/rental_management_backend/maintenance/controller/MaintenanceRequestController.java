@@ -149,7 +149,7 @@ public class MaintenanceRequestController {
 
     @GetMapping
     @PreAuthorize(
-            "hasAnyRole('PROPERTY_MANAGER', 'PROPERTY_OWNER', 'SUPER_ADMIN')"
+            "hasAnyRole('TENANT', 'PROPERTY_MANAGER', 'PROPERTY_OWNER', 'SUPER_ADMIN')"
     )
     public ResponseEntity<List<MaintenanceRequestResponse>>
             getAllRequests() {
