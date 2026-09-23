@@ -781,13 +781,17 @@ def recommend_properties(
     Execute the complete M2 recommendation pipeline.
 
     Steps:
-        1. Filter eligible properties
+        1. Filter eligible properties/units
         2. Calculate all match features
         3. Calculate recommendation score
-        4. Rank properties
-        5. Return Top-N
+        4. Rank candidates
+        5. Select Top-N DISTINCT properties
+        6. Keep all qualifying units belonging to those properties
     """
 
+    # ---------------------------------------------------------
+    # 1. Filter eligible properties/units
+    # ---------------------------------------------------------
     filtered_df = filter_properties(
         df,
         preferences,
@@ -796,6 +800,9 @@ def recommend_properties(
     if filtered_df.empty:
         return filtered_df
 
+    # ---------------------------------------------------------
+    # 2. Calculate all match features
+    # ---------------------------------------------------------
     scored_df = calculate_all_match_features(
         filtered_df,
         properties,
@@ -803,18 +810,46 @@ def recommend_properties(
         preferences,
     )
 
+    # ---------------------------------------------------------
+    # 3. Calculate recommendation score
+    # ---------------------------------------------------------
     scored_df = calculate_recommendation_score(
         scored_df
     )
 
+    # ---------------------------------------------------------
+    # 4. Rank all qualifying unit rows
+    # ---------------------------------------------------------
     ranked_df = rank_properties(
         scored_df
     )
 
-    return get_top_recommendations(
-        ranked_df,
-        top_n,
+    # ---------------------------------------------------------
+    # 5. Select Top-N DISTINCT properties.
+    #
+    # The first row for each property is its highest-ranked
+    # qualifying unit because ranked_df is already sorted.
+    # ---------------------------------------------------------
+    top_property_ids = (
+        ranked_df
+        .drop_duplicates(
+            subset=["property_id"],
+            keep="first",
+        )
+        .head(top_n)["property_id"]
+        .tolist()
     )
+
+    # ---------------------------------------------------------
+    # 6. Keep ALL qualifying units for those Top-N properties.
+    #
+    # This allows api.py to group them into availableUnits[].
+    # ---------------------------------------------------------
+    recommendations_df = ranked_df[
+        ranked_df["property_id"].isin(top_property_ids)
+    ].copy()
+
+    return recommendations_df
 
 
 if __name__ == "__main__":

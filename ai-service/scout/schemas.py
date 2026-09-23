@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from scout.intent import ScoutOperation, ScoutSource
 
 
 class ScoutChatRequest(BaseModel):
@@ -7,3 +9,7 @@ class ScoutChatRequest(BaseModel):
 
 class ScoutChatResponse(BaseModel):
     response: str
+    operation: ScoutOperation
+    source: ScoutSource
+    confidence: float
+    parameters: dict = Field(default_factory=dict)

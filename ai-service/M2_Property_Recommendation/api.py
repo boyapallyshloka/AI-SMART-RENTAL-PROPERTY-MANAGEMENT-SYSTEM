@@ -4,13 +4,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from .recommend import (
-    load_data,
-    load_tenant_preferences,
-    load_properties,
-    load_property_amenities,
-    get_tenant_preferences,
-    recommend_properties,
+from .recommend import recommend_properties
+from .database import (
+    load_live_m2_data,
+    check_database_connection,
 )
 
 
@@ -45,13 +42,17 @@ class RecommendationRequest(BaseModel):
 # Response Models
 # ============================================================
 
+class AvailableUnit(BaseModel):
+    unitId: str
+    monthlyRent: float
+    bedrooms: int
+
+
 class RecommendationItem(BaseModel):
     propertyId: str
     recommendationScore: float
-    monthlyRent: float
-    propertyBedrooms: int
+    availableUnits: list[AvailableUnit]
     propertyCity: str
-
     cityMatch: int
     budgetMatch: int
     bedroomMatch: int
@@ -60,7 +61,6 @@ class RecommendationItem(BaseModel):
     parkingMatch: int
     amenityMatch: int
     distanceMatch: int
-
     approxDistanceKm: float
 
 
@@ -129,7 +129,18 @@ def health():
         "module": "M2_PROPERTY_RECOMMENDATION",
         "service": "m2-property-recommendation"
     }
-
+@router.get("/db-health")
+def db_health():
+    try:
+        return {
+            "status": "healthy",
+            "database": check_database_connection(),
+        }
+    except Exception:
+        return {
+            "status": "unhealthy",
+            "database": None,
+        }
 
 @router.get("/")
 def root():
@@ -157,29 +168,19 @@ def recommend_properties_endpoint(
         # Load M2 datasets
         # ----------------------------------------------------
 
-        df = load_data()
-
-        tenant_preferences_df = load_tenant_preferences()
-
-        properties = load_properties()
-
-        property_amenities = load_property_amenities()
-
         # ----------------------------------------------------
-        # Get tenant preferences
+        # Load LIVE M2 data from Neon
         # ----------------------------------------------------
-
-        preferences = get_tenant_preferences(
-            tenant_preferences_df,
-            tenant_id
-        )
+        live_df, properties, property_amenities, preferences = (
+            load_live_m2_data(int(tenant_id))
+)
 
         # ----------------------------------------------------
         # Run recommendation pipeline
         # ----------------------------------------------------
 
         recommendations_df = recommend_properties(
-            df,
+            live_df,
             properties,
             property_amenities,
             preferences,
@@ -191,53 +192,81 @@ def recommend_properties_endpoint(
         # ----------------------------------------------------
 
         recommendations = []
+        for property_id, property_df in recommendations_df.groupby(
+            "property_id",
+            sort=False
+        ):
+            first_row = property_df.iloc[0]
 
-        for _, row in recommendations_df.iterrows():
+            available_units = []
+
+            for _, unit_row in property_df.iterrows():
+                available_units.append(
+                    {
+                        "unitId": str(unit_row["unit_id"]),
+                        "monthlyRent": float(
+                            unit_row["monthly_rent"]
+                        ),
+                        "bedrooms": int(
+                            unit_row["property_bedrooms"]
+                        ),
+                    }
+                )
 
             recommendations.append(
-                {
-                    "propertyId": str(row["property_id"]),
-                    "recommendationScore": float(
-                        row["recommendation_score"]
-                    ),
-                    "monthlyRent": float(
-                        row["monthly_rent"]
-                    ),
-                    "propertyBedrooms": int(
-                        row["property_bedrooms"]
-                    ),
-                    "propertyCity": str(
-                        row["property_city"]
-                    ),
-                    "cityMatch": int(
-                        row["city_match"]
-                    ),
-                    "budgetMatch": int(
-                        row["budget_match"]
-                    ),
-                    "bedroomMatch": int(
-                        row["bedroom_match"]
-                    ),
-                    "propertyTypeMatch": int(
-                        row["property_type_match"]
-                    ),
-                    "furnishingMatch": int(
-                        row["furnishing_match"]
-                    ),
-                    "parkingMatch": int(
-                        row["parking_match"]
-                    ),
-                    "amenityMatch": int(
-                        row["amenity_match"]
-                    ),
-                    "distanceMatch": int(
-                        row["distance_match"]
-                    ),
-                    "approxDistanceKm": float(
-                        row["approx_distance_km"]
-                    )
-                }
-            )
+        {
+            "propertyId": str(property_id),
+
+            # Because recommendations_df is already ranked,
+            # the first row represents the best-scoring unit
+            # for this property.
+            "recommendationScore": float(
+                first_row["recommendation_score"]
+            ),
+
+            "availableUnits": available_units,
+
+            "propertyCity": str(
+                first_row["property_city"]
+            ),
+
+            "cityMatch": int(
+                first_row["city_match"]
+            ),
+
+            "budgetMatch": int(
+                first_row["budget_match"]
+            ),
+
+            "bedroomMatch": int(
+                first_row["bedroom_match"]
+            ),
+
+            "propertyTypeMatch": int(
+                first_row["property_type_match"]
+            ),
+
+            "furnishingMatch": int(
+                first_row["furnishing_match"]
+            ),
+
+            "parkingMatch": int(
+                first_row["parking_match"]
+            ),
+
+            "amenityMatch": int(
+                first_row["amenity_match"]
+            ),
+
+            "distanceMatch": int(
+                first_row["distance_match"]
+            ),
+
+            "approxDistanceKm": float(
+                first_row["approx_distance_km"]
+            ),
+        }
+    )
 
         # ----------------------------------------------------
         # Return successful response

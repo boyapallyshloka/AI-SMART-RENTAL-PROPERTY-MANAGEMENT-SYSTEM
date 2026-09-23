@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from scout.schemas import ScoutChatRequest, ScoutChatResponse
 from scout.service import process_message
 
@@ -12,6 +13,12 @@ router = APIRouter(
 @router.post("/chat", response_model=ScoutChatResponse)
 def chat(request: ScoutChatRequest):
 
-    response = process_message(request.message)
+    response, intent = process_message(request.message)
 
-    return ScoutChatResponse(response=response)
+    return ScoutChatResponse(
+        response=response,
+        operation=intent.operation,
+        source=intent.source,
+        confidence=intent.confidence,
+        parameters=intent.parameters,
+    )
