@@ -625,6 +625,9 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         response.setStatus(
                 property.getStatus());
 
+        /*
+         * OWNER
+         */
         if (property.getOwner() != null) {
 
             response.setOwnerId(
@@ -634,6 +637,40 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
                     property.getOwner().getFirstName()
                             + " "
                             + property.getOwner().getLastName());
+        }
+
+        /*
+         * PROPERTY MANAGER
+         *
+         * Property -> PropertyManager -> User
+         */
+        if (property.getPropertyManager() != null) {
+
+            response.setPropertyManagerId(
+                    property.getPropertyManager()
+                            .getPropertyManagerId());
+
+            if (property.getPropertyManager().getUser() != null) {
+
+                response.setManagerName(
+                        property.getPropertyManager()
+                                .getUser()
+                                .getFirstName()
+                                + " "
+                                + property.getPropertyManager()
+                                        .getUser()
+                                        .getLastName());
+
+                response.setManagerEmail(
+                        property.getPropertyManager()
+                                .getUser()
+                                .getEmail());
+
+                response.setManagerPhone(
+                        property.getPropertyManager()
+                                .getUser()
+                                .getPhone());
+            }
         }
 
         response.setCreatedAt(
