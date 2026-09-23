@@ -2,8 +2,10 @@
 package com.rental.rental_management_backend.ai.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 
 public class M2RecommendationItem {
 
@@ -48,6 +50,18 @@ public class M2RecommendationItem {
 
     @JsonProperty("approxDistanceKm")
     private Double approxDistanceKm;
+
+    @JsonProperty("availableUnits")
+    private List<AvailableUnitResponse> availableUnits;
+
+    /*
+     * CURRENT PROPERTY DETAILS
+     *
+     * This is fetched from the Spring Boot database
+     * using the propertyId returned by M2.
+     */
+    @JsonProperty("propertyDetails")
+    private PropertyDetailsResponse propertyDetails;
 
     public M2RecommendationItem() {
     }
@@ -162,5 +176,25 @@ public class M2RecommendationItem {
 
     public void setApproxDistanceKm(Double approxDistanceKm) {
         this.approxDistanceKm = approxDistanceKm;
+    }
+
+    public List<AvailableUnitResponse> getAvailableUnits() {
+        return availableUnits;
+    }
+
+    public void setAvailableUnits(
+            List<AvailableUnitResponse> availableUnits) {
+
+        this.availableUnits = availableUnits;
+    }
+
+    public PropertyDetailsResponse getPropertyDetails() {
+        return propertyDetails;
+    }
+
+    public void setPropertyDetails(
+            PropertyDetailsResponse propertyDetails) {
+
+        this.propertyDetails = propertyDetails;
     }
 }
