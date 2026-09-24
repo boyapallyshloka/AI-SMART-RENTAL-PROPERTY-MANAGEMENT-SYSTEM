@@ -43,7 +43,7 @@ public class PropertyServiceImpl implements PropertyService {
         this.propertyManagerRepository = propertyManagerRepository;
     }
 
-    @Override
+    @Override 
     public PropertyResponse createProperty(PropertyRequest request) {
 
         User owner = getLoggedInUser();
