@@ -20,7 +20,7 @@ public class MaintenanceAiServiceClient {
 
     public M5PredictionResponse callPrediction(M5PredictionRequest payload) {
         return restClient.post()
-                .uri("/predict-maintenance")
+                .uri("/m5/predict-maintenance")
                 .body(payload)
                 .retrieve()
                 .body(M5PredictionResponse.class);
