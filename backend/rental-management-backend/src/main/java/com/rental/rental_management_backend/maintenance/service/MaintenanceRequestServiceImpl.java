@@ -1,4 +1,6 @@
 package com.rental.rental_management_backend.maintenance.service;
+import com.rental.rental_management_backend.maintenance.dto.M5PredictionRequest;
+import com.rental.rental_management_backend.maintenance.dto.M5PredictionResponse;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,24 +38,29 @@ public class MaintenanceRequestServiceImpl
     // REPOSITORIES / SERVICES
     // =========================================================
 
-    private final MaintenanceRequestRepository maintenanceRequestRepository;
-    private final TenantRepository tenantRepository;
-    private final PropertyRepository propertyRepository;
-    private final UnitRepository unitRepository;
-    private final MaintenanceImageService maintenanceImageService;
-    private final UserRepository userRepository;
+	private final MaintenanceRequestRepository maintenanceRequestRepository;
+	private final TenantRepository tenantRepository;
+	private final PropertyRepository propertyRepository;
+	private final UnitRepository unitRepository;
+	private final MaintenanceImageService maintenanceImageService;
+	private final UserRepository userRepository;
+
+	private final MaintenanceAiServiceClient maintenanceAiServiceClient;
+	private final M5AggregationService m5AggregationService;
 
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
-    public MaintenanceRequestServiceImpl(
-            MaintenanceRequestRepository maintenanceRequestRepository,
-            TenantRepository tenantRepository,
-            PropertyRepository propertyRepository,
-            UnitRepository unitRepository,
-            MaintenanceImageService maintenanceImageService,
-            UserRepository userRepository) {
+	public MaintenanceRequestServiceImpl(
+	        MaintenanceRequestRepository maintenanceRequestRepository,
+	        TenantRepository tenantRepository,
+	        PropertyRepository propertyRepository,
+	        UnitRepository unitRepository,
+	        MaintenanceImageService maintenanceImageService,
+	        UserRepository userRepository,
+	        MaintenanceAiServiceClient maintenanceAiServiceClient,
+	        M5AggregationService m5AggregationService) {
 
         this.maintenanceRequestRepository =
                 maintenanceRequestRepository;
@@ -72,6 +79,12 @@ public class MaintenanceRequestServiceImpl
 
         this.userRepository =
                 userRepository;
+        
+        this.maintenanceAiServiceClient =
+                maintenanceAiServiceClient;
+
+        this.m5AggregationService =
+                m5AggregationService;
     }
 
     // =========================================================
@@ -787,6 +800,44 @@ public class MaintenanceRequestServiceImpl
 
         maintenanceRequestRepository.delete(request);
     }
+    
+ // =========================================================
+ // AI MAINTENANCE PREDICTION
+ // =========================================================
+
+ @Override
+ @Transactional(readOnly = true)
+ public M5PredictionResponse predictMaintenance(
+         Long propertyId,
+         Long unitId) {
+
+
+     Property property =
+             propertyRepository
+                     .findById(propertyId)
+                     .orElseThrow(() ->
+                             new ResourceNotFoundException(
+                                     "Property not found with ID: "
+                                             + propertyId));
+
+
+     Unit unit =
+             unitRepository
+                     .findById(unitId)
+                     .orElseThrow(() ->
+                             new ResourceNotFoundException(
+                                     "Unit not found with ID: "
+                                             + unitId));
+
+
+     M5PredictionRequest request =
+             m5AggregationService
+                     .aggregate(property, unit);
+
+
+     return maintenanceAiServiceClient
+             .predictMaintenance(request);
+ }
 
     // =========================================================
     // HELPER METHOD
