@@ -57,6 +57,7 @@ export const normalizeLoginResponse = (raw) => {
 
   return {
     id: String(raw.userId || raw.id || ''),
+    tenantId: raw.tenantId != null ? Number(raw.tenantId) : null,
     email: raw.email,
     name: fullName,
     firstName: raw.firstName,

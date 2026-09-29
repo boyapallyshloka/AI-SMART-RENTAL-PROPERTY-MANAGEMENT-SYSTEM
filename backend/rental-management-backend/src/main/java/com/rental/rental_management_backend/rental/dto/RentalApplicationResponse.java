@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.rental.dto;
 
 import java.math.BigDecimal;
@@ -10,37 +11,39 @@ public class RentalApplicationResponse {
 
     private Long applicationId;
 
-    // Tenant
     private Long tenantId;
     private String tenantName;
     private String tenantEmail;
 
-    // Unit
     private Long unitId;
     private String unitNumber;
     private BigDecimal monthlyRent;
     private BigDecimal securityDeposit;
 
-    // Floor
     private Long floorId;
 
-    // Building
     private Long buildingId;
     private String buildingName;
 
-    // Property
     private Long propertyId;
     private String propertyName;
 
-    // Application
     private LocalDate applicationDate;
+
     private LocalDate preferredMoveInDate;
+
+    private Integer preferredLeaseDurationMonths;
+
     private String message;
+
     private RentalApplicationStatus status;
+
     private String rejectionReason;
+
     private LocalDateTime reviewedAt;
 
     private LocalDateTime createdAt;
+
     private LocalDateTime updatedAt;
 
     public RentalApplicationResponse() {
@@ -164,6 +167,14 @@ public class RentalApplicationResponse {
 
     public void setPreferredMoveInDate(LocalDate preferredMoveInDate) {
         this.preferredMoveInDate = preferredMoveInDate;
+    }
+
+    public Integer getPreferredLeaseDurationMonths() {
+        return preferredLeaseDurationMonths;
+    }
+
+    public void setPreferredLeaseDurationMonths(Integer preferredLeaseDurationMonths) {
+        this.preferredLeaseDurationMonths = preferredLeaseDurationMonths;
     }
 
     public String getMessage() {

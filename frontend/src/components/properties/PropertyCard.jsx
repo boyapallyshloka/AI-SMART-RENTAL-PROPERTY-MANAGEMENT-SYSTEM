@@ -65,6 +65,9 @@ export default function PropertyCard({
     deposit,
     securityDeposit,
     aiMatchScore,
+    matchCriteria,
+    approxDistanceKm,
+    availableUnitsCount,
   } = property
 
   const realId = propertyId ?? id
@@ -293,6 +296,33 @@ export default function PropertyCard({
             </div>
           )}
         </div>
+
+        {/* Real Match Badges & Distance (Only displayed when real values exist from M2 AI) */}
+        {((Array.isArray(matchCriteria) && matchCriteria.length > 0) ||
+          (approxDistanceKm != null && approxDistanceKm > 0) ||
+          (availableUnitsCount != null && availableUnitsCount > 0)) && (
+          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+            {Array.isArray(matchCriteria) &&
+              matchCriteria.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]"
+                >
+                  {tag} Match
+                </span>
+              ))}
+            {approxDistanceKm != null && approxDistanceKm > 0 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F7F8FA] text-[#5B6875] border border-[#D9E0E6]">
+                ~{approxDistanceKm} km
+              </span>
+            )}
+            {availableUnitsCount != null && availableUnitsCount > 0 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
+                {availableUnitsCount} {availableUnitsCount === 1 ? 'unit' : 'units'} left
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Card Footer / View Details */}
         <div className="pt-2 mt-auto flex items-center justify-between border-t border-[#D9E0E6]">

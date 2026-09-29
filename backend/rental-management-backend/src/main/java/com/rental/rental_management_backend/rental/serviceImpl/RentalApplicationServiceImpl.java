@@ -144,6 +144,9 @@ public class RentalApplicationServiceImpl
 
         application.setPreferredMoveInDate(
                 request.getPreferredMoveInDate());
+        application.setPreferredLeaseDurationMonths(
+                request.getPreferredLeaseDurationMonths()
+        );
 
         application.setMessage(
                 cleanString(request.getMessage()));
@@ -1101,6 +1104,9 @@ public class RentalApplicationServiceImpl
 
         response.setPreferredMoveInDate(
                 application.getPreferredMoveInDate());
+        response.setPreferredLeaseDurationMonths(
+                application.getPreferredLeaseDurationMonths()
+        );
 
         response.setMessage(
                 application.getMessage());

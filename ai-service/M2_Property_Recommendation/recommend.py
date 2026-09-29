@@ -125,7 +125,21 @@ REQUIRED_AMENITY_COLUMNS = {
     "amenity",
 }
 
+AMENITY_ALIASES = {
+    "COVERED PARKING": "PARKING",
+    "OPEN PARKING": "PARKING",
+    "CAR PARKING": "PARKING",
+    "VEHICLE PARKING": "PARKING",
+}
 
+
+def normalize_amenity(value):
+    """
+    Normalize amenity names so equivalent values
+    are treated as the same amenity.
+    """
+    normalized = normalize_text(value)
+    return AMENITY_ALIASES.get(normalized, normalized)
 def validate_required_columns(df, required_columns, dataset_name):
     """Validate that all required columns are present."""
 
@@ -532,53 +546,178 @@ def calculate_amenity_match(
     preferences,
 ):
     """
-    Calculate amenity match.
+    Calculate amenity coverage for each property.
 
-    The current tenant preference schema contains one
-    amenity_preference per tenant, so this is a binary
-    match rather than a multi-amenity fraction.
+    Amenity coverage =
+        matched preferred amenities
+        ---------------------------
+        total preferred amenities
+
+    Equivalent amenity names are normalized using
+    AMENITY_ALIASES before comparison.
+
+    Example:
+        Preferred: Gym, Parking, Security
+        Property:  Gym, Parking
+
+        Coverage = 2 / 3 = 0.6667
     """
 
-    preferred_amenity = normalize_text(
-        preferences["amenity_preference"]
+    # ---------------------------------------------------------
+    # 1. Get preferred amenities
+    # ---------------------------------------------------------
+
+    preferred_amenities = preferences.get(
+        "preferred_amenities"
     )
+
+    # Keep dataset-mode compatibility.
+    # Older dataset preferences contain only
+    # "amenity_preference".
+    if preferred_amenities is None:
+        preferred_amenity = normalize_amenity(
+            preferences.get("amenity_preference", "")
+        )
+
+        preferred_amenities = (
+            [preferred_amenity]
+            if preferred_amenity
+            else []
+        )
+
+    # Normalize and remove empty/duplicate values.
+    preferred_amenities = {
+        normalize_amenity(amenity)
+        for amenity in preferred_amenities
+        if normalize_amenity(amenity)
+    }
+
+    # ---------------------------------------------------------
+    # 2. Build property -> set of amenities lookup
+    # ---------------------------------------------------------
 
     amenity_lookup = (
         property_amenities.assign(
             amenity_normalized=
-            property_amenities["amenity"].map(normalize_text)
+            property_amenities["amenity"].map(
+                normalize_amenity
+            )
         )
         .groupby("property_id")["amenity_normalized"]
         .apply(set)
     )
 
-    def has_preferred_amenity(property_id):
-        amenities = amenity_lookup.get(property_id, set())
-        return int(preferred_amenity in amenities)
+    # ---------------------------------------------------------
+    # 3. Calculate amenity coverage
+    # ---------------------------------------------------------
 
-    df["amenity_match"] = (
-        df["property_id"]
-        .apply(has_preferred_amenity)
+    total_preferred = len(preferred_amenities)
+
+    if total_preferred == 0:
+        df["amenity_match"] = 1.0
+        df["amenity_matched"] = [[] for _ in range(len(df))]
+        df["amenity_missing"] = [[] for _ in range(len(df))]
+        return df
+
+    def calculate_for_property(property_id):
+        property_set = amenity_lookup.get(
+            property_id,
+            set()
+        )
+
+        matched = (
+            preferred_amenities
+            & property_set
+        )
+
+        missing = (
+            preferred_amenities
+            - property_set
+        )
+
+        coverage = (
+            len(matched) / total_preferred
+        )
+
+        return coverage, list(matched), list(missing)
+
+    results = df["property_id"].apply(
+        calculate_for_property
+    )
+
+    # ---------------------------------------------------------
+    # 4. Store results
+    # ---------------------------------------------------------
+
+    df["amenity_match"] = results.apply(
+        lambda result: result[0]
+    )
+
+    df["amenity_matched"] = results.apply(
+        lambda result: result[1]
+    )
+
+    df["amenity_missing"] = results.apply(
+        lambda result: result[2]
     )
 
     return df
 
 
-def calculate_distance_match(df, preferences):
+def calculate_distance_match(
+    df,
+    preferences,
+):
     """
-    Calculate commute-distance match.
+    Calculate continuous distance fit.
 
-    A property matches when its approximate distance is
-    within the tenant's maximum acceptable commute distance.
+    A property closer to the tenant's location gets a
+    higher distance-fit score.
+
+    Distance fit:
+        1.0 -> closest / within preferred distance
+        0.0 -> at or beyond the maximum preferred distance
+
+    If distance cannot be calculated because location data
+    is unavailable, the value remains NaN so the scoring
+    function can omit distance from the active ranking.
     """
 
-    max_distance = float(
-        preferences["max_commute_distance_km"]
+    max_distance = preferences.get(
+        "max_commute_distance_km"
     )
 
+    # If there is no usable maximum distance,
+    # distance cannot contribute meaningfully to scoring.
+    if (
+        max_distance is None
+        or max_distance <= 0
+    ):
+        df["distance_match"] = float("nan")
+        return df
+
+    distance = pd.to_numeric(
+        df["approx_distance_km"],
+        errors="coerce"
+    )
+
+    # Continuous distance fit.
+    #
+    # Example with max_distance = 20 km:
+    #
+    # 0 km  -> 1.00
+    # 5 km  -> 0.75
+    # 10 km -> 0.50
+    # 20 km -> 0.00
+    # >20km -> 0.00
+    #
     df["distance_match"] = (
-        df["approx_distance_km"] <= max_distance
-    ).astype(int)
+        1
+        - (distance / max_distance)
+    ).clip(
+        lower=0,
+        upper=1,
+    )
 
     return df
 
@@ -652,48 +791,120 @@ def calculate_recommendation_score(df):
     """
     Calculate the final M2 recommendation score.
 
-    Weights:
-        City Match       : 25%
+    Ranking weights:
         Budget Fit       : 25%
-        Bedroom Match    : 15%
-        Property Type    : 10%
-        Furnishing       : 10%
-        Amenity Match    : 10%
-        Parking Match    : 5%
+        Amenity Coverage : 20%
+        Property Type    : 15%
+        Furnishing       : 15%
+        Distance Fit     : 15%
+        Parking Match    : 10%
 
     Total               : 100%
+
+    If distance is unavailable, its 15% weight is omitted
+    and the remaining weights are normalized to 100%.
     """
 
     df = df.copy()
 
-    # Budget fit is continuous rather than binary.
+    # ---------------------------------------------------------
+    # 1. Continuous budget fit
+    # ---------------------------------------------------------
     #
     # At or below budget -> 1.0
-    # Above budget       -> proportionally lower
+    # Above budget      -> proportionally lower
     #
     # Example:
-    # budget = 20,000
-    # rent   = 21,000
-    # budget_score = 20,000 / 21,000
+    # budget = 30,000
+    # rent   = 31,500
+    #
+    # budget_fit = 30,000 / 31,500
+    #
+    # Eligibility already allows properties up to 5% above
+    # the maximum budget.
     df["budget_score"] = (
         df["max_budget"] / df["monthly_rent"]
-    ).clip(upper=1.0)
-
-    df["recommendation_score"] = (
-        0.25 * df["city_match"]
-        + 0.25 * df["budget_score"]
-        + 0.15 * df["bedroom_match"]
-        + 0.10 * df["property_type_match"]
-        + 0.10 * df["furnishing_match"]
-        + 0.10 * df["amenity_match"]
-        + 0.05 * df["parking_match"]
-    ) * 100
-
-    df["recommendation_score"] = (
-        df["recommendation_score"]
-        .round(2)
+    ).clip(
+        upper=1.0
     )
 
+    # ---------------------------------------------------------
+    # 2. Base v1.1 weights
+    # ---------------------------------------------------------
+    weights = {
+        "budget_score": 0.25,
+        "amenity_match": 0.20,
+        "property_type_match": 0.15,
+        "furnishing_match": 0.15,
+        "distance_match": 0.15,
+        "parking_match": 0.10,
+    }
+
+    # ---------------------------------------------------------
+    # 3. Detect whether distance is available
+    # ---------------------------------------------------------
+    distance_available = (
+        df["distance_match"]
+        .notna()
+    )
+
+    # ---------------------------------------------------------
+    # 4. Calculate score row-by-row
+    # ---------------------------------------------------------
+    #
+    # Distance unavailable:
+    # remove its 15% contribution and normalize the
+    # remaining 85% back to 100%.
+    #
+    # Distance available:
+    # use the full v1.1 weights.
+    active_weights = (
+        df["distance_match"]
+        .notna()
+        .map(
+            lambda available: (
+                {
+                    key: value
+                    for key, value in weights.items()
+                    if available or key != "distance_match"
+                }
+            )
+        )
+    )
+
+    def calculate_row_score(row):
+        row_weights = active_weights.loc[row.name]
+
+        weight_total = sum(
+            row_weights.values()
+        )
+
+        score = 0.0
+
+        for feature, weight in row_weights.items():
+            value = row[feature]
+
+            if pd.isna(value):
+                continue
+
+            score += (
+                value * weight
+            )
+
+        if weight_total > 0:
+            score /= weight_total
+
+        return score * 100
+
+    df["recommendation_score"] = (
+        df.apply(
+            calculate_row_score,
+            axis=1,
+        )
+    )
+
+    # Keep full precision internally.
+    # Presentation rounding should happen at the API boundary.
     return df
 
 
@@ -737,16 +948,36 @@ def filter_properties(df, preferences):
 
 def rank_properties(df):
     """
-    Rank properties using recommendation score and
-    deterministic tie-breaking.
+    Rank properties using the v1.1 recommendation score
+    and deterministic tie-breaking.
+
+    Tie-break order:
+        1. Higher recommendation score
+        2. Better budget fit
+        3. Greater amenity coverage
+        4. Smaller distance
+        5. Lower property ID
+
+    If distance is unavailable, NaN is placed after
+    properties with a usable distance when all preceding
+    ranking values are tied.
     """
+
+    df = df.copy()
+
+    # Ensure property_id can be sorted numerically when possible.
+    df["_property_id_sort"] = pd.to_numeric(
+        df["property_id"],
+        errors="coerce"
+    )
 
     ranked_df = df.sort_values(
         by=[
             "recommendation_score",
-            "city_match",
-            "budget_gap",
+            "budget_score",
+            "amenity_match",
             "approx_distance_km",
+            "_property_id_sort",
             "property_id",
         ],
         ascending=[
@@ -755,11 +986,18 @@ def rank_properties(df):
             False,
             True,
             True,
+            True,
         ],
+        na_position="last",
     ).copy()
 
-    return ranked_df
+    ranked_df = ranked_df.drop(
+        columns=[
+            "_property_id_sort",
+        ]
+    )
 
+    return ranked_df
 
 def get_top_recommendations(
     df,

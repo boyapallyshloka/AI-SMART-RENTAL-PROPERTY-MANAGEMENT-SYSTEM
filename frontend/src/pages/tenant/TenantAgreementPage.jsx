@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getStoredAgreements } from '../../utils/agreementMockData'
+import {
+  getMyAgreements,
+  getAgreementById,
+  getAgreementDocument,
+} from '../../api/agreementApi'
+import { getMyApplications } from '../../api/applicationApi'
 import {
   Button,
   StatusBadge,
   EmptyState,
   Loader,
+  Select,
 } from '../../components/ui'
 import {
   FileText,
@@ -21,39 +27,211 @@ import {
   Info,
   CheckCircle2,
   FileCheck,
+  AlertCircle,
+  RefreshCw,
+  Home,
+  DoorOpen,
 } from 'lucide-react'
+
+// Date Formatter
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return String(dateStr)
+    return d.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return String(dateStr)
+  }
+}
 
 export default function TenantAgreementPage() {
   const { user } = useAuth()
-  const [agreement, setAgreement] = useState(null)
+  const [agreements, setAgreements] = useState([])
+  const [selectedAgreementId, setSelectedAgreementId] = useState(null)
+  const [selectedAgreement, setSelectedAgreement] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [downloadNotice, setDownloadNotice] = useState('')
+  const [error, setError] = useState(null)
+  const [notice, setNotice] = useState('')
+  const [isDownloading, setIsDownloading] = useState(false)
 
-  const tenantEmail = (user?.email || 'tenant@homesphere.com').toLowerCase().trim()
-  const tenantName = (user?.name || 'Elena Rostova').toLowerCase().trim()
+  // Load real agreements belonging to the authenticated tenant
+  const loadTenantAgreements = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setNotice('')
+
+    try {
+      // Fetch agreements and submitted applications concurrently
+      const [agreementsRes, appsRes] = await Promise.allSettled([
+        getMyAgreements(),
+        getMyApplications(),
+      ])
+
+      if (agreementsRes.status === 'rejected') {
+        throw agreementsRes.reason
+      }
+
+      const rawAgreements = Array.isArray(agreementsRes.value)
+        ? agreementsRes.value
+        : agreementsRes.value?.data || []
+
+      const rawApps =
+        appsRes.status === 'fulfilled'
+          ? Array.isArray(appsRes.value)
+            ? appsRes.value
+            : appsRes.value?.data || []
+          : []
+
+      // Build lookup map for application metadata
+      const appMap = new Map()
+      rawApps.forEach((a) => {
+        if (a && a.applicationId) {
+          appMap.set(Number(a.applicationId), a)
+        }
+      })
+
+      // Enrich agreements with real tenant/property/unit information
+      const enriched = rawAgreements.map((agr) => {
+        const app = agr.applicationId ? appMap.get(Number(agr.applicationId)) : null
+        const tenantDisplayName =
+          app?.tenantName ||
+          (user?.firstName
+            ? `${user.firstName} ${user.lastName || ''}`.trim()
+            : user?.name || 'Tenant')
+
+        return {
+          ...agr,
+          id: agr.agreementId,
+          agreementNumber: `AGR-${String(agr.agreementId).padStart(4, '0')}`,
+          propertyName:
+            app?.propertyName ||
+            (agr.propertyId
+              ? `Property #${agr.propertyId}`
+              : 'Residential Property'),
+          unit: app?.unitNumber
+            ? `Unit #${app.unitNumber}`
+            : agr.unitId
+            ? `Unit #${agr.unitId}`
+            : '—',
+          buildingName: app?.buildingName || null,
+          tenantName: tenantDisplayName,
+          tenantEmail: app?.tenantEmail || user?.email || '',
+          status: agr.status || 'DRAFT',
+        }
+      })
+
+      setAgreements(enriched)
+
+      // Set default selected agreement (prioritize ACTIVE agreement, else first available)
+      if (enriched.length > 0) {
+        const active =
+          enriched.find(
+            (a) => String(a.status).toUpperCase() === 'ACTIVE'
+          ) || enriched[0]
+
+        setSelectedAgreementId(active.agreementId)
+        setSelectedAgreement(active)
+      } else {
+        setSelectedAgreementId(null)
+        setSelectedAgreement(null)
+      }
+    } catch (err) {
+      console.error('Failed to load tenant agreements:', err)
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load your lease agreements from the server.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
-    // Read from shared localStorage agreements source
-    const timer = setTimeout(() => {
-      const allAgreements = getStoredAgreements()
-      // Find agreement matching tenant email or tenant name
-      const found = allAgreements.find(
-        (a) =>
-          (a.tenantEmail || '').toLowerCase().trim() === tenantEmail ||
-          (a.tenantName || '').toLowerCase().trim() === tenantName
+    loadTenantAgreements()
+  }, [loadTenantAgreements])
+
+  // Handle switching selected agreement when multiple exist
+  const handleSelectAgreement = async (id) => {
+    const agrIdNum = Number(id)
+    setSelectedAgreementId(agrIdNum)
+    setNotice('')
+
+    const found = agreements.find(
+      (a) => Number(a.agreementId) === agrIdNum
+    )
+    if (found) {
+      setSelectedAgreement(found)
+      try {
+        // Fetch detailed agreement record by ID
+        const fresh = await getAgreementById(agrIdNum)
+        const freshData = fresh?.data || fresh
+        if (freshData) {
+          setSelectedAgreement((prev) => ({
+            ...prev,
+            ...freshData,
+            agreementNumber: `AGR-${String(freshData.agreementId).padStart(4, '0')}`,
+            status: freshData.status || prev.status,
+          }))
+        }
+      } catch (err) {
+        console.warn(`Could not refresh agreement details #${agrIdNum}:`, err)
+      }
+    }
+  }
+
+  // Handle document PDF download
+  const handleDownload = async () => {
+    if (!selectedAgreement) return
+    const agrId = selectedAgreement.agreementId
+
+    if (!selectedAgreement.agreementDocument) {
+      setNotice(
+        'No digital agreement document has been uploaded for this lease yet. Contact your property manager if you require a signed copy.'
       )
-      setAgreement(found || null)
-      setLoading(false)
-    }, 200)
+      return
+    }
 
-    return () => clearTimeout(timer)
-  }, [tenantEmail, tenantName])
+    setIsDownloading(true)
+    setNotice('')
 
-  const handleDownload = () => {
-    setDownloadNotice('Download coming soon.')
-    setTimeout(() => {
-      setDownloadNotice('')
-    }, 3500)
+    try {
+      const blob = await getAgreementDocument(agrId)
+      if (!blob || blob.size === 0) {
+        setNotice('Agreement document is currently unavailable.')
+        return
+      }
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: 'application/pdf' })
+      )
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `lease-agreement-${agrId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to download agreement document:', err)
+      const status = err?.response?.status || err?.status
+      if (status === 404) {
+        setNotice('Official lease document PDF is not yet available on the server.')
+      } else {
+        setNotice(
+          err?.response?.data?.message ||
+            err?.message ||
+            'Failed to download agreement document.'
+        )
+      }
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
   return (
@@ -64,19 +242,37 @@ export default function TenantAgreementPage() {
     >
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Notice Banner */}
-        {downloadNotice && (
-          <div className="p-4 rounded-lg bg-[#EAF2F7] border border-[#C2D8E8] text-[#315A7D] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs">
+        {notice && (
+          <div className="p-4 rounded-xl bg-[#EAF2F7] border border-[#C2D8E8] text-[#315A7D] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <Info className="w-5 h-5 text-[#315A7D] shrink-0" />
-              <span>{downloadNotice}</span>
+              <span>{notice}</span>
             </div>
             <button
               type="button"
-              onClick={() => setDownloadNotice('')}
+              onClick={() => setNotice('')}
               className="text-[#315A7D] hover:text-[#274B68] font-bold px-1"
             >
               &times;
             </button>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {error && (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center justify-between shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadTenantAgreements}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Retry
+            </Button>
           </div>
         )}
 
@@ -91,27 +287,59 @@ export default function TenantAgreementPage() {
             </p>
           </div>
 
-          {agreement && (
+          <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
-              onClick={handleDownload}
-              leftIcon={<Download className="w-4 h-4" />}
+              size="sm"
+              onClick={loadTenantAgreements}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
             >
-              Download Agreement
+              Refresh
             </Button>
-          )}
+
+            {selectedAgreement && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleDownload}
+                isLoading={isDownloading}
+                leftIcon={<Download className="w-4 h-4" />}
+              >
+                Download Agreement
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Agreement Selector (shown if tenant has multiple agreements) */}
+        {agreements.length > 1 && (
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs font-semibold text-[#243447]">
+              Select Lease Agreement ({agreements.length} total on record):
+            </div>
+            <div className="w-full sm:w-80">
+              <Select
+                value={String(selectedAgreementId)}
+                options={agreements.map((a) => ({
+                  value: String(a.agreementId),
+                  label: `${a.agreementNumber} · ${a.propertyName} (${a.status})`,
+                }))}
+                onChange={(e) => handleSelectAgreement(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
             <Loader text="Loading your lease agreement..." size="md" center />
           </div>
-        ) : !agreement ? (
+        ) : !selectedAgreement ? (
           /* Empty State */
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
+          <div className="bg-white rounded-2xl border border-[#D9E0E6] p-8 shadow-xs">
             <EmptyState
-              icon={<FileText className="w-8 h-8" />}
+              icon={<FileText className="w-8 h-8 text-[#315A7D]" />}
               title="No Lease Agreement Found"
               message="You do not currently have an active or drafted residential lease agreement on record. Lease agreements are generated by the property owner once a rental application is approved."
               action={
@@ -127,21 +355,22 @@ export default function TenantAgreementPage() {
           /* Agreement Details View */
           <div className="space-y-6">
             {/* Agreement Summary Header Card */}
-            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs">
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-5">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-3 rounded-md bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
+                  <div className="p-3 rounded-xl bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2.5">
                       <h2 className="text-xl font-bold text-[#243447]">
-                        {agreement.agreementNumber}
+                        {selectedAgreement.agreementNumber}
                       </h2>
-                      <StatusBadge status={agreement.status} size="sm" />
+                      <StatusBadge status={selectedAgreement.status} size="sm" />
                     </div>
                     <p className="text-xs text-[#5B6875] mt-0.5">
-                      Primary Tenant: {agreement.tenantName} ({agreement.tenantEmail || tenantEmail})
+                      Primary Tenant: {selectedAgreement.tenantName}{' '}
+                      {selectedAgreement.tenantEmail && `(${selectedAgreement.tenantEmail})`}
                     </p>
                   </div>
                 </div>
@@ -151,6 +380,7 @@ export default function TenantAgreementPage() {
                     variant="primary"
                     size="sm"
                     onClick={handleDownload}
+                    isLoading={isDownloading}
                     leftIcon={<Download className="w-3.5 h-3.5" />}
                   >
                     Download Agreement
@@ -160,117 +390,147 @@ export default function TenantAgreementPage() {
 
               {/* Quick Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5">
-                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Monthly Rent
                   </span>
                   <span className="text-xl font-bold text-[#315A7D]">
-                    ₹{Number(agreement.monthlyRent || 0).toLocaleString('en-IN')}
+                    ₹{Number(selectedAgreement.monthlyRent || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[11px] text-[#5B6875] block mt-0.5">
-                    Due {agreement.rentDueDay || '1st of the month'}
+                    Due {selectedAgreement.dueDay ? `${selectedAgreement.dueDay}th of month` : '1st of month'}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Security Deposit
                   </span>
                   <span className="text-xl font-bold text-[#243447]">
-                    ₹{Number(agreement.securityDeposit || 0).toLocaleString('en-IN')}
+                    ₹{Number(selectedAgreement.securityDeposit || 0).toLocaleString('en-IN')}
                   </span>
                   <span className="text-[11px] text-[#3F7D58] font-medium block mt-0.5">
-                    Refundable Escrow
+                    Refundable Deposit
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Lease Term
                   </span>
                   <span className="text-sm font-bold text-[#243447] block mt-1">
-                    {agreement.startDate}
+                    {formatDate(selectedAgreement.startDate)}
                   </span>
                   <span className="text-[11px] text-[#5B6875] block">
-                    to {agreement.endDate}
+                    to {formatDate(selectedAgreement.endDate)}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] block mb-1">
                     Notice Period
                   </span>
                   <span className="text-xl font-bold text-[#243447]">
-                    {agreement.noticePeriod || '30 days'}
+                    {selectedAgreement.noticePeriodDays != null
+                      ? `${selectedAgreement.noticePeriodDays} days`
+                      : '30 days'}
                   </span>
                   <span className="text-[11px] text-[#5B6875] block mt-0.5">
-                    Prior to Renewal
+                    Prior to Move-Out
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Property & Leased Unit Specifications */}
-            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
               <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
                 <Building2 className="w-4 h-4 text-[#315A7D]" />
-                Leased Property & Unit
+                Leased Property & Unit Details
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
-                  <span className="text-xs text-[#5B6875] block mb-1">Property Name</span>
+                <div className="p-4 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-xs text-[#5B6875] block mb-1 flex items-center gap-1">
+                    <Home className="w-3.5 h-3.5 text-[#315A7D]" />
+                    Property Name
+                  </span>
                   <p className="font-semibold text-[#243447] text-base">
-                    {agreement.propertyName}
+                    {selectedAgreement.propertyName}
                   </p>
+                  {selectedAgreement.buildingName && (
+                    <span className="text-xs text-[#5B6875]">
+                      {selectedAgreement.buildingName}
+                    </span>
+                  )}
                 </div>
 
-                <div className="p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
-                  <span className="text-xs text-[#5B6875] block mb-1">Designated Unit</span>
+                <div className="p-4 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
+                  <span className="text-xs text-[#5B6875] block mb-1 flex items-center gap-1">
+                    <DoorOpen className="w-3.5 h-3.5 text-[#315A7D]" />
+                    Designated Unit
+                  </span>
                   <p className="font-semibold text-[#243447] text-base">
-                    {agreement.unit}
+                    {selectedAgreement.unit}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Financial Schedule & Term Details */}
-            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+            {/* Occupancy Dates & Financial Schedule */}
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
               <h3 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-                <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
-                Contract Terms & Rent Schedule
+                <Calendar className="w-4 h-4 text-[#315A7D]" />
+                Occupancy Dates & Contract Information
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <span className="text-xs text-[#5B6875] block mb-1">Monthly Rent Due Date</span>
-                  <p className="font-semibold text-[#243447] text-sm">
-                    {agreement.rentDueDay || '1st of the month'}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-1">
+                  <span className="text-[#5B6875] font-medium block">
+                    Move-In Date
+                  </span>
+                  <p className="font-bold text-[#243447] text-sm">
+                    {formatDate(selectedAgreement.moveInDate)}
                   </p>
                 </div>
 
-                <div>
-                  <span className="text-xs text-[#5B6875] block mb-1">Notice Period For Move-Out</span>
-                  <p className="font-semibold text-[#243447] text-sm">
-                    {agreement.noticePeriod || '30 days'}
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-1">
+                  <span className="text-[#5B6875] font-medium block">
+                    Move-Out Date
+                  </span>
+                  <p className="font-bold text-[#243447] text-sm">
+                    {formatDate(selectedAgreement.moveOutDate)}
                   </p>
                 </div>
 
-                <div>
-                  <span className="text-xs text-[#5B6875] block mb-1">Agreement Status</span>
-                  <div className="mt-1">
-                    <StatusBadge status={agreement.status} size="sm" />
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-1">
+                  <span className="text-[#5B6875] font-medium block">
+                    Rent Due Day
+                  </span>
+                  <p className="font-bold text-[#243447] text-sm">
+                    {selectedAgreement.dueDay
+                      ? `${selectedAgreement.dueDay}th of the month`
+                      : '1st of the month'}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-1">
+                  <span className="text-[#5B6875] font-medium block">
+                    Agreement Status
+                  </span>
+                  <div className="mt-0.5">
+                    <StatusBadge status={selectedAgreement.status} size="sm" />
                   </div>
                 </div>
               </div>
 
-              {agreement.notes && (
-                <div className="mt-4 p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6]">
+              {selectedAgreement.termsAndConditions && (
+                <div className="mt-4 p-4 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                   <span className="text-xs font-semibold text-[#243447] block mb-1">
-                    Notes & Special Provisions
+                    Terms, Provisions & Special Clauses
                   </span>
-                  <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
-                    {agreement.notes}
+                  <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed whitespace-pre-line">
+                    {selectedAgreement.termsAndConditions}
                   </p>
                 </div>
               )}

@@ -6,6 +6,9 @@ public interface PropertyRecommendationService {
 
     M2RecommendationResponse recommendProperties(
             Long tenantId,
-            Integer topN
+            Integer topN,
+            Double currentLatitude,
+            Double currentLongitude,
+            String currentAddress
     );
 }

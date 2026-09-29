@@ -6,13 +6,20 @@ import math
 import os
 from typing import Any
 
+from dotenv import load_dotenv
 import pandas as pd
 import psycopg
 from psycopg.rows import dict_row
 
+load_dotenv()
+
 
 M2_DATABASE_URL_ENV = "M2_DATABASE_URL"
 
+
+# ============================================================
+# Database Connection
+# ============================================================
 
 def _database_url() -> str:
     """Get the dedicated M2 Neon database URL."""
@@ -271,14 +278,18 @@ def build_live_m2_dataset(
     tenant_id: int,
     preferences: dict[str, Any],
     properties: pd.DataFrame,
+    current_latitude: float | None = None,
+    current_longitude: float | None = None,
 ) -> pd.DataFrame:
     """
     Convert current Neon property/unit data into the
     feature shape expected by the existing M2 recommendation logic.
+
+    Distance is calculated from the user's current location
+    when current GPS coordinates are available.
     """
 
     if properties.empty:
-
         return pd.DataFrame(
             columns=[
                 "tenant_id",
@@ -319,24 +330,22 @@ def build_live_m2_dataset(
         errors="coerce"
     ).fillna(0).astype(int)
 
-    # Calculate live distance using
-    # tenant preference coordinates and
-    # property coordinates.
+    # --------------------------------------------------------
+    # Calculate live distance
+    # --------------------------------------------------------
+    # Use the current location supplied by the backend.
+    #
+    # If current latitude/longitude are unavailable,
+    # haversine_km() returns NaN and the recommendation
+    # scoring logic will omit the distance component.
+    # --------------------------------------------------------
 
     df["approx_distance_km"] = df.apply(
         lambda row: haversine_km(
-            preferences.get(
-                "preferred_latitude"
-            ),
-            preferences.get(
-                "preferred_longitude"
-            ),
-            _as_float(
-                row.get("latitude")
-            ),
-            _as_float(
-                row.get("longitude")
-            ),
+            current_latitude,
+            current_longitude,
+            _as_float(row.get("latitude")),
+            _as_float(row.get("longitude")),
         ),
         axis=1,
     )
@@ -405,10 +414,20 @@ def haversine_km(
 # ============================================================
 
 def load_live_m2_data(
-    tenant_id: int
+    tenant_id: int,
+    current_latitude: float | None = None,
+    current_longitude: float | None = None,
+    current_address: str | None = None,
 ):
     """
     Load all live M2 inputs directly from Neon.
+
+    Current latitude/longitude are supplied by the backend
+    for live distance calculation.
+
+    current_address is accepted for the API contract.
+    Address-based distance fallback will be handled separately
+    once the property's full address/geocoding fields are confirmed.
     """
 
     preferences = load_live_tenant_preferences(
@@ -425,6 +444,8 @@ def load_live_m2_data(
         tenant_id,
         preferences,
         properties,
+        current_latitude=current_latitude,
+        current_longitude=current_longitude,
     )
 
     return (

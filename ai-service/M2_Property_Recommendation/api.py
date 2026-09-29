@@ -4,10 +4,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from .recommend import recommend_properties
-from .database import (
-    load_live_m2_data,
-    check_database_connection,
+from .database import check_database_connection
+from .service import (
+    MODEL_VERSION,
+    generate_recommendations,
 )
 
 
@@ -16,18 +16,23 @@ router = APIRouter(
     tags=["Property Recommendation"]
 )
 
-MODEL_VERSION = "v1.0"
-
 
 # ============================================================
 # Request Models
 # ============================================================
 
 class RecommendationRequest(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True
+    )
 
     tenant_id: str = Field(..., min_length=1)
     top_n: int = Field(..., gt=0)
+
+    current_latitude: float | None = None
+    current_longitude: float | None = None
+    current_address: str | None = None
 
     @property
     def tenantId(self) -> str:
@@ -36,6 +41,18 @@ class RecommendationRequest(BaseModel):
     @property
     def topN(self) -> int:
         return self.top_n
+
+    @property
+    def currentLatitude(self) -> float | None:
+        return self.current_latitude
+
+    @property
+    def currentLongitude(self) -> float | None:
+        return self.current_longitude
+
+    @property
+    def currentAddress(self) -> str | None:
+        return self.current_address
 
 
 # ============================================================
@@ -48,20 +65,38 @@ class AvailableUnit(BaseModel):
     bedrooms: int
 
 
-class RecommendationItem(BaseModel):
-    propertyId: str
-    recommendationScore: float
-    availableUnits: list[AvailableUnit]
-    propertyCity: str
+class AmenityMatchDetails(BaseModel):
+    matchPercentage: float
+    matched: list[str]
+    missing: list[str]
+
+
+class DistanceMatchDetails(BaseModel):
+    distanceConsidered: bool
+    distanceMatch: float | None
+    approxDistanceKm: float | None
+
+
+class MatchDetails(BaseModel):
     cityMatch: int
     budgetMatch: int
     bedroomMatch: int
     propertyTypeMatch: int
     furnishingMatch: int
     parkingMatch: int
-    amenityMatch: int
-    distanceMatch: int
-    approxDistanceKm: float
+
+    amenities: AmenityMatchDetails
+    distance: DistanceMatchDetails
+
+
+class RecommendationItem(BaseModel):
+    propertyId: str
+    recommendationScore: float
+    propertyCity: str
+
+    matchDetails: MatchDetails
+
+    availableUnits: list[AvailableUnit]
 
 
 class RecommendationResponse(BaseModel):
@@ -129,6 +164,8 @@ def health():
         "module": "M2_PROPERTY_RECOMMENDATION",
         "service": "m2-property-recommendation"
     }
+
+
 @router.get("/db-health")
 def db_health():
     try:
@@ -136,11 +173,13 @@ def db_health():
             "status": "healthy",
             "database": check_database_connection(),
         }
+
     except Exception:
         return {
             "status": "unhealthy",
             "database": None,
         }
+
 
 @router.get("/")
 def root():
@@ -162,131 +201,58 @@ def recommend_properties_endpoint(
     request: RecommendationRequest
 ):
     try:
+
+        # ----------------------------------------------------
+        # Validate tenant ID
+        # ----------------------------------------------------
+
         tenant_id = request.tenantId.strip()
 
-        # ----------------------------------------------------
-        # Load M2 datasets
-        # ----------------------------------------------------
+        if not tenant_id:
+            return error_response(
+                400,
+                "INVALID_INPUT",
+                "tenantId must not be empty"
+            )
 
         # ----------------------------------------------------
-        # Load LIVE M2 data from Neon
-        # ----------------------------------------------------
-        live_df, properties, property_amenities, preferences = (
-            load_live_m2_data(int(tenant_id))
-)
-
-        # ----------------------------------------------------
-        # Run recommendation pipeline
+        # Call reusable M2 recommendation service
         # ----------------------------------------------------
 
-        recommendations_df = recommend_properties(
-            live_df,
-            properties,
-            property_amenities,
-            preferences,
-            request.topN
+        return generate_recommendations(
+            tenant_id=tenant_id,
+            top_n=request.topN,
+            current_latitude=request.currentLatitude,
+            current_longitude=request.currentLongitude,
+            current_address=request.currentAddress,
         )
 
-        # ----------------------------------------------------
-        # Convert recommendations to API response
-        # ----------------------------------------------------
-
-        recommendations = []
-        for property_id, property_df in recommendations_df.groupby(
-            "property_id",
-            sort=False
-        ):
-            first_row = property_df.iloc[0]
-
-            available_units = []
-
-            for _, unit_row in property_df.iterrows():
-                available_units.append(
-                    {
-                        "unitId": str(unit_row["unit_id"]),
-                        "monthlyRent": float(
-                            unit_row["monthly_rent"]
-                        ),
-                        "bedrooms": int(
-                            unit_row["property_bedrooms"]
-                        ),
-                    }
-                )
-
-            recommendations.append(
-        {
-            "propertyId": str(property_id),
-
-            # Because recommendations_df is already ranked,
-            # the first row represents the best-scoring unit
-            # for this property.
-            "recommendationScore": float(
-                first_row["recommendation_score"]
-            ),
-
-            "availableUnits": available_units,
-
-            "propertyCity": str(
-                first_row["property_city"]
-            ),
-
-            "cityMatch": int(
-                first_row["city_match"]
-            ),
-
-            "budgetMatch": int(
-                first_row["budget_match"]
-            ),
-
-            "bedroomMatch": int(
-                first_row["bedroom_match"]
-            ),
-
-            "propertyTypeMatch": int(
-                first_row["property_type_match"]
-            ),
-
-            "furnishingMatch": int(
-                first_row["furnishing_match"]
-            ),
-
-            "parkingMatch": int(
-                first_row["parking_match"]
-            ),
-
-            "amenityMatch": int(
-                first_row["amenity_match"]
-            ),
-
-            "distanceMatch": int(
-                first_row["distance_match"]
-            ),
-
-            "approxDistanceKm": float(
-                first_row["approx_distance_km"]
-            ),
-        }
-    )
-
-        # ----------------------------------------------------
-        # Return successful response
-        # ----------------------------------------------------
-
-        return {
-            "success": True,
-            "tenantId": tenant_id,
-            "recommendations": recommendations,
-            "count": len(recommendations),
-            "modelVersion": MODEL_VERSION
-        }
+    # ========================================================
+    # No tenant preferences
+    # ========================================================
 
     except ValueError as exc:
+
+        message = str(exc)
+
+        if message.startswith(
+            "No tenant preferences found for tenant_id:"
+        ):
+            return error_response(
+                404,
+                "PREFERENCES_NOT_FOUND",
+                message
+            )
 
         return error_response(
             400,
             "INVALID_INPUT",
-            str(exc)
+            message
         )
+
+    # ========================================================
+    # Missing data/model files
+    # ========================================================
 
     except FileNotFoundError:
 
@@ -295,6 +261,10 @@ def recommend_properties_endpoint(
             "MODEL_NOT_FOUND",
             "Required M2 data files were not found"
         )
+
+    # ========================================================
+    # Unexpected error
+    # ========================================================
 
     except Exception:
 
