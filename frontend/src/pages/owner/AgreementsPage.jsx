@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
+import { useAuth } from '../../context/AuthContext'
 import {
-  getStoredAgreements,
+  getAgreements,
+  getAgreementDocument,
+  updateAgreementStatus,
   AGREEMENT_STATUSES,
-} from '../../utils/agreementMockData'
+} from '../../api/agreementApi'
+import { getOwnerApplications, getAllApplications } from '../../api/applicationApi'
 import {
   Button,
   Input,
@@ -23,49 +27,201 @@ import {
   IndianRupee,
   User,
   CheckCircle2,
+  AlertCircle,
+  Download,
+  ExternalLink,
+  RefreshCw,
+  Clock,
+  Shield,
+  FileCheck,
 } from 'lucide-react'
+
+// Date formatter
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return String(dateStr)
+    return d.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return String(dateStr)
+  }
+}
 
 export default function AgreementsPage() {
   const location = useLocation()
+  const { user } = useAuth()
+
   const [agreements, setAgreements] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [successMessage, setSuccessMessage] = useState(
     location.state?.successMessage || ''
   )
+  const [errorMessage, setErrorMessage] = useState(
+    location.state?.errorMessage || ''
+  )
+  const [actionLoadingId, setActionLoadingId] = useState(null)
+
+  // Load real agreements and enrich with application metadata
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+    setError(null)
+
+    try {
+      // 1. Fetch real agreements and applications concurrently
+      const [agreementsRes, appsRes] = await Promise.allSettled([
+        getAgreements(),
+        user?.role === 'SUPER_ADMIN'
+          ? getAllApplications()
+          : getOwnerApplications(),
+      ])
+
+      if (agreementsRes.status === 'rejected') {
+        throw agreementsRes.reason
+      }
+
+      const rawAgreements = Array.isArray(agreementsRes.value)
+        ? agreementsRes.value
+        : agreementsRes.value?.data || []
+
+      const rawApps =
+        appsRes.status === 'fulfilled'
+          ? Array.isArray(appsRes.value)
+            ? appsRes.value
+            : appsRes.value?.data || []
+          : []
+
+      // 2. Build lookup map for application details (tenant name, property, unit)
+      const appMap = new Map()
+      rawApps.forEach((a) => {
+        if (a && a.applicationId) {
+          appMap.set(Number(a.applicationId), a)
+        }
+      })
+
+      // 3. Enrich agreements with real display data
+      const enriched = rawAgreements.map((agr) => {
+        const app = agr.applicationId ? appMap.get(Number(agr.applicationId)) : null
+        return {
+          ...agr,
+          id: agr.agreementId,
+          agreementNumber: `AGR-${String(agr.agreementId).padStart(4, '0')}`,
+          tenantName:
+            app?.tenantName ||
+            (agr.tenantId ? `Tenant #${agr.tenantId}` : 'Tenant'),
+          tenantEmail: app?.tenantEmail || '',
+          propertyName: app?.propertyName || 'Property',
+          unit: app?.unitNumber
+            ? `Unit #${app.unitNumber}`
+            : agr.unitId
+            ? `Unit #${agr.unitId}`
+            : '—',
+          status: agr.status || 'DRAFT',
+        }
+      })
+
+      setAgreements(enriched)
+    } catch (err) {
+      console.error('Failed to load lease agreements:', err)
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load lease agreements from server.'
+      )
+    } finally {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [user?.role])
 
   useEffect(() => {
-    // Read from localStorage data source
-    const timer = setTimeout(() => {
-      const list = getStoredAgreements()
-      setAgreements(list)
-      setLoading(false)
-    }, 200)
+    loadData()
+  }, [loadData])
 
-    return () => clearTimeout(timer)
-  }, [])
+  // Handle document download
+  const handleDownloadDocument = async (agreementId) => {
+    try {
+      setActionLoadingId(agreementId)
+      const blob = await getAgreementDocument(agreementId)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rental-agreement-${agreementId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to download agreement document:', err)
+      alert(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to download agreement document.'
+      )
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  // Handle status update (e.g. Activate draft agreement)
+  const handleStatusChange = async (agreementId, newStatus) => {
+    try {
+      setActionLoadingId(agreementId)
+      await updateAgreementStatus(agreementId, newStatus)
+      setSuccessMessage(
+        `Agreement #${agreementId} status successfully changed to ${newStatus}.`
+      )
+      await loadData(true)
+    } catch (err) {
+      console.error('Failed to update agreement status:', err)
+      alert(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to update agreement status.'
+      )
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
-    ...AGREEMENT_STATUSES.map((st) => ({ value: st, label: st })),
+    { value: 'DRAFT', label: 'Draft' },
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'EXPIRED', label: 'Expired' },
+    { value: 'TERMINATED', label: 'Terminated' },
   ]
 
-  const filteredAgreements = agreements.filter((agr) => {
-    const query = searchQuery.toLowerCase().trim()
-    const matchesSearch =
-      query === '' ||
-      agr.agreementNumber.toLowerCase().includes(query) ||
-      agr.tenantName.toLowerCase().includes(query) ||
-      agr.propertyName.toLowerCase().includes(query) ||
-      agr.unit.toLowerCase().includes(query)
+  const filteredAgreements = useMemo(() => {
+    return agreements.filter((agr) => {
+      const query = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        query === '' ||
+        String(agr.agreementNumber || '').toLowerCase().includes(query) ||
+        String(agr.tenantName || '').toLowerCase().includes(query) ||
+        String(agr.tenantEmail || '').toLowerCase().includes(query) ||
+        String(agr.propertyName || '').toLowerCase().includes(query) ||
+        String(agr.unit || '').toLowerCase().includes(query)
 
-    const matchesStatus =
-      statusFilter === 'all' ||
-      agr.status.toLowerCase() === statusFilter.toLowerCase()
+      const matchesStatus =
+        statusFilter === 'all' ||
+        String(agr.status || '').toUpperCase() === statusFilter.toUpperCase()
 
-    return matchesSearch && matchesStatus
-  })
+      return matchesSearch && matchesStatus
+    })
+  }, [agreements, searchQuery, statusFilter])
 
   const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all'
 
@@ -81,7 +237,7 @@ export default function AgreementsPage() {
       pageTitle="Agreements"
     >
       <div className="space-y-6">
-        {/* Success Banner (e.g. from CreateAgreementPage redirect) */}
+        {/* Success Banner */}
         {successMessage && (
           <div className="p-4 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
@@ -98,6 +254,41 @@ export default function AgreementsPage() {
           </div>
         )}
 
+        {/* Error Message Banner from Navigation State */}
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage('')}
+              className="text-amber-800 hover:text-amber-950 font-bold px-1"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {error && (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center justify-between shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(true)}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -109,11 +300,23 @@ export default function AgreementsPage() {
             </p>
           </div>
 
-          <Link to="/owner/agreements/new">
-            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-              Create Agreement
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => loadData(true)}
+              isLoading={isRefreshing}
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+            >
+              Refresh
             </Button>
-          </Link>
+
+            <Link to="/owner/agreements/new">
+              <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                Create Agreement
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Search & Status Filter Bar */}
@@ -167,7 +370,7 @@ export default function AgreementsPage() {
           </div>
         </div>
 
-        {/* Loading State */}
+        {/* Content Section */}
         {loading ? (
           <div className="bg-white rounded-2xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
             <Loader text="Loading lease agreements..." size="md" center />
@@ -178,13 +381,23 @@ export default function AgreementsPage() {
             <EmptyState
               icon={<FileText className="w-8 h-8 text-[#315A7D]" />}
               title="No lease agreements found"
-              message="No agreements match your search or filter criteria. Create a new lease agreement to get started."
+              message={
+                hasActiveFilters
+                  ? 'No agreements match your search or filter criteria. Try clearing filters.'
+                  : 'No lease agreements have been created yet. Generate an agreement from an approved rental application.'
+              }
               action={
-                <Link to="/owner/agreements/new">
-                  <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-                    Create Agreement
+                hasActiveFilters ? (
+                  <Button variant="outline" onClick={resetFilters}>
+                    Clear Filters
                   </Button>
-                </Link>
+                ) : (
+                  <Link to="/owner/agreements/new">
+                    <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                      Create Agreement
+                    </Button>
+                  </Link>
+                )
               }
             />
           </div>
@@ -201,64 +414,112 @@ export default function AgreementsPage() {
                     <th className="py-3.5 px-4">Term Dates</th>
                     <th className="py-3.5 px-4">Monthly Rent</th>
                     <th className="py-3.5 px-4">Deposit</th>
-                    <th className="py-3.5 pl-4 pr-6 text-right">Status</th>
+                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D9E0E6] text-sm">
-                  {filteredAgreements.map((agr) => (
-                    <tr
-                      key={agr.id}
-                      className="hover:bg-[#F7F8FA] transition-colors"
-                    >
-                      {/* Agreement Number */}
-                      <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
-                        {agr.agreementNumber}
-                      </td>
+                  {filteredAgreements.map((agr) => {
+                    const isDraft =
+                      String(agr.status).toUpperCase() === 'DRAFT'
+                    const isUpdating = actionLoadingId === agr.agreementId
 
-                      {/* Tenant */}
-                      <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
-                        <div className="flex items-center gap-2">
-                          <User className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                          <span>{agr.tenantName}</span>
-                        </div>
-                      </td>
+                    return (
+                      <tr
+                        key={agr.agreementId}
+                        className="hover:bg-[#F7F8FA] transition-colors"
+                      >
+                        {/* Agreement Number */}
+                        <td className="py-4 pl-6 pr-4 font-mono font-semibold text-[#315A7D] text-xs whitespace-nowrap">
+                          {agr.agreementNumber}
+                        </td>
 
-                      {/* Property & Unit */}
-                      <td className="py-4 px-4 min-w-[200px]">
-                        <p className="font-semibold text-[#243447] text-xs truncate">
-                          {agr.propertyName}
-                        </p>
-                        <span className="text-xs text-[#5B6875]">
-                          {agr.unit}
-                        </span>
-                      </td>
+                        {/* Tenant */}
+                        <td className="py-4 px-4 whitespace-nowrap font-medium text-[#243447]">
+                          <div className="flex items-center gap-2">
+                            <User className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <div>
+                              <span>{agr.tenantName}</span>
+                              {agr.tenantEmail && (
+                                <p className="text-[11px] text-[#5B6875] font-normal truncate max-w-[150px]">
+                                  {agr.tenantEmail}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
 
-                      {/* Term Dates */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                          <span>
-                            {agr.startDate} &rarr; {agr.endDate}
+                        {/* Property & Unit */}
+                        <td className="py-4 px-4 min-w-[180px]">
+                          <p className="font-semibold text-[#243447] text-xs truncate">
+                            {agr.propertyName}
+                          </p>
+                          <span className="text-xs text-[#5B6875]">
+                            {agr.unit}
                           </span>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Monthly Rent */}
-                      <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                        ₹{Number(agr.monthlyRent || 0).toLocaleString('en-IN')}/mo
-                      </td>
+                        {/* Term Dates */}
+                        <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <span>
+                              {formatDate(agr.startDate)} &rarr;{' '}
+                              {formatDate(agr.endDate)}
+                            </span>
+                          </div>
+                        </td>
 
-                      {/* Security Deposit */}
-                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                        ₹{Number(agr.securityDeposit || 0).toLocaleString('en-IN')}
-                      </td>
+                        {/* Monthly Rent */}
+                        <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
+                          ₹{Number(agr.monthlyRent || 0).toLocaleString('en-IN')}/mo
+                        </td>
 
-                      {/* Status */}
-                      <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                        <StatusBadge status={agr.status} size="sm" />
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Security Deposit */}
+                        <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
+                          ₹{Number(agr.securityDeposit || 0).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-4 px-4 text-center whitespace-nowrap">
+                          <StatusBadge status={agr.status} size="sm" />
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap text-xs">
+                          <div className="flex items-center justify-end gap-2">
+                            {isDraft && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() =>
+                                  handleStatusChange(agr.agreementId, 'ACTIVE')
+                                }
+                                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8] hover:bg-[#d9eedb] transition-colors"
+                                title="Activate lease agreement"
+                              >
+                                Activate
+                              </button>
+                            )}
+
+                            {agr.agreementDocument && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() =>
+                                  handleDownloadDocument(agr.agreementId)
+                                }
+                                className="p-1.5 rounded-md text-[#5B6875] hover:text-[#315A7D] hover:bg-[#EAF2F7] transition-colors"
+                                title="Download Agreement PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
