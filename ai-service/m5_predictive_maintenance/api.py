@@ -191,11 +191,13 @@ def predict(request: MaintenancePredictionRequest):
             "PREDICTION_ERROR",
             "Unable to generate maintenance prediction."
         )
-
-    except Exception:
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
 
         return error_response(
             500,
             "PREDICTION_ERROR",
-            "Unable to generate maintenance prediction."
+             "Unable to generate maintenance prediction."
         )
