@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestRequest;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestResponse;
@@ -252,51 +253,69 @@ public class MaintenanceRequestServiceImpl
     // =========================================================
     // GET ALL MAINTENANCE REQUESTS
     //
-    // PROPERTY_MANAGER / PROPERTY_OWNER / SUPER_ADMIN
+    // TENANT:
+    //     only their own requests
+    // PROPERTY_OWNER:
+    //     only requests whose property.owner.id == authenticated user.id
+    // PROPERTY_MANAGER:
+    //     only requests whose property.propertyManager.user.id == authenticated user.id
+    // SUPER_ADMIN:
+    //     all requests
     // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public List<MaintenanceRequestResponse> getAllRequests() {
 
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
+        User user = getLoggedInUser();
+        RoleType role = user.getRole();
 
-        boolean isTenant = authentication != null
-                && authentication.getAuthorities() != null
-                && authentication.getAuthorities()
-                        .stream()
-                        .anyMatch(authority ->
-                                authority
-                                        .getAuthority()
-                                        .equals("ROLE_TENANT"));
-
-        if (isTenant) {
-
-            User user = getLoggedInUser();
-
-            Tenant tenant = tenantRepository
-                    .findByUser(user)
-                    .orElse(null);
-
-            if (tenant == null) {
-                return List.of();
-            }
-
-            return maintenanceRequestRepository
-                    .findByTenant_TenantId(tenant.getTenantId())
-                    .stream()
-                    .map(this::mapToResponse)
-                    .toList();
+        if (role == null) {
+            throw new AccessDeniedException(
+                    "User has no assigned role");
         }
 
-        return maintenanceRequestRepository
-                .findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        switch (role) {
+            case TENANT:
+                Tenant tenant = tenantRepository
+                        .findByUser(user)
+                        .orElse(null);
+
+                if (tenant == null) {
+                    return List.of();
+                }
+
+                return maintenanceRequestRepository
+                        .findByTenant_TenantId(tenant.getTenantId())
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+            case PROPERTY_OWNER:
+                return maintenanceRequestRepository
+                        .findByPropertyOwnerId(user.getId())
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+            case PROPERTY_MANAGER:
+                return maintenanceRequestRepository
+                        .findByPropertyManagerUserId(user.getId())
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+            case SUPER_ADMIN:
+                return maintenanceRequestRepository
+                        .findAll()
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+            default:
+                throw new AccessDeniedException(
+                        "Role not authorized to view maintenance requests");
+        }
     }
 
     // =========================================================
@@ -304,8 +323,11 @@ public class MaintenanceRequestServiceImpl
     //
     // TENANT:
     //     Can see only their own request.
-    //
-    // MANAGER / OWNER / SUPER ADMIN:
+    // PROPERTY_OWNER:
+    //     Can see only requests whose property.owner.id == authenticated user.id
+    // PROPERTY_MANAGER:
+    //     Can see only requests whose property.propertyManager.user.id == authenticated user.id
+    // SUPER_ADMIN:
     //     Can see any request.
     // =========================================================
 
@@ -323,34 +345,18 @@ public class MaintenanceRequestServiceImpl
                                                 + "with ID: "
                                                 + requestId));
 
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
+        User user = getLoggedInUser();
+        RoleType role = user.getRole();
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
+        if (role == null) {
             throw new AccessDeniedException(
-                    "User is not authenticated");
+                    "User has no assigned role");
         }
 
-        boolean isTenant =
-                authentication
-                        .getAuthorities()
-                        .stream()
-                        .anyMatch(authority ->
-                                authority
-                                        .getAuthority()
-                                        .equals("ROLE_TENANT"));
-
         // -----------------------------------------------------
-        // TENANT OWNERSHIP CHECK
+        // TENANT SECURITY CHECK
         // -----------------------------------------------------
-
-        if (isTenant) {
-
-            User user = getLoggedInUser();
+        if (role == RoleType.TENANT) {
 
             Tenant tenant =
                     tenantRepository
@@ -379,6 +385,45 @@ public class MaintenanceRequestServiceImpl
                         "You are not allowed to view "
                                 + "this maintenance request");
             }
+        }
+        // -----------------------------------------------------
+        // PROPERTY OWNER SECURITY CHECK
+        // -----------------------------------------------------
+        else if (role == RoleType.PROPERTY_OWNER) {
+
+            if (request.getProperty() == null
+                    || request.getProperty().getOwner() == null
+                    || !user.getId().equals(request.getProperty().getOwner().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to view "
+                                + "this maintenance request");
+            }
+        }
+        // -----------------------------------------------------
+        // PROPERTY MANAGER SECURITY CHECK
+        // -----------------------------------------------------
+        else if (role == RoleType.PROPERTY_MANAGER) {
+
+            if (request.getProperty() == null
+                    || request.getProperty().getPropertyManager() == null
+                    || request.getProperty().getPropertyManager().getUser() == null
+                    || !user.getId().equals(
+                            request.getProperty().getPropertyManager().getUser().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to view "
+                                + "this maintenance request");
+            }
+        }
+        // -----------------------------------------------------
+        // SUPER ADMIN - UNRESTRICTED
+        // -----------------------------------------------------
+        else if (role != RoleType.SUPER_ADMIN) {
+
+            throw new AccessDeniedException(
+                    "You are not allowed to view "
+                            + "this maintenance request");
         }
 
         return mapToResponse(request);
@@ -415,34 +460,21 @@ public class MaintenanceRequestServiceImpl
                                                 + "with ID: "
                                                 + requestId));
 
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
+        User user = getLoggedInUser();
+        RoleType role = user.getRole();
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
+        if (role == null) {
             throw new AccessDeniedException(
-                    "User is not authenticated");
+                    "User has no assigned role");
         }
 
-        boolean isTenant =
-                authentication
-                        .getAuthorities()
-                        .stream()
-                        .anyMatch(authority ->
-                                authority
-                                        .getAuthority()
-                                        .equals("ROLE_TENANT"));
+        boolean isTenant = (role == RoleType.TENANT);
 
         // =====================================================
         // TENANT SECURITY CHECK
         // =====================================================
 
         if (isTenant) {
-
-            User user = getLoggedInUser();
 
             Tenant loggedInTenant =
                     tenantRepository
@@ -493,6 +525,42 @@ public class MaintenanceRequestServiceImpl
                                 + "because it is already being processed");
             }
         }
+        // =====================================================
+        // PROPERTY OWNER SECURITY CHECK
+        // =====================================================
+        else if (role == RoleType.PROPERTY_OWNER) {
+
+            if (existingRequest.getProperty() == null
+                    || existingRequest.getProperty().getOwner() == null
+                    || !user.getId().equals(existingRequest.getProperty().getOwner().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to update this maintenance request");
+            }
+        }
+        // =====================================================
+        // PROPERTY MANAGER SECURITY CHECK
+        // =====================================================
+        else if (role == RoleType.PROPERTY_MANAGER) {
+
+            if (existingRequest.getProperty() == null
+                    || existingRequest.getProperty().getPropertyManager() == null
+                    || existingRequest.getProperty().getPropertyManager().getUser() == null
+                    || !user.getId().equals(
+                            existingRequest.getProperty().getPropertyManager().getUser().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to update this maintenance request");
+            }
+        }
+        // =====================================================
+        // SUPER ADMIN - ALLOWED
+        // =====================================================
+        else if (role != RoleType.SUPER_ADMIN) {
+
+            throw new AccessDeniedException(
+                    "You are not allowed to update this maintenance request");
+        }
 
         // =====================================================
         // FIND PROPERTY
@@ -505,6 +573,20 @@ public class MaintenanceRequestServiceImpl
                                 new ResourceNotFoundException(
                                         "Property not found with ID: "
                                                 + request.getPropertyId()));
+
+        if (role == RoleType.PROPERTY_OWNER) {
+            if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
+                throw new AccessDeniedException(
+                        "You are not allowed to assign maintenance request to an unowned property");
+            }
+        } else if (role == RoleType.PROPERTY_MANAGER) {
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager().getUser() == null
+                    || !user.getId().equals(property.getPropertyManager().getUser().getId())) {
+                throw new AccessDeniedException(
+                        "You are not allowed to assign maintenance request to an unmanaged property");
+            }
+        }
 
         // =====================================================
         // FIND UNIT
@@ -652,6 +734,34 @@ public class MaintenanceRequestServiceImpl
                                                 + ticketId));
 
         // -----------------------------------------------------
+        // AUTHORIZATION CHECK
+        // -----------------------------------------------------
+
+        User user = getLoggedInUser();
+        RoleType role = user.getRole();
+
+        if (role == RoleType.PROPERTY_OWNER) {
+            if (maintenanceRequest.getProperty() == null
+                    || maintenanceRequest.getProperty().getOwner() == null
+                    || !user.getId().equals(maintenanceRequest.getProperty().getOwner().getId())) {
+                throw new AccessDeniedException(
+                        "You are not allowed to update the status of this maintenance request");
+            }
+        } else if (role == RoleType.PROPERTY_MANAGER) {
+            if (maintenanceRequest.getProperty() == null
+                    || maintenanceRequest.getProperty().getPropertyManager() == null
+                    || maintenanceRequest.getProperty().getPropertyManager().getUser() == null
+                    || !user.getId().equals(
+                            maintenanceRequest.getProperty().getPropertyManager().getUser().getId())) {
+                throw new AccessDeniedException(
+                        "You are not allowed to update the status of this maintenance request");
+            }
+        } else if (role != RoleType.SUPER_ADMIN) {
+            throw new AccessDeniedException(
+                    "You are not allowed to update the status of this maintenance request");
+        }
+
+        // -----------------------------------------------------
         // CONVERT STRING TO ENUM
         // -----------------------------------------------------
 
@@ -720,34 +830,19 @@ public class MaintenanceRequestServiceImpl
         // GET LOGGED-IN USER
         // -----------------------------------------------------
 
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
+        User user = getLoggedInUser();
+        RoleType role = user.getRole();
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
+        if (role == null) {
             throw new AccessDeniedException(
-                    "User is not authenticated");
+                    "User has no assigned role");
         }
-
-        boolean isTenant =
-                authentication
-                        .getAuthorities()
-                        .stream()
-                        .anyMatch(authority ->
-                                authority
-                                        .getAuthority()
-                                        .equals("ROLE_TENANT"));
 
         // =====================================================
         // TENANT SECURITY CHECK
         // =====================================================
 
-        if (isTenant) {
-
-            User user = getLoggedInUser();
+        if (role == RoleType.TENANT) {
 
             Tenant loggedInTenant =
                     tenantRepository
@@ -793,6 +888,42 @@ public class MaintenanceRequestServiceImpl
                                 + "only while its status is OPEN");
             }
         }
+        // =====================================================
+        // PROPERTY OWNER SECURITY CHECK
+        // =====================================================
+        else if (role == RoleType.PROPERTY_OWNER) {
+
+            if (request.getProperty() == null
+                    || request.getProperty().getOwner() == null
+                    || !user.getId().equals(request.getProperty().getOwner().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to delete this maintenance request");
+            }
+        }
+        // =====================================================
+        // PROPERTY MANAGER SECURITY CHECK
+        // =====================================================
+        else if (role == RoleType.PROPERTY_MANAGER) {
+
+            if (request.getProperty() == null
+                    || request.getProperty().getPropertyManager() == null
+                    || request.getProperty().getPropertyManager().getUser() == null
+                    || !user.getId().equals(
+                            request.getProperty().getPropertyManager().getUser().getId())) {
+
+                throw new AccessDeniedException(
+                        "You are not allowed to delete this maintenance request");
+            }
+        }
+        // =====================================================
+        // SUPER ADMIN - ALLOWED
+        // =====================================================
+        else if (role != RoleType.SUPER_ADMIN) {
+
+            throw new AccessDeniedException(
+                    "You are not allowed to delete this maintenance request");
+        }
 
         // -----------------------------------------------------
         // DELETE
@@ -820,6 +951,28 @@ public class MaintenanceRequestServiceImpl
                                      "Property not found with ID: "
                                              + propertyId));
 
+
+     User user = getLoggedInUser();
+     RoleType role = user.getRole();
+
+     if (role == RoleType.PROPERTY_OWNER) {
+         if (property.getOwner() == null
+                 || !user.getId().equals(property.getOwner().getId())) {
+             throw new AccessDeniedException(
+                     "You are not allowed to run predictive maintenance for this property");
+         }
+     } else if (role == RoleType.PROPERTY_MANAGER) {
+         if (property.getPropertyManager() == null
+                 || property.getPropertyManager().getUser() == null
+                 || !user.getId().equals(
+                         property.getPropertyManager().getUser().getId())) {
+             throw new AccessDeniedException(
+                     "You are not allowed to run predictive maintenance for this property");
+         }
+     } else if (role != RoleType.SUPER_ADMIN) {
+         throw new AccessDeniedException(
+                 "You are not allowed to run predictive maintenance for this property");
+     }
 
      Unit unit =
              unitRepository
@@ -862,17 +1015,19 @@ public class MaintenanceRequestServiceImpl
         Object principal =
                 authentication.getPrincipal();
 
-        if (!(principal instanceof UserDetails)) {
+        String email;
+        if (principal instanceof UserDetails) {
+            email = ((UserDetails) principal).getUsername();
+        } else if (principal instanceof String) {
+            email = (String) principal;
+        } else {
+            email = authentication.getName();
+        }
 
+        if (email == null || email.isBlank()) {
             throw new AccessDeniedException(
                     "Unable to identify logged-in user");
         }
-
-        UserDetails userDetails =
-                (UserDetails) principal;
-
-        String email =
-                userDetails.getUsername();
 
         return userRepository
                 .findByEmail(email.toLowerCase().trim())

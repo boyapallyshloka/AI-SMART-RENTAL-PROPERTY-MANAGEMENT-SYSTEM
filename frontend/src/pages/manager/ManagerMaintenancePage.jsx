@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { ROLES } from '../../utils/roles'
@@ -16,6 +16,16 @@ import {
   formatStatusLabel,
   getPriorityBadgeClass,
 } from '../../api/maintenanceApi'
+import {
+  getManagerAssignedProperties,
+  getManagerAssignedPropertyDetails,
+} from '../../api/propertyApi'
+import {
+  getApplicationsForUnit,
+  getApplicationsForProperty,
+  getApplicationById,
+} from '../../api/applicationApi'
+import axiosClient from '../../api/axiosClient'
 import {
   Button,
   Input,
@@ -49,6 +59,29 @@ import {
   UserPlus,
 } from 'lucide-react'
 
+/**
+ * Normalizes property names into Title Case for clean user-facing presentation.
+ * Example: "pooja apartments" -> "Pooja Apartments"
+ */
+const formatPropertyName = (name) => {
+  if (!name || typeof name !== 'string') return ''
+  const trimmed = name.trim()
+  if (!trimmed) return ''
+  return trimmed
+    .split(/\s+/)
+    .map((word) =>
+      word
+        .split('-')
+        .map((part) =>
+          part
+            ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+            : ''
+        )
+        .join('-')
+    )
+    .join(' ')
+}
+
 export default function ManagerMaintenancePage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,6 +92,15 @@ export default function ManagerMaintenancePage() {
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+
+  // Cache/lookup maps for Property Name and Unit Number
+  const [propertyMap, setPropertyMap] = useState({})
+  const [unitMap, setUnitMap] = useState({})
+
+  // Selected Ticket human-readable details for Modal
+  const [modalPropertyName, setModalPropertyName] = useState('')
+  const [modalUnitNumber, setModalUnitNumber] = useState('')
+  const [modalTenantName, setModalTenantName] = useState('')
 
   // Worker assignment inside manager modal
   const [availableWorkers, setAvailableWorkers] = useState([])
@@ -72,6 +114,95 @@ export default function ManagerMaintenancePage() {
   const [modalPrediction, setModalPrediction] = useState(null)
   const [predictionLoading, setPredictionLoading] = useState(false)
 
+  // Batch-resolve human-readable property names and unit numbers for manager assigned properties
+  const enrichPropertiesAndUnits = async (tickets) => {
+    if (!Array.isArray(tickets) || tickets.length === 0) return
+
+    const uniquePropertyIds = [
+      ...new Set(tickets.map((t) => t.propertyId).filter(Boolean)),
+    ]
+
+    const newPropertyMap = {}
+    const newUnitMap = {}
+    const assignedPropertyIdSet = new Set()
+
+    // 1. Pre-populate from ticket fields if already provided by backend
+    tickets.forEach((t) => {
+      if (t.propertyId && t.propertyName) {
+        newPropertyMap[String(t.propertyId)] = t.propertyName
+      }
+      if (t.unitId && t.unitNumber) {
+        newUnitMap[String(t.unitId)] = String(t.unitNumber)
+      }
+    })
+
+    // 2. Query GET /api/property-manager/properties (getManagerAssignedProperties)
+    try {
+      const propRes = await getManagerAssignedProperties()
+      const propList = Array.isArray(propRes?.data)
+        ? propRes.data
+        : Array.isArray(propRes)
+          ? propRes
+          : []
+      propList.forEach((p) => {
+        const pid = p.propertyId || p.id
+        const pname = p.propertyName || p.name || p.title
+        if (pid && pname) {
+          newPropertyMap[String(pid)] = pname
+          assignedPropertyIdSet.add(String(pid))
+        }
+      })
+    } catch (err) {
+      console.warn('Could not load manager properties list for maintenance lookup:', err)
+    }
+
+    setPropertyMap((prev) => ({ ...prev, ...newPropertyMap }))
+
+    // 3. For assigned properties, fetch property details to resolve Unit Number
+    const targetPropertyIds = uniquePropertyIds.filter((pid) =>
+      assignedPropertyIdSet.has(String(pid))
+    )
+
+    if (targetPropertyIds.length > 0) {
+      await Promise.allSettled(
+        targetPropertyIds.map(async (propertyId) => {
+          try {
+            const details = await getManagerAssignedPropertyDetails(propertyId)
+            if (details) {
+              if (Array.isArray(details?.buildings)) {
+                for (const b of details.buildings) {
+                  if (Array.isArray(b?.floors)) {
+                    for (const f of b.floors) {
+                      if (Array.isArray(f?.units)) {
+                        for (const u of f.units) {
+                          if (u?.unitId != null && u?.unitNumber) {
+                            newUnitMap[String(u.unitId)] = String(u.unitNumber)
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              if (Array.isArray(details?.units)) {
+                for (const u of details.units) {
+                  if (u?.unitId != null && u?.unitNumber) {
+                    newUnitMap[String(u.unitId)] = String(u.unitNumber)
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`Could not load details for assigned property ${propertyId}:`, err)
+          }
+        })
+      )
+    }
+
+    setPropertyMap((prev) => ({ ...prev, ...newPropertyMap }))
+    setUnitMap((prev) => ({ ...prev, ...newUnitMap }))
+  }
+
   const fetchTickets = async () => {
     setLoading(true)
     setErrorMessage('')
@@ -84,6 +215,7 @@ export default function ManagerMaintenancePage() {
 
       if (ticketsData.status === 'fulfilled' && Array.isArray(ticketsData.value)) {
         setRequests(ticketsData.value)
+        enrichPropertiesAndUnits(ticketsData.value)
       } else {
         setRequests([])
       }
@@ -116,10 +248,233 @@ export default function ManagerMaintenancePage() {
     fetchTickets()
   }, [])
 
+  // Load human-readable details for property, unit, and tenant when modal opens
+  const loadTicketEntities = async (ticketData) => {
+    if (!ticketData) return
+
+    setModalPropertyName(ticketData.propertyName || propertyMap[ticketData.propertyId] || '')
+    setModalUnitNumber(
+      ticketData.unitNumber
+        ? String(ticketData.unitNumber)
+        : unitMap[ticketData.unitId]
+          ? String(unitMap[ticketData.unitId])
+          : ''
+    )
+    setModalTenantName(ticketData.tenantName || '')
+
+    const { propertyId, unitId, tenantId } = ticketData
+
+    // 1. Property and Unit resolution via manager-authorized endpoints
+    if (propertyId) {
+      try {
+        let details = null
+        try {
+          details = await getManagerAssignedPropertyDetails(propertyId)
+        } catch (detailsErr) {
+          try {
+            const myProps = await getManagerAssignedProperties()
+            const list = Array.isArray(myProps?.data)
+              ? myProps.data
+              : Array.isArray(myProps)
+                ? myProps
+                : []
+            const matchedProp = list.find(
+              (p) => String(p.propertyId || p.id) === String(propertyId)
+            )
+            if (matchedProp) {
+              const pName = matchedProp.propertyName || matchedProp.name || matchedProp.title
+              if (pName) {
+                setModalPropertyName((prev) => prev || pName)
+                setPropertyMap((prev) => ({ ...prev, [propertyId]: pName }))
+              }
+            }
+          } catch (fallbackErr) {
+            // Ignore
+          }
+        }
+
+        if (details) {
+          const propName =
+            details?.property?.propertyName ||
+            details?.propertyName ||
+            details?.property?.name ||
+            details?.name ||
+            details?.title
+          if (propName) {
+            setModalPropertyName(propName)
+            setPropertyMap((prev) => ({ ...prev, [propertyId]: propName }))
+          }
+
+          if (unitId) {
+            let foundUnitNum = null
+            if (Array.isArray(details?.buildings)) {
+              for (const b of details.buildings) {
+                if (Array.isArray(b?.floors)) {
+                  for (const f of b.floors) {
+                    if (Array.isArray(f?.units)) {
+                      for (const u of f.units) {
+                        if (String(u?.unitId) === String(unitId)) {
+                          foundUnitNum = u.unitNumber
+                          break
+                        }
+                      }
+                    }
+                    if (foundUnitNum) break
+                  }
+                }
+                if (foundUnitNum) break
+              }
+            }
+
+            if (!foundUnitNum && Array.isArray(details?.units)) {
+              const uMatch = details.units.find(
+                (u) => String(u?.unitId) === String(unitId)
+              )
+              if (uMatch?.unitNumber) {
+                foundUnitNum = uMatch.unitNumber
+              }
+            }
+
+            if (foundUnitNum) {
+              setModalUnitNumber(String(foundUnitNum))
+              setUnitMap((prev) => ({ ...prev, [unitId]: String(foundUnitNum) }))
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load manager property details:', err)
+      }
+    }
+
+    // 2. Tenant name resolution using manager-authorized application and agreement APIs
+    const resolveTenantName = async () => {
+      // 2a. Check applications submitted for this unit
+      if (unitId) {
+        try {
+          const unitApps = await getApplicationsForUnit(unitId)
+          const list = Array.isArray(unitApps?.data)
+            ? unitApps.data
+            : Array.isArray(unitApps)
+              ? unitApps
+              : []
+          if (list.length > 0) {
+            const match = list.find((a) => String(a.tenantId) === String(tenantId))
+            if (match?.tenantName) {
+              if (match.unitNumber) {
+                setModalUnitNumber((prev) => prev || String(match.unitNumber))
+                setUnitMap((prev) => ({ ...prev, [unitId]: String(match.unitNumber) }))
+              }
+              if (match.propertyName) {
+                setModalPropertyName((prev) => prev || match.propertyName)
+                if (propertyId) setPropertyMap((prev) => ({ ...prev, [propertyId]: match.propertyName }))
+              }
+              return match.tenantName
+            }
+            const approved = list.find((a) => a.status === 'APPROVED' && a.tenantName)
+            if (approved?.tenantName) {
+              if (approved.unitNumber) {
+                setModalUnitNumber((prev) => prev || String(approved.unitNumber))
+                setUnitMap((prev) => ({ ...prev, [unitId]: String(approved.unitNumber) }))
+              }
+              if (approved.propertyName) {
+                setModalPropertyName((prev) => prev || approved.propertyName)
+                if (propertyId) setPropertyMap((prev) => ({ ...prev, [propertyId]: approved.propertyName }))
+              }
+              return approved.tenantName
+            }
+            const first = list.find((a) => a.tenantName)
+            if (first?.tenantName) {
+              if (first.unitNumber) {
+                setModalUnitNumber((prev) => prev || String(first.unitNumber))
+                setUnitMap((prev) => ({ ...prev, [unitId]: String(first.unitNumber) }))
+              }
+              return first.tenantName
+            }
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+
+      // 2b. Check applications submitted for this property
+      if (propertyId) {
+        try {
+          const propApps = await getApplicationsForProperty(propertyId)
+          const list = Array.isArray(propApps?.data)
+            ? propApps.data
+            : Array.isArray(propApps)
+              ? propApps
+              : []
+          if (list.length > 0) {
+            const match = list.find(
+              (a) => String(a.tenantId) === String(tenantId) && a.tenantName
+            )
+            if (match?.tenantName) {
+              if (match.unitNumber && unitId) {
+                setModalUnitNumber((prev) => prev || String(match.unitNumber))
+                setUnitMap((prev) => ({ ...prev, [unitId]: String(match.unitNumber) }))
+              }
+              return match.tenantName
+            }
+            if (unitId) {
+              const unitMatch = list.find(
+                (a) => String(a.unitId) === String(unitId) && a.tenantName
+              )
+              if (unitMatch?.tenantName) {
+                if (unitMatch.unitNumber) {
+                  setModalUnitNumber((prev) => prev || String(unitMatch.unitNumber))
+                  setUnitMap((prev) => ({ ...prev, [unitId]: String(unitMatch.unitNumber) }))
+                }
+                return unitMatch.tenantName
+              }
+            }
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+
+      // 2c. Check active rental agreements
+      try {
+        const agrs = await axiosClient.get('/rental-agreements')
+        const agrList = Array.isArray(agrs?.data)
+          ? agrs.data
+          : Array.isArray(agrs)
+            ? agrs
+            : []
+        const match = agrList.find(
+          (a) =>
+            (tenantId && String(a.tenantId) === String(tenantId)) ||
+            (unitId && String(a.unitId) === String(unitId))
+        )
+        if (match?.applicationId) {
+          const app = await getApplicationById(match.applicationId)
+          if (app?.tenantName) return app.tenantName
+        }
+      } catch (e) {
+        // Fallback
+      }
+
+      return null
+    }
+
+    resolveTenantName()
+      .then((resolvedName) => {
+        if (resolvedName) {
+          setModalTenantName(resolvedName)
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not resolve tenant name for manager view:', err)
+      })
+  }
+
   const handleOpenTicketModal = async (ticket) => {
     setSelectedTicket(ticket)
     setModalPrediction(null)
     setAssignmentError('')
+    loadTicketEntities(ticket)
+
     if (ticket?.propertyId) {
       setPredictionLoading(true)
       try {
@@ -132,6 +487,21 @@ export default function ManagerMaintenancePage() {
       }
     }
   }
+
+  const displayModalPropertyName =
+    formatPropertyName(modalPropertyName) ||
+    (selectedTicket?.propertyId ? `Property #${selectedTicket.propertyId}` : '—')
+
+  const displayModalUnitNumber =
+    modalUnitNumber !== null && modalUnitNumber !== undefined && String(modalUnitNumber).trim()
+      ? `Unit ${String(modalUnitNumber).trim().replace(/^Unit\s*/i, '')}`
+      : selectedTicket?.unitId
+        ? `Unit #${selectedTicket.unitId}`
+        : '—'
+
+  const displayModalTenantName =
+    modalTenantName?.trim() ||
+    (selectedTicket?.tenantId ? `Tenant #${selectedTicket.tenantId}` : '—')
 
   const handleModalStatusChange = async (newStatus) => {
     if (!selectedTicket) return
@@ -330,18 +700,16 @@ export default function ManagerMaintenancePage() {
           <button
             type="button"
             onClick={() => setActiveTab('active')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-              activeTab === 'active'
-                ? 'bg-[#315A7D] text-white shadow-xs'
-                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
-            }`}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'active'
+              ? 'bg-[#315A7D] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+              }`}
           >
             <Clock className="w-3.5 h-3.5" />
             <span>Active Tickets</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#EAF2F7] text-[#315A7D]'
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#EAF2F7] text-[#315A7D]'
+                }`}
             >
               {activeCount}
             </span>
@@ -350,18 +718,16 @@ export default function ManagerMaintenancePage() {
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-              activeTab === 'history'
-                ? 'bg-[#315A7D] text-white shadow-xs'
-                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
-            }`}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'history'
+              ? 'bg-[#315A7D] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+              }`}
           >
             <History className="w-3.5 h-3.5" />
             <span>Maintenance History</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-[#EDF7EE] text-[#2A583B]'
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-[#EDF7EE] text-[#2A583B]'
+                }`}
             >
               {historyCount}
             </span>
@@ -370,17 +736,15 @@ export default function ManagerMaintenancePage() {
           <button
             type="button"
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-              activeTab === 'all'
-                ? 'bg-[#315A7D] text-white shadow-xs'
-                : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
-            }`}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'all'
+              ? 'bg-[#315A7D] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+              }`}
           >
             <span>All Records</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#F7F8FA] text-[#5B6875]'
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#F7F8FA] text-[#5B6875]'
+                }`}
             >
               {requests.length}
             </span>
@@ -469,7 +833,12 @@ export default function ManagerMaintenancePage() {
                           {formatCategoryLabel(req.category)}
                         </td>
                         <td className="py-4 px-4 text-xs">
-                          Property #{req.propertyId || 'ΓÇö'} {req.unitId ? `ΓÇó Unit #${req.unitId}` : ''}
+                          <span className="font-medium text-[#243447] block">
+                            {formatPropertyName(propertyMap[req.propertyId]) || (req.propertyId ? `Property #${req.propertyId}` : '—')}
+                          </span>
+                          <span className="text-[#5B6875] text-[11px]">
+                            {unitMap[req.unitId] ? `Unit ${String(unitMap[req.unitId]).replace(/^Unit\s*/i, '')}` : req.unitId ? `Unit #${req.unitId}` : ''}
+                          </span>
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap">
                           <span
@@ -548,21 +917,49 @@ export default function ManagerMaintenancePage() {
                     Description & Property Context
                   </span>
                   <p className="text-xs leading-relaxed">{selectedTicket.description || 'No description.'}</p>
-                  <div className="flex gap-4 pt-1 text-[11px] text-[#5B6875]">
-                    <span>Property: #{selectedTicket.propertyId || 'ΓÇö'}</span>
-                    <span>Unit: #{selectedTicket.unitId || 'ΓÇö'}</span>
-                    <span>Tenant ID: #{selectedTicket.tenantId || 'ΓÇö'}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#D9E0E6] text-xs">
+                    <div className="flex items-center gap-1.5 text-[#243447]">
+                      <Building2 className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                      <span className="text-[#5B6875]">Property:</span>
+                      <strong className="font-semibold truncate">{displayModalPropertyName}</strong>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[#243447]">
+                      <span className="text-[#5B6875]">Unit:</span>
+                      <strong className="font-semibold">{displayModalUnitNumber}</strong>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[#243447]">
+                      <Users className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                      <span className="text-[#5B6875]">Tenant:</span>
+                      <strong className="font-semibold truncate">{displayModalTenantName}</strong>
+                    </div>
                   </div>
+                  {selectedTicket.imageUrl && (
+                    <div className="pt-2 border-t border-[#D9E0E6] space-y-1">
+                      <span className="font-semibold text-[11px] text-[#5B6875] block">
+                        Attached Issue Photo:
+                      </span>
+                      <div className="rounded-lg border border-[#D9E0E6] overflow-hidden bg-white p-1.5 flex justify-center max-h-48">
+                        <img
+                          src={selectedTicket.imageUrl}
+                          alt="Issue attachment"
+                          className="w-full h-auto object-contain max-h-44 rounded-md"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* AI Prediction Quick Strip if Available */}
                 {modalPrediction && (
                   <div className="p-3.5 rounded-xl bg-[#EAF2F7] border border-[#D9E0E6] space-y-1 text-xs">
                     <span className="font-bold text-[#315A7D] flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-[#315A7D]" /> AI Risk Forecast (M5 Model):
+                      <Sparkles className="w-3.5 h-3.5 text-[#315A7D]" /> AI Risk Forecast:
                     </span>
                     <p className="text-[#243447]">
-                      Risk Level: <strong>{modalPrediction.maintenance_risk?.risk_level}</strong> &bull; Failure Probability: <strong>{((modalPrediction.maintenance_risk?.probability || 0) * 100).toFixed(1)}%</strong> &bull; Forecasted Cost: <strong>Γé╣{Number(modalPrediction.next_month_maintenance_cost || 0).toLocaleString()}</strong>
+                      Risk Level: <strong>{modalPrediction.maintenance_risk?.risk_level}</strong> &bull; Failure Probability: <strong>{((modalPrediction.maintenance_risk?.probability || 0) * 100).toFixed(1)}%</strong> &bull; Forecasted Cost: <strong>{"\u20B9"}{Number(modalPrediction.next_month_maintenance_cost || 0).toFixed(2)}</strong>
                     </p>
                   </div>
                 )}
@@ -578,11 +975,10 @@ export default function ManagerMaintenancePage() {
                         key={st}
                         type="button"
                         onClick={() => handleModalStatusChange(st)}
-                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
-                          String(selectedTicket.status).toUpperCase() === st
-                            ? 'bg-[#315A7D] text-white border-[#315A7D]'
-                            : 'bg-[#F7F8FA] text-[#243447] border-[#D9E0E6] hover:bg-[#EAF2F7]'
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${String(selectedTicket.status).toUpperCase() === st
+                          ? 'bg-[#315A7D] text-white border-[#315A7D]'
+                          : 'bg-[#F7F8FA] text-[#243447] border-[#D9E0E6] hover:bg-[#EAF2F7]'
+                          }`}
                       >
                         {formatStatusLabel(st)}
                       </button>

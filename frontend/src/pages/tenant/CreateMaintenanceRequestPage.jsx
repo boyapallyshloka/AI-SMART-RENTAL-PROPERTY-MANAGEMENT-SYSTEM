@@ -10,6 +10,11 @@ import {
   formatCategoryLabel,
   formatPriorityLabel,
 } from '../../api/maintenanceApi'
+import {
+  getPublicProperties,
+  getPublicPropertyDetails,
+} from '../../api/propertyApi'
+import { getMyApplications } from '../../api/applicationApi'
 import { getStoredAgreements } from '../../utils/agreementMockData'
 import {
   Button,
@@ -43,10 +48,12 @@ export default function CreateMaintenanceRequestPage() {
 
   // Property and Unit selection
   const [properties, setProperties] = useState([])
-  const [propertyId, setPropertyId] = useState('1')
-  const [unitId, setUnitId] = useState('1')
-  const [propertyName, setPropertyName] = useState('Sunset Palms Luxury Residences')
-  const [unitNumber, setUnitNumber] = useState('Unit #104')
+  const [propertyId, setPropertyId] = useState('')
+  const [unitId, setUnitId] = useState('')
+  const [propertyName, setPropertyName] = useState('')
+  const [unitNumber, setUnitNumber] = useState('')
+  const [units, setUnits] = useState([])
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false)
 
   // Form Fields
   const [title, setTitle] = useState('')
@@ -64,38 +71,73 @@ export default function CreateMaintenanceRequestPage() {
   const [apiError, setApiError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Attempt to load properties from backend and match tenant agreement
+  // Attempt to load properties from backend and match tenant agreement/application
   useEffect(() => {
     let isMounted = true
     const loadProperties = async () => {
+      let tenantAppMatch = null
+
+      // Check tenant applications for pre-filling their rented property and unit
       try {
-        const publicProps = await axiosClient.get('/properties/public')
-        if (isMounted && Array.isArray(publicProps) && publicProps.length > 0) {
-          setProperties(publicProps)
-          if (!propertyId || propertyId === '1') {
-            setPropertyId(String(publicProps[0].propertyId || publicProps[0].id || '1'))
-            setPropertyName(publicProps[0].propertyName || publicProps[0].name || 'Selected Property')
+        const myApps = await getMyApplications()
+        const appList = Array.isArray(myApps?.data)
+          ? myApps.data
+          : Array.isArray(myApps)
+            ? myApps
+            : []
+        tenantAppMatch =
+          appList.find((a) => (a.status || '').toUpperCase() === 'APPROVED') ||
+          appList[0]
+      } catch (err) {
+        // Silently fallback if applications call fails
+      }
+
+      try {
+        const publicProps = await getPublicProperties()
+        const propList = Array.isArray(publicProps) ? publicProps : []
+        if (isMounted && propList.length > 0) {
+          setProperties(propList)
+
+          if (tenantAppMatch?.propertyId) {
+            const matchedId = String(tenantAppMatch.propertyId)
+            setPropertyId(matchedId)
+            setPropertyName(tenantAppMatch.propertyName || 'Selected Property')
+            if (tenantAppMatch.unitId) {
+              setUnitId(String(tenantAppMatch.unitId))
+            }
+            if (tenantAppMatch.unitNumber) {
+              setUnitNumber(String(tenantAppMatch.unitNumber))
+            }
+          } else {
+            // Check active agreements for property / unit hints as fallback
+            let agreementFound = false
+            try {
+              const agreements = getStoredAgreements()
+              const myAgr = agreements.find(
+                (a) =>
+                  (a.tenantEmail || '').toLowerCase().trim() === tenantEmail.toLowerCase().trim() ||
+                  (a.tenantName || '').toLowerCase().trim() === tenantName.toLowerCase().trim()
+              )
+              if (myAgr?.propertyId) {
+                setPropertyId(String(myAgr.propertyId))
+                if (myAgr.propertyName) setPropertyName(myAgr.propertyName)
+                if (myAgr.unitId) setUnitId(String(myAgr.unitId))
+                if (myAgr.unit) setUnitNumber(myAgr.unit)
+                agreementFound = true
+              }
+            } catch (e) {}
+
+            if (!agreementFound) {
+              const firstProp = propList[0]
+              const firstId = String(firstProp.propertyId || firstProp.id)
+              setPropertyId(firstId)
+              setPropertyName(firstProp.propertyName || firstProp.name || 'Selected Property')
+            }
           }
         }
       } catch (err) {
-        // Silently fall back to agreement/stored values if endpoint is role-restricted
+        console.warn('Failed to load public properties:', err)
       }
-
-      // Check active agreements for property / unit hints
-      try {
-        const agreements = getStoredAgreements()
-        const myAgr = agreements.find(
-          (a) =>
-            (a.tenantEmail || '').toLowerCase().trim() === tenantEmail.toLowerCase().trim() ||
-            (a.tenantName || '').toLowerCase().trim() === tenantName.toLowerCase().trim()
-        )
-        if (myAgr && isMounted) {
-          if (myAgr.propertyId) setPropertyId(String(myAgr.propertyId))
-          if (myAgr.propertyName) setPropertyName(myAgr.propertyName)
-          if (myAgr.unitId) setUnitId(String(myAgr.unitId))
-          if (myAgr.unit) setUnitNumber(myAgr.unit)
-        }
-      } catch (e) {}
     }
 
     loadProperties()
@@ -103,6 +145,127 @@ export default function CreateMaintenanceRequestPage() {
       isMounted = false
     }
   }, [tenantEmail, tenantName])
+
+  // Fetch actual property details and extract units whenever propertyId changes
+  useEffect(() => {
+    if (!propertyId) {
+      setUnits([])
+      setUnitId('')
+      setUnitNumber('')
+      return
+    }
+
+    let isMounted = true
+    const loadUnitsForProperty = async () => {
+      setIsLoadingUnits(true)
+      try {
+        const data = await getPublicPropertyDetails(propertyId)
+        if (!isMounted) return
+
+        // Flatten units across buildings -> floors -> units
+        let rawUnits = []
+        if (Array.isArray(data?.buildings)) {
+          for (const b of data.buildings) {
+            if (Array.isArray(b?.floors)) {
+              for (const f of b.floors) {
+                if (Array.isArray(f?.units)) {
+                  for (const u of f.units) {
+                    const uid = u.unitId ?? u.id
+                    const uNum = u.unitNumber ?? u.unitNo ?? u.number
+                    if (uid != null) {
+                      rawUnits.push({
+                        unitId: String(uid),
+                        unitNumber: uNum != null ? String(uNum) : String(uid),
+                        buildingName: b?.building?.buildingName,
+                        floorName:
+                          f?.floor?.floorName ||
+                          (f?.floor?.floorNumber != null ? `Floor ${f.floor.floorNumber}` : null),
+                        status: u.status,
+                      })
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Fallback if data has flat units array
+        if (rawUnits.length === 0 && Array.isArray(data?.units)) {
+          for (const u of data.units) {
+            const uid = u.unitId ?? u.id
+            const uNum = u.unitNumber ?? u.unitNo ?? u.number
+            if (uid != null) {
+              rawUnits.push({
+                unitId: String(uid),
+                unitNumber: uNum != null ? String(uNum) : String(uid),
+                status: u.status,
+              })
+            }
+          }
+        }
+
+        setUnits(rawUnits)
+
+        if (rawUnits.length > 0) {
+          // If current unitId matches one of the loaded units, keep it
+          const existingMatch = rawUnits.find(
+            (u) => String(u.unitId) === String(unitId)
+          )
+
+          // Or match by unitNumber string (e.g. "201" or "Unit 201")
+          const cleanTargetNum = String(unitNumber || '')
+            .trim()
+            .toLowerCase()
+            .replace(/^unit\s*#?/i, '')
+            .replace(/^townhome\s*#?/i, '')
+            .replace(/^loft\s*#?/i, '')
+            .replace(/^apartment\s*#?/i, '')
+            .replace(/^#/i, '')
+            .trim()
+
+          const numberMatch =
+            !existingMatch && cleanTargetNum
+              ? rawUnits.find((u) => {
+                  const cleanUNum = String(u.unitNumber || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/^unit\s*#?/i, '')
+                    .replace(/^townhome\s*#?/i, '')
+                    .replace(/^loft\s*#?/i, '')
+                    .replace(/^apartment\s*#?/i, '')
+                    .replace(/^#/i, '')
+                    .trim()
+                  return cleanUNum === cleanTargetNum
+                })
+              : null
+
+          const targetUnit = existingMatch || numberMatch || rawUnits[0]
+          setUnitId(String(targetUnit.unitId))
+          setUnitNumber(String(targetUnit.unitNumber))
+        } else {
+          setUnitId('')
+          setUnitNumber('')
+        }
+      } catch (err) {
+        console.warn(`Failed to load details for property ${propertyId}:`, err)
+        if (isMounted) {
+          setUnits([])
+          setUnitId('')
+          setUnitNumber('')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUnits(false)
+        }
+      }
+    }
+
+    loadUnitsForProperty()
+    return () => {
+      isMounted = false
+    }
+  }, [propertyId])
 
   // Category dropdown options (canonical backend enums)
   const categoryOptions = MAINTENANCE_CATEGORIES.map((cat) => ({
@@ -311,11 +474,17 @@ export default function CreateMaintenanceRequestPage() {
                   <select
                     value={propertyId}
                     onChange={(e) => {
-                      setPropertyId(e.target.value)
+                      const newId = e.target.value
+                      setPropertyId(newId)
+                      setUnitId('')
+                      setUnitNumber('')
                       const found = properties.find(
-                        (p) => String(p.propertyId || p.id) === e.target.value
+                        (p) => String(p.propertyId || p.id) === newId
                       )
-                      if (found) setPropertyName(found.propertyName || found.name)
+                      if (found) setPropertyName(found.propertyName || found.name || 'Selected Property')
+                      if (errors.propertyId) {
+                        setErrors((prev) => ({ ...prev, propertyId: undefined }))
+                      }
                     }}
                     className="w-full p-2.5 rounded-md bg-white border border-[#D9E0E6] text-sm font-medium text-[#243447] focus:outline-hidden focus:border-[#315A7D]"
                   >
@@ -333,7 +502,12 @@ export default function CreateMaintenanceRequestPage() {
                     <Input
                       placeholder="Property ID (e.g. 1)"
                       value={propertyId}
-                      onChange={(e) => setPropertyId(e.target.value)}
+                      onChange={(e) => {
+                        setPropertyId(e.target.value)
+                        if (errors.propertyId) {
+                          setErrors((prev) => ({ ...prev, propertyId: undefined }))
+                        }
+                      }}
                       error={errors.propertyId}
                       helperText={propertyName ? `${propertyName}` : 'Backend Property ID'}
                       required
@@ -344,16 +518,69 @@ export default function CreateMaintenanceRequestPage() {
 
               <div>
                 <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
-                  Unit Number / ID
+                  Unit Number
                 </label>
-                <Input
-                  placeholder="Unit ID (e.g. 1)"
-                  value={unitId}
-                  onChange={(e) => setUnitId(e.target.value)}
-                  error={errors.unitId}
-                  helperText={unitNumber ? `${unitNumber}` : 'Backend Unit ID'}
-                  required
-                />
+                {isLoadingUnits ? (
+                  <div className="p-2.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-sm text-[#5B6875] flex items-center gap-2">
+                    <div className="w-3.5 h-3.5 border-2 border-[#315A7D] border-t-transparent rounded-full animate-spin" />
+                    <span>Loading units...</span>
+                  </div>
+                ) : units.length > 0 ? (
+                  <div className="space-y-1">
+                    <select
+                      id="unit-select"
+                      value={unitId}
+                      onChange={(e) => {
+                        const selUnitId = e.target.value
+                        setUnitId(selUnitId)
+                        const foundUnit = units.find(
+                          (u) => String(u.unitId) === String(selUnitId)
+                        )
+                        if (foundUnit) {
+                          setUnitNumber(foundUnit.unitNumber)
+                        }
+                        if (errors.unitId) {
+                          setErrors((prev) => ({ ...prev, unitId: undefined }))
+                        }
+                      }}
+                      className={`w-full p-2.5 rounded-md bg-white border ${
+                        errors.unitId ? 'border-[#E05252]' : 'border-[#D9E0E6]'
+                      } text-sm font-medium text-[#243447] focus:outline-hidden focus:border-[#315A7D]`}
+                    >
+                      {units.map((unit) => {
+                        const cleanNum = String(unit.unitNumber || unit.unitId).replace(/^Unit\s*/i, '')
+                        return (
+                          <option key={unit.unitId} value={unit.unitId}>
+                            Unit {cleanNum}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    {errors.unitId && (
+                      <p className="text-xs text-[#E05252] mt-1">{errors.unitId}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Input
+                      placeholder="Unit ID (e.g. 1)"
+                      value={unitId}
+                      onChange={(e) => {
+                        setUnitId(e.target.value)
+                        if (errors.unitId) {
+                          setErrors((prev) => ({ ...prev, unitId: undefined }))
+                        }
+                      }}
+                      error={errors.unitId}
+                      helperText={
+                        unitNumber
+                          ? `Unit ${String(unitNumber).replace(/^Unit\s*/i, '')}`
+                          : 'No units listed for this property'
+                      }
+                      required
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

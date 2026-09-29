@@ -11,6 +11,10 @@ import {
   getPriorityBadgeClass,
 } from '../../api/maintenanceApi'
 import {
+  getMyProperties,
+  getPropertyDetails,
+} from '../../api/propertyApi'
+import {
   Button,
   Input,
   Select,
@@ -33,6 +37,29 @@ import {
   DollarSign,
 } from 'lucide-react'
 
+/**
+ * Normalizes property names into Title Case for clean user-facing presentation.
+ * Example: "sri sai residency" -> "Sri Sai Residency"
+ */
+const formatPropertyName = (name) => {
+  if (!name || typeof name !== 'string') return ''
+  const trimmed = name.trim()
+  if (!trimmed) return ''
+  return trimmed
+    .split(/\s+/)
+    .map((word) =>
+      word
+        .split('-')
+        .map((part) =>
+          part
+            ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+            : ''
+        )
+        .join('-')
+    )
+    .join(' ')
+}
+
 export default function MaintenancePage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +69,106 @@ export default function MaintenancePage() {
   const [activeTab, setActiveTab] = useState('active') // 'active' | 'history' | 'all'
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Cache/lookup maps for Property Name and Unit Number
+  const [propertyMap, setPropertyMap] = useState({}) // { [propertyId]: propertyName }
+  const [unitMap, setUnitMap] = useState({})         // { [unitId]: unitNumber }
+
+  // Batch-resolve human-readable property names and unit numbers
+  const enrichPropertiesAndUnits = async (tickets) => {
+    if (!Array.isArray(tickets) || tickets.length === 0) return
+
+    const uniquePropertyIds = [
+      ...new Set(tickets.map((t) => t.propertyId).filter(Boolean)),
+    ]
+
+    const newPropertyMap = {}
+    const newUnitMap = {}
+    const ownedPropertyIdSet = new Set()
+
+    // 1. Pre-populate from ticket fields if already provided by backend
+    tickets.forEach((t) => {
+      if (t.propertyId && t.propertyName) {
+        newPropertyMap[String(t.propertyId)] = t.propertyName
+      }
+      if (t.unitId && t.unitNumber) {
+        newUnitMap[String(t.unitId)] = String(t.unitNumber)
+      }
+    })
+
+    // 2. Query GET /api/owner/properties (getMyProperties) as the reliable source for owner's properties
+    try {
+      const propRes = await getMyProperties()
+      const propList = Array.isArray(propRes?.data)
+        ? propRes.data
+        : Array.isArray(propRes)
+        ? propRes
+        : []
+      propList.forEach((p) => {
+        const pid = p.propertyId || p.id
+        const pname = p.propertyName || p.name || p.title
+        if (pid && pname) {
+          newPropertyMap[String(pid)] = pname
+          ownedPropertyIdSet.add(String(pid))
+        }
+      })
+    } catch (err) {
+      console.warn('Could not load properties list for maintenance lookup:', err)
+    }
+
+    // Immediately update property names from getMyProperties()
+    setPropertyMap((prev) => ({ ...prev, ...newPropertyMap }))
+
+    // 3. For properties confirmed to be owned by this owner, fetch property details to resolve Unit Number
+    // Traverse: Property -> Buildings -> Floors -> Units
+    // Do NOT query properties not owned by the authenticated owner (prevents 404/403 errors)
+    const targetPropertyIds = uniquePropertyIds.filter((pid) =>
+      ownedPropertyIdSet.has(String(pid))
+    )
+
+    if (targetPropertyIds.length > 0) {
+      await Promise.allSettled(
+        targetPropertyIds.map(async (propertyId) => {
+          try {
+            const details = await getPropertyDetails(propertyId)
+
+            if (details) {
+              // Traverse Property -> Buildings -> Floors -> Units
+              if (Array.isArray(details?.buildings)) {
+                for (const b of details.buildings) {
+                  if (Array.isArray(b?.floors)) {
+                    for (const f of b.floors) {
+                      if (Array.isArray(f?.units)) {
+                        for (const u of f.units) {
+                          if (u?.unitId != null && u?.unitNumber) {
+                            newUnitMap[String(u.unitId)] = String(u.unitNumber)
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              // Check flat units array if provided
+              if (Array.isArray(details?.units)) {
+                for (const u of details.units) {
+                  if (u?.unitId != null && u?.unitNumber) {
+                    newUnitMap[String(u.unitId)] = String(u.unitNumber)
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`Could not load details for property ${propertyId}:`, err)
+          }
+        })
+      )
+    }
+
+    setPropertyMap((prev) => ({ ...prev, ...newPropertyMap }))
+    setUnitMap((prev) => ({ ...prev, ...newUnitMap }))
+  }
+
   const fetchTickets = async () => {
     setLoading(true)
     setErrorMessage('')
@@ -49,6 +176,7 @@ export default function MaintenancePage() {
       const data = await getMaintenanceRequests()
       if (Array.isArray(data)) {
         setRequests(data)
+        enrichPropertiesAndUnits(data)
       } else {
         setRequests([])
       }
@@ -67,6 +195,36 @@ export default function MaintenancePage() {
   useEffect(() => {
     fetchTickets()
   }, [])
+
+  /**
+   * Helper to format human-readable Property and Unit display for a maintenance ticket.
+   * Example: "Sri Sai Residency • Unit 101"
+   * Fallback: "Property #16 • Unit #83"
+   */
+  const getDisplayLocation = (req) => {
+    if (!req.propertyId && !req.unitId) return null
+
+    // 1. Property Name Resolution
+    const rawPropName = propertyMap[String(req.propertyId)] || req.propertyName
+    const propDisplay = rawPropName
+      ? formatPropertyName(rawPropName)
+      : req.propertyId
+      ? `Property #${req.propertyId}`
+      : ''
+
+    // 2. Unit Number Resolution
+    const rawUnitNum = unitMap[String(req.unitId)] || req.unitNumber
+    let unitDisplay = ''
+    if (rawUnitNum != null && String(rawUnitNum).trim()) {
+      const clean = String(rawUnitNum).trim()
+      unitDisplay = clean.toLowerCase().startsWith('unit') ? clean : `Unit ${clean}`
+    } else if (req.unitId) {
+      unitDisplay = `Unit #${req.unitId}`
+    }
+
+    // 3. Combined display
+    return [propDisplay, unitDisplay].filter(Boolean).join(' • ')
+  }
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
@@ -392,9 +550,9 @@ export default function MaintenancePage() {
                           <p className="font-medium text-[#243447] text-xs truncate">
                             {req.description || 'No description provided'}
                           </p>
-                          {req.propertyId && (
+                          {getDisplayLocation(req) && (
                             <span className="text-[11px] text-[#5B6875] block mt-0.5">
-                              Property #{req.propertyId} {req.unitId ? `• Unit #${req.unitId}` : ''}
+                              {getDisplayLocation(req)}
                             </span>
                           )}
                         </td>
