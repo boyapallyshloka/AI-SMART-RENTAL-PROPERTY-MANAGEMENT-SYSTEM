@@ -1,9 +1,12 @@
+
 package com.rental.rental_management_backend.rental.serviceImpl;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,45 +22,48 @@ import com.rental.rental_management_backend.rental.entity.RentalApplication;
 import com.rental.rental_management_backend.rental.enums.AgreementStatus;
 import com.rental.rental_management_backend.rental.repository.RentalAgreementRepository;
 import com.rental.rental_management_backend.rental.repository.RentalApplicationRepository;
+import com.rental.rental_management_backend.rental.service.RentalAgreementPdfService;
 import com.rental.rental_management_backend.rental.service.RentalAgreementService;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
-
-import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.EntityNotFoundException;
 
-
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-
 @Service
 @Transactional
-public class RentalAgreementServiceImpl implements RentalAgreementService {
+public class RentalAgreementServiceImpl
+        implements RentalAgreementService {
 
     private final RentalAgreementRepository rentalAgreementRepository;
+
     private final RentalApplicationRepository rentalApplicationRepository;
+
     private final UserRepository userRepository;
+
+    private final RentalAgreementPdfService rentalAgreementPdfService;
+
+    private static final String AGREEMENT_UPLOAD_DIRECTORY =
+            "uploads/rental-agreements";
 
     public RentalAgreementServiceImpl(
             RentalAgreementRepository rentalAgreementRepository,
             RentalApplicationRepository rentalApplicationRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            RentalAgreementPdfService rentalAgreementPdfService) {
 
-        this.rentalAgreementRepository = rentalAgreementRepository;
-        this.rentalApplicationRepository = rentalApplicationRepository;
-        this.userRepository = userRepository;
+        this.rentalAgreementRepository =
+                rentalAgreementRepository;
+
+        this.rentalApplicationRepository =
+                rentalApplicationRepository;
+
+        this.userRepository =
+                userRepository;
+
+        this.rentalAgreementPdfService =
+                rentalAgreementPdfService;
     }
-    private static final String AGREEMENT_UPLOAD_DIRECTORY =
-            "uploads/rental-agreements";
 
     // =========================================================
     // CREATE AGREEMENT
-    // SUPER_ADMIN / PROPERTY_OWNER / PROPERTY_MANAGER
     // =========================================================
 
     @Override
@@ -66,16 +72,19 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             String email) {
 
         if (request == null) {
+
             throw new IllegalArgumentException(
                     "Rental agreement request is required");
         }
 
         if (request.getApplicationId() == null) {
+
             throw new IllegalArgumentException(
                     "Application ID is required");
         }
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         RentalApplication application =
                 rentalApplicationRepository
@@ -85,10 +94,7 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                                         "Rental application not found with ID: "
                                                 + request.getApplicationId()));
 
-        // -----------------------------------------------------
-        // Application must be APPROVED
-        // -----------------------------------------------------
-
+        // Application must be approved.
         if (application.getStatus() == null
                 || !"APPROVED".equalsIgnoreCase(
                         application.getStatus().name())) {
@@ -97,20 +103,14 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Rental agreement can be created only for an APPROVED rental application");
         }
 
-        // -----------------------------------------------------
-        // Tenant cannot create agreement
-        // -----------------------------------------------------
-
+        // Tenant cannot create agreement.
         if (user.getRole() == RoleType.TENANT) {
 
             throw new IllegalStateException(
                     "Tenant is not authorized to create a rental agreement");
         }
 
-        // -----------------------------------------------------
-        // Only allowed management roles
-        // -----------------------------------------------------
-
+        // Only management roles.
         if (user.getRole() != RoleType.SUPER_ADMIN
                 && user.getRole() != RoleType.PROPERTY_OWNER
                 && user.getRole() != RoleType.PROPERTY_MANAGER) {
@@ -119,37 +119,33 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "You are not authorized to create a rental agreement");
         }
 
-        // -----------------------------------------------------
-        // Owner / Manager property access
-        // -----------------------------------------------------
-
+        // Owner / Manager property access.
         if (user.getRole() != RoleType.SUPER_ADMIN
-                && !hasApplicationPropertyAccess(application, user)) {
+                && !hasApplicationPropertyAccess(
+                        application,
+                        user)) {
 
             throw new IllegalStateException(
                     "You are not authorized to create an agreement for this property");
         }
 
-        // -----------------------------------------------------
-        // Application must have tenant and unit
-        // -----------------------------------------------------
-
+        // Application must contain tenant and unit.
         if (application.getTenant() == null) {
+
             throw new IllegalStateException(
                     "Rental application does not have a tenant");
         }
 
         if (application.getUnit() == null) {
+
             throw new IllegalStateException(
                     "Rental application does not have a unit");
         }
 
-        Unit unit = application.getUnit();
+        Unit unit =
+                application.getUnit();
 
-        // -----------------------------------------------------
-        // Prevent duplicate agreement for application
-        // -----------------------------------------------------
-
+        // Prevent duplicate agreement.
         if (rentalAgreementRepository
                 .existsByRentalApplication_ApplicationId(
                         request.getApplicationId())) {
@@ -158,47 +154,18 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "A rental agreement already exists for this application");
         }
 
-        // -----------------------------------------------------
-        // Unit must currently be VACANT
-        // -----------------------------------------------------
-
+        // Unit must be vacant.
         if (unit.getStatus() != UnitStatus.VACANT) {
 
             throw new IllegalStateException(
                     "Rental agreement cannot be created because the unit is not vacant");
         }
 
-        // -----------------------------------------------------
-        // Validate dates
-        // -----------------------------------------------------
+        // Validate application dates and lease duration.
+        validateDates(
+                application);
 
-        validateDates(request);
-
-        // -----------------------------------------------------
-        // Validate financial fields
-        // -----------------------------------------------------
-
-        if (request.getMonthlyRent() == null) {
-            throw new IllegalArgumentException(
-                    "Monthly rent is required");
-        }
-
-        if (request.getMonthlyRent().signum() < 0) {
-            throw new IllegalArgumentException(
-                    "Monthly rent cannot be negative");
-        }
-
-        if (request.getSecurityDeposit() != null
-                && request.getSecurityDeposit().signum() < 0) {
-
-            throw new IllegalArgumentException(
-                    "Security deposit cannot be negative");
-        }
-
-        // -----------------------------------------------------
-        // Validate due day
-        // -----------------------------------------------------
-
+        // Validate due day.
         if (request.getDueDay() != null
                 && (request.getDueDay() < 1
                 || request.getDueDay() > 31)) {
@@ -207,10 +174,7 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Due day must be between 1 and 31");
         }
 
-        // -----------------------------------------------------
-        // Validate notice period
-        // -----------------------------------------------------
-
+        // Validate notice period.
         if (request.getNoticePeriodDays() != null
                 && request.getNoticePeriodDays() < 0) {
 
@@ -218,42 +182,125 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Notice period cannot be negative");
         }
 
-        // -----------------------------------------------------
-        // Create agreement
-        // -----------------------------------------------------
+        // =====================================================
+        // CREATE AGREEMENT
+        // =====================================================
 
-        RentalAgreement agreement = new RentalAgreement();
+        RentalAgreement agreement =
+                new RentalAgreement();
 
-        // These come from the approved application.
-        // Frontend cannot change tenant/unit.
+        // These are derived from the approved application.
         agreement.setRentalApplication(application);
-        agreement.setTenant(application.getTenant());
+
+        agreement.setTenant(
+                application.getTenant());
+
         agreement.setUnit(unit);
 
-        agreement.setStartDate(request.getStartDate());
-        agreement.setEndDate(request.getEndDate());
+        // =====================================================
+        // AGREEMENT DATES
+        // =====================================================
 
-        agreement.setMonthlyRent(request.getMonthlyRent());
-        agreement.setSecurityDeposit(request.getSecurityDeposit());
+        // Start date comes from the preferred move-in date
+        // stored in the Rental Application.
+        //
+        // End date is automatically calculated from the
+        // preferred lease duration.
+        //
+        // Example:
+        // 2026-10-01 + 12 months - 1 day
+        // = 2027-09-30
+        // =====================================================
 
-        agreement.setDueDay(request.getDueDay());
+        LocalDate startDate =
+                application.getPreferredMoveInDate();
+
+        Integer leaseDurationMonths =
+                application.getPreferredLeaseDurationMonths();
+
+        LocalDate endDate =
+                startDate
+                        .plusMonths(leaseDurationMonths)
+                        .minusDays(1);
+
+        agreement.setStartDate(
+                startDate);
+
+        agreement.setEndDate(
+                endDate);
+
+        // =====================================================
+        // FINANCIAL DETAILS FROM UNIT
+        // =====================================================
+
+        agreement.setMonthlyRent(
+                unit.getMonthlyRent());
+
+        agreement.setSecurityDeposit(
+                unit.getSecurityDeposit());
+
+        // =====================================================
+        // AGREEMENT-SPECIFIC DETAILS
+        // =====================================================
+
+        agreement.setDueDay(
+                request.getDueDay());
+
         agreement.setNoticePeriodDays(
                 request.getNoticePeriodDays());
 
-        agreement.setMoveInDate(request.getMoveInDate());
+        // Move-in date comes from RentalApplication.
+        agreement.setMoveInDate(
+                application.getPreferredMoveInDate());
+
         agreement.setTermsAndConditions(
-                cleanString(request.getTermsAndConditions()));
+                cleanString(
+                        request.getTermsAndConditions()));
 
-        agreement.setAgreementDocument(
-                cleanString(request.getAgreementDocument()));
+        /*
+         * PDF is generated automatically by the backend.
+         */
+        agreement.setAgreementDocument(null);
 
-        // New agreement starts as DRAFT.
-        agreement.setStatus(AgreementStatus.DRAFT);
+        /*
+         * New agreement starts as DRAFT.
+         */
+        agreement.setStatus(
+                AgreementStatus.DRAFT);
+
+        // =====================================================
+        // FIRST SAVE
+        // =====================================================
+
+        // Generates agreementId.
+        // =====================================================
 
         RentalAgreement savedAgreement =
-                rentalAgreementRepository.save(agreement);
+                rentalAgreementRepository.save(
+                        agreement);
 
-        return mapToResponse(savedAgreement);
+        // =====================================================
+        // GENERATE PDF AUTOMATICALLY
+        // =====================================================
+
+        String pdfPath =
+                rentalAgreementPdfService
+                        .generateAgreementPdf(
+                                savedAgreement);
+
+        // =====================================================
+        // SAVE PDF PATH
+        // =====================================================
+
+        savedAgreement.setAgreementDocument(
+                pdfPath);
+
+        savedAgreement =
+                rentalAgreementRepository.save(
+                        savedAgreement);
+
+        return mapToResponse(
+                savedAgreement);
     }
 
     // =========================================================
@@ -266,22 +313,27 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             Long agreementId,
             String email) {
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         RentalAgreement agreement =
-                rentalAgreementRepository.findById(agreementId)
+                rentalAgreementRepository
+                        .findById(agreementId)
                         .orElseThrow(() ->
                                 new EntityNotFoundException(
                                         "Rental agreement not found with ID: "
                                                 + agreementId));
 
-        if (!hasAccess(agreement, user)) {
+        if (!hasAccess(
+                agreement,
+                user)) {
 
             throw new IllegalStateException(
                     "You are not authorized to access this rental agreement");
         }
 
-        return mapToResponse(agreement);
+        return mapToResponse(
+                agreement);
     }
 
     // =========================================================
@@ -293,7 +345,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     public List<RentalAgreementResponse> getMyAgreements(
             String email) {
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         if (user.getRole() != RoleType.TENANT) {
 
@@ -310,10 +363,6 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
 
     // =========================================================
     // GET ALL AGREEMENTS
-    //
-    // SUPER_ADMIN      -> ALL
-    // PROPERTY_OWNER   -> OWN PROPERTIES
-    // PROPERTY_MANAGER -> ASSIGNED PROPERTIES
     // =========================================================
 
     @Override
@@ -321,7 +370,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     public List<RentalAgreementResponse> getAllAgreements(
             String email) {
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         if (user.getRole() == RoleType.TENANT) {
 
@@ -337,35 +387,28 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "You are not authorized to view rental agreements");
         }
 
-        // -----------------------------------------------------
-        // SUPER ADMIN -> ALL AGREEMENTS
-        // -----------------------------------------------------
-
         if (user.getRole() == RoleType.SUPER_ADMIN) {
 
-            return rentalAgreementRepository.findAll()
+            return rentalAgreementRepository
+                    .findAll()
                     .stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
         }
 
-        // -----------------------------------------------------
-        // OWNER / MANAGER -> AUTHORIZED PROPERTIES ONLY
-        // -----------------------------------------------------
-
-        return rentalAgreementRepository.findAll()
+        return rentalAgreementRepository
+                .findAll()
                 .stream()
-                .filter(agreement -> hasAccess(agreement, user))
+                .filter(agreement ->
+                        hasAccess(
+                                agreement,
+                                user))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     // =========================================================
     // UPDATE STATUS
-    //
-    // ACTIVE
-    // EXPIRED
-    // TERMINATED
     // =========================================================
 
     @Override
@@ -374,16 +417,20 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             AgreementStatus status,
             String email) {
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         RentalAgreement agreement =
-                rentalAgreementRepository.findById(agreementId)
+                rentalAgreementRepository
+                        .findById(agreementId)
                         .orElseThrow(() ->
                                 new EntityNotFoundException(
                                         "Rental agreement not found with ID: "
                                                 + agreementId));
 
-        validateManagementAccess(agreement, user);
+        validateManagementAccess(
+                agreement,
+                user);
 
         if (status == null) {
 
@@ -394,38 +441,32 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         AgreementStatus currentStatus =
                 agreement.getStatus();
 
-        // -----------------------------------------------------
-        // No status change
-        // -----------------------------------------------------
-
         if (currentStatus == status) {
-            return mapToResponse(agreement);
+
+            return mapToResponse(
+                    agreement);
         }
 
-        // -----------------------------------------------------
         // DRAFT -> ACTIVE
-        // -----------------------------------------------------
-
         if (status == AgreementStatus.ACTIVE) {
 
-            validateActivation(agreement);
+            validateActivation(
+                    agreement);
 
-            agreement.setStatus(AgreementStatus.ACTIVE);
+            agreement.setStatus(
+                    AgreementStatus.ACTIVE);
 
-            occupyUnit(agreement.getUnit());
+            occupyUnit(
+                    agreement.getUnit());
         }
 
-        // -----------------------------------------------------
-        // ACTIVE/DRAFT -> EXPIRED
-        // -----------------------------------------------------
-
+        // ACTIVE -> EXPIRED
         else if (status == AgreementStatus.EXPIRED) {
 
-            if (currentStatus != AgreementStatus.ACTIVE
-                    && currentStatus != AgreementStatus.DRAFT) {
+            if (currentStatus != AgreementStatus.ACTIVE) {
 
                 throw new IllegalStateException(
-                        "Only DRAFT or ACTIVE agreements can be marked as expired");
+                        "Only ACTIVE agreements can be marked as expired");
             }
 
             if (agreement.getEndDate() == null) {
@@ -441,38 +482,36 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                         "Agreement cannot be marked expired before its end date");
             }
 
-            agreement.setStatus(AgreementStatus.EXPIRED);
+            agreement.setStatus(
+                    AgreementStatus.EXPIRED);
 
-            releaseUnit(agreement.getUnit());
+            releaseUnit(
+                    agreement.getUnit());
         }
 
-        // -----------------------------------------------------
-        // ACTIVE/DRAFT -> TERMINATED
-        // -----------------------------------------------------
-
+        // ACTIVE -> TERMINATED
         else if (status == AgreementStatus.TERMINATED) {
 
-            if (currentStatus != AgreementStatus.ACTIVE
-                    && currentStatus != AgreementStatus.DRAFT) {
+            if (currentStatus != AgreementStatus.ACTIVE) {
 
                 throw new IllegalStateException(
-                        "Only DRAFT or ACTIVE agreements can be terminated");
+                        "Only ACTIVE agreements can be terminated");
             }
 
-            agreement.setStatus(AgreementStatus.TERMINATED);
+            agreement.setStatus(
+                    AgreementStatus.TERMINATED);
 
             if (agreement.getMoveOutDate() == null) {
 
-                agreement.setMoveOutDate(LocalDate.now());
+                agreement.setMoveOutDate(
+                        LocalDate.now());
             }
 
-            releaseUnit(agreement.getUnit());
+            releaseUnit(
+                    agreement.getUnit());
         }
 
-        // -----------------------------------------------------
-        // DRAFT can remain DRAFT
-        // -----------------------------------------------------
-
+        // DRAFT
         else if (status == AgreementStatus.DRAFT) {
 
             if (currentStatus == AgreementStatus.ACTIVE) {
@@ -481,13 +520,16 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                         "An active agreement cannot be changed back to draft");
             }
 
-            agreement.setStatus(AgreementStatus.DRAFT);
+            agreement.setStatus(
+                    AgreementStatus.DRAFT);
         }
 
         RentalAgreement updatedAgreement =
-                rentalAgreementRepository.save(agreement);
+                rentalAgreementRepository.save(
+                        agreement);
 
-        return mapToResponse(updatedAgreement);
+        return mapToResponse(
+                updatedAgreement);
     }
 
     // =========================================================
@@ -500,16 +542,20 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             LocalDate moveOutDate,
             String email) {
 
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
         RentalAgreement agreement =
-                rentalAgreementRepository.findById(agreementId)
+                rentalAgreementRepository
+                        .findById(agreementId)
                         .orElseThrow(() ->
                                 new EntityNotFoundException(
                                         "Rental agreement not found with ID: "
                                                 + agreementId));
 
-        validateManagementAccess(agreement, user);
+        validateManagementAccess(
+                agreement,
+                user);
 
         if (moveOutDate == null) {
 
@@ -533,24 +579,25 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Move-out date cannot be after agreement end date");
         }
 
-        agreement.setMoveOutDate(moveOutDate);
+        agreement.setMoveOutDate(
+                moveOutDate);
 
-        // -----------------------------------------------------
-        // Active agreement becomes terminated
-        // -----------------------------------------------------
-
-        if (agreement.getStatus() == AgreementStatus.ACTIVE) {
+        if (agreement.getStatus()
+                == AgreementStatus.ACTIVE) {
 
             agreement.setStatus(
                     AgreementStatus.TERMINATED);
 
-            releaseUnit(agreement.getUnit());
+            releaseUnit(
+                    agreement.getUnit());
         }
 
         RentalAgreement updatedAgreement =
-                rentalAgreementRepository.save(agreement);
+                rentalAgreementRepository.save(
+                        agreement);
 
-        return mapToResponse(updatedAgreement);
+        return mapToResponse(
+                updatedAgreement);
     }
 
     // =========================================================
@@ -568,7 +615,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         }
 
         if (agreement.getEndDate()
-                .isBefore(agreement.getStartDate())) {
+                .isBefore(
+                        agreement.getStartDate())) {
 
             throw new IllegalStateException(
                     "Agreement end date cannot be before start date");
@@ -576,7 +624,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
 
         if (agreement.getMoveInDate() != null
                 && agreement.getMoveInDate()
-                .isBefore(agreement.getStartDate())) {
+                        .isBefore(
+                                agreement.getStartDate())) {
 
             throw new IllegalStateException(
                     "Move-in date cannot be before agreement start date");
@@ -588,21 +637,15 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Agreement unit is missing");
         }
 
-        Unit unit = agreement.getUnit();
+        Unit unit =
+                agreement.getUnit();
 
-        // -----------------------------------------------------
-        // Unit must be vacant
-        // -----------------------------------------------------
-
-        if (unit.getStatus() != UnitStatus.VACANT) {
+        if (unit.getStatus()
+                != UnitStatus.VACANT) {
 
             throw new IllegalStateException(
                     "Agreement cannot be activated because the unit is not vacant");
         }
-
-        // -----------------------------------------------------
-        // Prevent another ACTIVE agreement on same unit
-        // -----------------------------------------------------
 
         if (rentalAgreementRepository
                 .existsByUnit_UnitIdAndStatus(
@@ -618,26 +661,30 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     // OCCUPY UNIT
     // =========================================================
 
-    private void occupyUnit(Unit unit) {
+    private void occupyUnit(
+            Unit unit) {
 
         if (unit == null) {
             return;
         }
 
-        unit.setStatus(UnitStatus.OCCUPIED);
+        unit.setStatus(
+                UnitStatus.OCCUPIED);
     }
 
     // =========================================================
     // RELEASE UNIT
     // =========================================================
 
-    private void releaseUnit(Unit unit) {
+    private void releaseUnit(
+            Unit unit) {
 
         if (unit == null) {
             return;
         }
 
-        unit.setStatus(UnitStatus.VACANT);
+        unit.setStatus(
+                UnitStatus.VACANT);
     }
 
     // =========================================================
@@ -645,36 +692,36 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     // =========================================================
 
     private void validateDates(
-            RentalAgreementRequest request) {
+            RentalApplication application) {
 
-        if (request.getStartDate() == null
-                || request.getEndDate() == null) {
+        LocalDate moveInDate =
+                application.getPreferredMoveInDate();
+
+        if (moveInDate == null) {
 
             throw new IllegalArgumentException(
-                    "Agreement start date and end date are required");
+                    "Preferred move-in date is required in the rental application");
         }
 
-        if (request.getEndDate()
-                .isBefore(request.getStartDate())) {
+        Integer leaseDurationMonths =
+                application.getPreferredLeaseDurationMonths();
+
+        if (leaseDurationMonths == null
+                || leaseDurationMonths < 1) {
 
             throw new IllegalArgumentException(
-                    "Agreement end date cannot be before start date");
+                    "Preferred lease duration must be at least 1 month in the rental application");
         }
 
-        if (request.getMoveInDate() != null
-                && request.getMoveInDate()
-                        .isBefore(request.getStartDate())) {
+        LocalDate calculatedEndDate =
+                moveInDate
+                        .plusMonths(leaseDurationMonths)
+                        .minusDays(1);
+
+        if (calculatedEndDate.isBefore(moveInDate)) {
 
             throw new IllegalArgumentException(
-                    "Move-in date cannot be before agreement start date");
-        }
-
-        if (request.getMoveInDate() != null
-                && request.getMoveInDate()
-                        .isAfter(request.getEndDate())) {
-
-            throw new IllegalArgumentException(
-                    "Move-in date cannot be after agreement end date");
+                    "Calculated agreement end date cannot be before start date");
         }
     }
 
@@ -682,15 +729,18 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     // USER LOOKUP
     // =========================================================
 
-    private User getUserByEmail(String email) {
+    private User getUserByEmail(
+            String email) {
 
-        if (email == null || email.isBlank()) {
+        if (email == null
+                || email.isBlank()) {
 
             throw new IllegalArgumentException(
                     "Authenticated user email is required");
         }
 
-        return userRepository.findByEmail(email)
+        return userRepository
+                .findByEmail(email)
                 .orElseThrow(() ->
                         new EntityNotFoundException(
                                 "User not found with email: "
@@ -705,80 +755,70 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             RentalAgreement agreement,
             User user) {
 
-        if (agreement == null || user == null) {
+        if (agreement == null
+                || user == null) {
+
             return false;
         }
 
-        // -----------------------------------------------------
-        // SUPER ADMIN
-        // -----------------------------------------------------
+        if (user.getRole()
+                == RoleType.SUPER_ADMIN) {
 
-        if (user.getRole() == RoleType.SUPER_ADMIN) {
             return true;
         }
 
-        // -----------------------------------------------------
-        // TENANT -> OWN AGREEMENT
-        // -----------------------------------------------------
-
-        if (user.getRole() == RoleType.TENANT) {
+        if (user.getRole()
+                == RoleType.TENANT) {
 
             return agreement.getTenant() != null
                     && agreement.getTenant().getUser() != null
                     && agreement.getTenant().getUser().getId() != null
-                    && agreement.getTenant().getUser().getId()
+                    && agreement.getTenant()
+                            .getUser()
+                            .getId()
                             .equals(user.getId());
         }
 
-        // -----------------------------------------------------
-        // Get property through:
-        //
-        // Agreement
-        //   -> Unit
-        //      -> Floor
-        //         -> Building
-        //            -> Property
-        // -----------------------------------------------------
-
         if (agreement.getUnit() == null
                 || agreement.getUnit().getFloor() == null
-                || agreement.getUnit().getFloor()
+                || agreement.getUnit()
+                        .getFloor()
                         .getBuilding() == null
-                || agreement.getUnit().getFloor()
-                        .getBuilding().getProperty() == null) {
+                || agreement.getUnit()
+                        .getFloor()
+                        .getBuilding()
+                        .getProperty() == null) {
 
             return false;
         }
 
-        var property = agreement.getUnit()
-                .getFloor()
-                .getBuilding()
-                .getProperty();
+        var property =
+                agreement.getUnit()
+                        .getFloor()
+                        .getBuilding()
+                        .getProperty();
 
-        // -----------------------------------------------------
-        // PROPERTY OWNER
-        // -----------------------------------------------------
-
-        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+        if (user.getRole()
+                == RoleType.PROPERTY_OWNER) {
 
             return property.getOwner() != null
                     && property.getOwner().getId() != null
-                    && property.getOwner().getId()
+                    && property.getOwner()
+                            .getId()
                             .equals(user.getId());
         }
 
-        // -----------------------------------------------------
-        // PROPERTY MANAGER
-        // -----------------------------------------------------
-
-        if (user.getRole() == RoleType.PROPERTY_MANAGER) {
+        if (user.getRole()
+                == RoleType.PROPERTY_MANAGER) {
 
             return property.getPropertyManager() != null
                     && property.getPropertyManager().getUser() != null
                     && property.getPropertyManager()
-                            .getUser().getId() != null
+                            .getUser()
+                            .getId() != null
                     && property.getPropertyManager()
-                            .getUser().getId()
+                            .getUser()
+                            .getId()
                             .equals(user.getId());
         }
 
@@ -796,43 +836,45 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         if (application == null
                 || application.getUnit() == null
                 || application.getUnit().getFloor() == null
-                || application.getUnit().getFloor()
+                || application.getUnit()
+                        .getFloor()
                         .getBuilding() == null
-                || application.getUnit().getFloor()
-                        .getBuilding().getProperty() == null) {
+                || application.getUnit()
+                        .getFloor()
+                        .getBuilding()
+                        .getProperty() == null) {
 
             return false;
         }
 
-        var property = application.getUnit()
-                .getFloor()
-                .getBuilding()
-                .getProperty();
+        var property =
+                application.getUnit()
+                        .getFloor()
+                        .getBuilding()
+                        .getProperty();
 
-        // -----------------------------------------------------
-        // PROPERTY OWNER
-        // -----------------------------------------------------
-
-        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+        if (user.getRole()
+                == RoleType.PROPERTY_OWNER) {
 
             return property.getOwner() != null
                     && property.getOwner().getId() != null
-                    && property.getOwner().getId()
+                    && property.getOwner()
+                            .getId()
                             .equals(user.getId());
         }
 
-        // -----------------------------------------------------
-        // PROPERTY MANAGER
-        // -----------------------------------------------------
-
-        if (user.getRole() == RoleType.PROPERTY_MANAGER) {
+        if (user.getRole()
+                == RoleType.PROPERTY_MANAGER) {
 
             return property.getPropertyManager() != null
-                    && property.getPropertyManager().getUser() != null
                     && property.getPropertyManager()
-                            .getUser().getId() != null
+                            .getUser() != null
                     && property.getPropertyManager()
-                            .getUser().getId()
+                            .getUser()
+                            .getId() != null
+                    && property.getPropertyManager()
+                            .getUser()
+                            .getId()
                             .equals(user.getId());
         }
 
@@ -853,14 +895,13 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Authenticated user not found");
         }
 
-        // Tenant cannot modify agreement
-        if (user.getRole() == RoleType.TENANT) {
+        if (user.getRole()
+                == RoleType.TENANT) {
 
             throw new IllegalStateException(
                     "Tenant is not authorized to modify a rental agreement");
         }
 
-        // Only management roles
         if (user.getRole() != RoleType.SUPER_ADMIN
                 && user.getRole() != RoleType.PROPERTY_OWNER
                 && user.getRole() != RoleType.PROPERTY_MANAGER) {
@@ -869,13 +910,15 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "You are not authorized to modify this rental agreement");
         }
 
-        // Super admin has global access
-        if (user.getRole() == RoleType.SUPER_ADMIN) {
+        if (user.getRole()
+                == RoleType.SUPER_ADMIN) {
+
             return;
         }
 
-        // Owner / manager must have property access
-        if (!hasAccess(agreement, user)) {
+        if (!hasAccess(
+                agreement,
+                user)) {
 
             throw new IllegalStateException(
                     "You are not authorized to modify this rental agreement");
@@ -900,18 +943,26 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             response.setApplicationId(
                     agreement.getRentalApplication()
                             .getApplicationId());
+
+            // Lease duration comes from the Rental Application.
+            // It is not stored separately in RentalAgreement.
+            response.setLeaseDurationMonths(
+                    agreement.getRentalApplication()
+                            .getPreferredLeaseDurationMonths());
         }
 
         if (agreement.getTenant() != null) {
 
             response.setTenantId(
-                    agreement.getTenant().getTenantId());
+                    agreement.getTenant()
+                            .getTenantId());
         }
 
         if (agreement.getUnit() != null) {
 
             response.setUnitId(
-                    agreement.getUnit().getUnitId());
+                    agreement.getUnit()
+                            .getUnitId());
         }
 
         response.setStartDate(
@@ -960,233 +1011,51 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     // CLEAN STRING
     // =========================================================
 
-    private String cleanString(String value) {
+    private String cleanString(
+            String value) {
 
         if (value == null) {
+
             return null;
         }
 
-        String cleaned = value.trim();
+        String cleaned =
+                value.trim();
 
-        return cleaned.isEmpty() ? null : cleaned;
+        return cleaned.isEmpty()
+                ? null
+                : cleaned;
     }
-    @Override
-    @Transactional
-    public RentalAgreementResponse uploadAgreementDocument(
-            Long agreementId,
-            MultipartFile file,
-            String email) {
 
-        /*
-         * Get authenticated user.
-         */
-        User user = getUserByEmail(email);
+    // =========================================================
+    // GET AGREEMENT DOCUMENT
+    // =========================================================
 
-        /*
-         * Validate file.
-         */
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Agreement document file is required");
-        }
-
-        /*
-         * Validate filename.
-         */
-        String originalFilename = file.getOriginalFilename();
-
-        if (originalFilename == null
-                || originalFilename.trim().isEmpty()) {
-
-            throw new IllegalArgumentException(
-                    "Agreement document filename is required");
-        }
-
-        /*
-         * Only PDF files are allowed.
-         */
-        boolean validPdfExtension =
-                originalFilename
-                        .toLowerCase()
-                        .endsWith(".pdf");
-
-        boolean validPdfContentType =
-                "application/pdf".equalsIgnoreCase(
-                        file.getContentType());
-
-        if (!validPdfExtension || !validPdfContentType) {
-
-            throw new IllegalArgumentException(
-                    "Only PDF agreement documents are allowed");
-        }
-
-        /*
-         * Maximum file size = 10 MB.
-         */
-        long maxFileSize =
-                10L * 1024L * 1024L;
-
-        if (file.getSize() > maxFileSize) {
-
-            throw new IllegalArgumentException(
-                    "Agreement document size must not exceed 10 MB");
-        }
-
-        /*
-         * Load agreement.
-         */
-        RentalAgreement agreement =
-                rentalAgreementRepository.findById(agreementId)
-                        .orElseThrow(() ->
-                                new EntityNotFoundException(
-                                        "Rental agreement not found with ID: "
-                                                + agreementId));
-
-        /*
-         * Validate management role and property access.
-         *
-         * Uses your EXISTING access-control logic.
-         */
-        validateManagementAccess(agreement, user);
-
-        /*
-         * Create upload directory.
-         */
-        try {
-
-            Path uploadDirectory =
-                    Paths.get(AGREEMENT_UPLOAD_DIRECTORY)
-                            .toAbsolutePath()
-                            .normalize();
-
-            Files.createDirectories(uploadDirectory);
-
-            /*
-             * Generate a unique filename.
-             *
-             * Never use the original filename as
-             * the stored server filename.
-             */
-            String storedFilename =
-                    "agreement_"
-                            + agreementId
-                            + "_"
-                            + UUID.randomUUID()
-                            + ".pdf";
-
-            Path targetFile =
-                    uploadDirectory
-                            .resolve(storedFilename)
-                            .normalize();
-
-            /*
-             * Path traversal protection.
-             */
-            if (!targetFile.startsWith(uploadDirectory)) {
-
-                throw new IllegalArgumentException(
-                        "Invalid agreement document path");
-            }
-
-            /*
-             * Save uploaded PDF.
-             */
-            Files.copy(
-                    file.getInputStream(),
-                    targetFile,
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            /*
-             * Delete old document if one exists.
-             */
-            String oldDocument =
-                    agreement.getAgreementDocument();
-
-            if (oldDocument != null
-                    && !oldDocument.trim().isEmpty()) {
-
-                try {
-
-                    String oldFilename =
-                            Paths.get(oldDocument)
-                                    .getFileName()
-                                    .toString();
-
-                    Path oldFile =
-                            uploadDirectory
-                                    .resolve(oldFilename)
-                                    .normalize();
-
-                    if (oldFile.startsWith(uploadDirectory)) {
-
-                        Files.deleteIfExists(oldFile);
-                    }
-
-                } catch (Exception ignored) {
-                    /*
-                     * Failure to delete old document
-                     * should not fail the new upload.
-                     */
-                }
-            }
-
-            /*
-             * Store only the server-relative path
-             * in the database.
-             */
-            agreement.setAgreementDocument(
-                    "/uploads/rental-agreements/"
-                            + storedFilename);
-
-            RentalAgreement savedAgreement =
-                    rentalAgreementRepository.save(agreement);
-
-            return mapToResponse(savedAgreement);
-
-        } catch (IOException ex) {
-
-            throw new RuntimeException(
-                    "Failed to upload rental agreement document",
-                    ex);
-        }
-    }
     @Override
     @Transactional(readOnly = true)
     public Resource getAgreementDocument(
             Long agreementId,
             String email) {
 
-        /*
-         * Get authenticated user.
-         */
-        User user = getUserByEmail(email);
+        User user =
+                getUserByEmail(email);
 
-        /*
-         * Load agreement.
-         */
         RentalAgreement agreement =
-                rentalAgreementRepository.findById(agreementId)
+                rentalAgreementRepository
+                        .findById(agreementId)
                         .orElseThrow(() ->
                                 new EntityNotFoundException(
                                         "Rental agreement not found with ID: "
                                                 + agreementId));
 
-        /*
-         * Verify management or tenant access.
-         *
-         * Tenant -> own agreement
-         * Owner -> own property's agreement
-         * Manager -> assigned property's agreement
-         * Super Admin -> any agreement
-         */
-        if (!hasAccess(agreement, user)) {
+        if (!hasAccess(
+                agreement,
+                user)) {
+
             throw new IllegalStateException(
                     "You are not authorized to access this agreement document");
         }
 
-        /*
-         * Check document exists in database.
-         */
         String documentPath =
                 agreement.getAgreementDocument();
 
@@ -1198,46 +1067,39 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                             + agreementId);
         }
 
-        /*
-         * Use only the stored filename.
-         *
-         * This prevents a database/path value from
-         * escaping the agreement upload directory.
-         */
         String filename =
-                Paths.get(documentPath)
+                java.nio.file.Paths
+                        .get(documentPath)
                         .getFileName()
                         .toString();
 
-        Path uploadDirectory =
-                Paths.get(AGREEMENT_UPLOAD_DIRECTORY)
+        java.nio.file.Path uploadDirectory =
+                java.nio.file.Paths
+                        .get(AGREEMENT_UPLOAD_DIRECTORY)
                         .toAbsolutePath()
                         .normalize();
 
-        Path filePath =
+        java.nio.file.Path filePath =
                 uploadDirectory
                         .resolve(filename)
                         .normalize();
 
-        /*
-         * Path traversal protection.
-         */
-        if (!filePath.startsWith(uploadDirectory)) {
+        if (!filePath.startsWith(
+                uploadDirectory)) {
 
             throw new IllegalStateException(
                     "Invalid agreement document path");
         }
 
-        /*
-         * Verify file exists.
-         */
-        if (!Files.exists(filePath)
-                || !Files.isRegularFile(filePath)) {
+        if (!java.nio.file.Files.exists(filePath)
+                || !java.nio.file.Files.isRegularFile(filePath)) {
 
             throw new EntityNotFoundException(
                     "Agreement document file not found");
         }
 
-        return new FileSystemResource(filePath);
+        return new FileSystemResource(
+                filePath);
     }
 }
+

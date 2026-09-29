@@ -3,15 +3,12 @@ package com.rental.rental_management_backend.rental.controller;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.core.io.Resource;
-
-import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.rental.dto.RentalAgreementRequest;
 import com.rental.rental_management_backend.rental.dto.RentalAgreementResponse;
@@ -28,225 +25,170 @@ public class RentalAgreementController {
 
     public RentalAgreementController(
             RentalAgreementService rentalAgreementService) {
+
         this.rentalAgreementService = rentalAgreementService;
     }
 
-    // =========================================================
-    // CREATE AGREEMENT
-    // SUPER_ADMIN / PROPERTY_OWNER / PROPERTY_MANAGER
-    // =========================================================
+    // ============================================================
+    // CREATE RENTAL AGREEMENT
+    // ============================================================
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<RentalAgreementResponse> createAgreement(
             @Valid @RequestBody RentalAgreementRequest request,
-            Authentication authentication) {
+            org.springframework.security.core.Authentication authentication) {
 
         String email = authentication.getName();
 
         RentalAgreementResponse response =
-                rentalAgreementService.createAgreement(
-                        request,
-                        email);
+                rentalAgreementService.createAgreement(request, email);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.ok(response);
     }
 
-    // =========================================================
-    // VIEW ONE AGREEMENT
-    //
-    // SUPER_ADMIN      -> any agreement
-    // PROPERTY_OWNER   -> own property's agreement
-    // PROPERTY_MANAGER -> assigned property's agreement
-    // TENANT           -> own agreement
-    // =========================================================
+    // ============================================================
+    // GET MY AGREEMENTS - TENANT
+    // ============================================================
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('TENANT')")
+    public ResponseEntity<List<RentalAgreementResponse>> getMyAgreements(
+            org.springframework.security.core.Authentication authentication) {
+
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                rentalAgreementService.getMyAgreements(email)
+        );
+    }
+
+    // ============================================================
+    // GET ALL AGREEMENTS - MANAGEMENT
+    // ============================================================
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
+    public ResponseEntity<List<RentalAgreementResponse>> getAllAgreements(
+            org.springframework.security.core.Authentication authentication) {
+
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                rentalAgreementService.getAllAgreements(email)
+        );
+    }
+
+    // ============================================================
+    // GET AGREEMENT BY ID
+    // ============================================================
 
     @GetMapping("/{agreementId}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER', 'TENANT')")
     public ResponseEntity<RentalAgreementResponse> getAgreement(
             @PathVariable Long agreementId,
-            Authentication authentication) {
+            org.springframework.security.core.Authentication authentication) {
 
         String email = authentication.getName();
 
-        RentalAgreementResponse response =
+        return ResponseEntity.ok(
                 rentalAgreementService.getAgreement(
                         agreementId,
-                        email);
-
-        return ResponseEntity.ok(response);
+                        email
+                )
+        );
     }
 
-    // =========================================================
-    // TENANT -> VIEW OWN AGREEMENTS
-    // TENANT ONLY
-    // =========================================================
-
-    @GetMapping("/my")
-    @PreAuthorize("hasRole('TENANT')")
-    public ResponseEntity<List<RentalAgreementResponse>> getMyAgreements(
-            Authentication authentication) {
-
-        String email = authentication.getName();
-
-        List<RentalAgreementResponse> agreements =
-                rentalAgreementService.getMyAgreements(email);
-
-        return ResponseEntity.ok(agreements);
-    }
-
-    // =========================================================
-    // VIEW AGREEMENTS
-    //
-    // SUPER_ADMIN      -> all agreements
-    // PROPERTY_OWNER   -> own property agreements
-    // PROPERTY_MANAGER -> assigned property agreements
-    //
-    // TENANT DOES NOT USE THIS ENDPOINT.
-    // Tenant uses /my.
-    // =========================================================
-
-    @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
-    public ResponseEntity<List<RentalAgreementResponse>> getAllAgreements(
-            Authentication authentication) {
-
-        String email = authentication.getName();
-
-        List<RentalAgreementResponse> agreements =
-                rentalAgreementService.getAllAgreements(email);
-
-        return ResponseEntity.ok(agreements);
-    }
-
-    // =========================================================
+    // ============================================================
     // UPDATE AGREEMENT STATUS
-    //
-    // SUPER_ADMIN      -> any agreement
-    // PROPERTY_OWNER   -> own property's agreement
-    // PROPERTY_MANAGER -> assigned property's agreement
-    // TENANT           -> NOT ALLOWED
-    // =========================================================
+    // ============================================================
 
     @PatchMapping("/{agreementId}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<RentalAgreementResponse> updateStatus(
             @PathVariable Long agreementId,
             @RequestParam AgreementStatus status,
-            Authentication authentication) {
+            org.springframework.security.core.Authentication authentication) {
 
         String email = authentication.getName();
 
-        RentalAgreementResponse response =
+        return ResponseEntity.ok(
                 rentalAgreementService.updateStatus(
                         agreementId,
                         status,
-                        email);
-
-        return ResponseEntity.ok(response);
+                        email
+                )
+        );
     }
 
-    // =========================================================
+    // ============================================================
     // UPDATE MOVE-OUT DATE
-    //
-    // SUPER_ADMIN      -> any agreement
-    // PROPERTY_OWNER   -> own property's agreement
-    // PROPERTY_MANAGER -> assigned property's agreement
-    // TENANT           -> NOT ALLOWED
-    // =========================================================
+    // ============================================================
 
     @PatchMapping("/{agreementId}/move-out")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
     public ResponseEntity<RentalAgreementResponse> updateMoveOutDate(
             @PathVariable Long agreementId,
             @RequestParam LocalDate moveOutDate,
-            Authentication authentication) {
+            org.springframework.security.core.Authentication authentication) {
 
         String email = authentication.getName();
 
-        RentalAgreementResponse response =
+        return ResponseEntity.ok(
                 rentalAgreementService.updateMoveOutDate(
                         agreementId,
                         moveOutDate,
-                        email);
-
-        return ResponseEntity.ok(response);
+                        email
+                )
+        );
     }
 
-    // =========================================================
-    // UPLOAD AGREEMENT DOCUMENT
-    //
-    // SUPER_ADMIN      -> any agreement
-    // PROPERTY_OWNER   -> own property's agreement
-    // PROPERTY_MANAGER -> assigned property's agreement
-    // TENANT           -> NOT ALLOWED
-    //
-    // Uploads actual PDF from local system.
-    // =========================================================
+    // ============================================================
+    // VIEW / DOWNLOAD GENERATED AGREEMENT PDF
+    // ============================================================
 
-    @PostMapping(
-            value = "/{agreementId}/document",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-    )
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER')")
-    public ResponseEntity<RentalAgreementResponse> uploadAgreementDocument(
+    @GetMapping("/{agreementId}/document")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER', 'TENANT')")
+    public ResponseEntity<Resource> getAgreementDocument(
             @PathVariable Long agreementId,
-            @RequestParam("file") MultipartFile file,
-            Authentication authentication) {
+            org.springframework.security.core.Authentication authentication) {
 
         String email = authentication.getName();
 
-        RentalAgreementResponse response =
-                rentalAgreementService.uploadAgreementDocument(
+        Resource resource =
+                rentalAgreementService.getAgreementDocument(
                         agreementId,
-                        file,
-                        email);
+                        email
+                );
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + resource.getFilename() + "\""
+                )
+                .body(resource);
     }
- // =========================================================
- // VIEW / DOWNLOAD AGREEMENT DOCUMENT
- //
- // SUPER_ADMIN      -> any agreement
- // PROPERTY_OWNER   -> own property's agreement
- // PROPERTY_MANAGER -> assigned property's agreement
- // TENANT           -> own agreement
- //
- // Returns the actual PDF file.
- // =========================================================
+    @GetMapping("/{agreementId}/document/download")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER', 'TENANT')")
+    public ResponseEntity<Resource> downloadAgreementDocument(
+            @PathVariable Long agreementId,
+            org.springframework.security.core.Authentication authentication) {
 
- @GetMapping("/{agreementId}/document")
- @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROPERTY_OWNER', 'PROPERTY_MANAGER', 'TENANT')")
- public ResponseEntity<Resource> getAgreementDocument(
-         @PathVariable Long agreementId,
-         Authentication authentication) {
+        String email = authentication.getName();
 
-     String email = authentication.getName();
+        Resource resource =
+                rentalAgreementService.getAgreementDocument(
+                        agreementId,
+                        email
+                );
 
-     Resource resource =
-             rentalAgreementService.getAgreementDocument(
-                     agreementId,
-                     email);
-
-     try {
-
-         return ResponseEntity.ok()
-                 .contentType(MediaType.APPLICATION_PDF)
-                 .contentLength(resource.contentLength())
-                 .header(
-                         "Content-Disposition",
-                         "inline; filename=\"rental-agreement-" +
-                                 agreementId +
-                                 ".pdf\"")
-                 .body(resource);
-
-     } catch (Exception ex) {
-
-         throw new RuntimeException(
-                 "Failed to read agreement document",
-                 ex);
-     }
- }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + resource.getFilename() + "\""
+                )
+                .body(resource);
+    }
 }
