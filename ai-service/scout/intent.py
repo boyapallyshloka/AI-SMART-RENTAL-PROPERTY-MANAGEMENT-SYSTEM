@@ -1,4 +1,5 @@
 from enum import Enum
+import re
 
 from pydantic import BaseModel, Field
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 # ============================================================
 
 class ScoutOperation(str, Enum):
+
     # Backend operations
     RENT_STATUS = "RENT_STATUS"
     PAYMENT_HISTORY = "PAYMENT_HISTORY"
@@ -63,9 +65,9 @@ class OperationDefinition(BaseModel):
 
 OPERATION_DEFINITIONS = {
 
-    # -------------------------
+    # --------------------------------------------------------
     # BACKEND
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.RENT_STATUS: OperationDefinition(
         operation=ScoutOperation.RENT_STATUS,
@@ -107,9 +109,9 @@ OPERATION_DEFINITIONS = {
         description="Retrieve rental agreement details.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M2
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.PROPERTY_SEARCH: OperationDefinition(
         operation=ScoutOperation.PROPERTY_SEARCH,
@@ -147,9 +149,9 @@ OPERATION_DEFINITIONS = {
         description="Recommend properties based on tenant preferences.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M1
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.RENT_PREDICTION: OperationDefinition(
         operation=ScoutOperation.RENT_PREDICTION,
@@ -167,9 +169,9 @@ OPERATION_DEFINITIONS = {
         description="Predict the expected rent for a property.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M3
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.RENTAL_DEMAND: OperationDefinition(
         operation=ScoutOperation.RENTAL_DEMAND,
@@ -183,9 +185,9 @@ OPERATION_DEFINITIONS = {
         description="Predict rental demand.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M4
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.PAYMENT_RISK: OperationDefinition(
         operation=ScoutOperation.PAYMENT_RISK,
@@ -198,9 +200,9 @@ OPERATION_DEFINITIONS = {
         description="Assess payment risk.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M5
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.PREDICTIVE_MAINTENANCE: OperationDefinition(
         operation=ScoutOperation.PREDICTIVE_MAINTENANCE,
@@ -214,9 +216,9 @@ OPERATION_DEFINITIONS = {
         description="Predict maintenance requirements.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # M6
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.PROFITABILITY: OperationDefinition(
         operation=ScoutOperation.PROFITABILITY,
@@ -231,9 +233,9 @@ OPERATION_DEFINITIONS = {
         description="Estimate property profitability.",
     ),
 
-    # -------------------------
+    # --------------------------------------------------------
     # GENERAL
-    # -------------------------
+    # --------------------------------------------------------
 
     ScoutOperation.GENERAL: OperationDefinition(
         operation=ScoutOperation.GENERAL,
@@ -257,10 +259,14 @@ class ScoutIntent(BaseModel):
 
 
 # ============================================================
-# 6. KEYWORD GROUPS
+# 6. KEYWORDS
 # ============================================================
 
 KEYWORDS = {
+
+    # --------------------------------------------------------
+    # BACKEND
+    # --------------------------------------------------------
 
     ScoutOperation.RENT_STATUS: [
         "rent status",
@@ -312,6 +318,10 @@ KEYWORDS = {
         "when does my lease expire",
     ],
 
+    # --------------------------------------------------------
+    # M2
+    # --------------------------------------------------------
+
     ScoutOperation.PROPERTY_RECOMMENDATION: [
         "recommend properties",
         "recommend a property",
@@ -320,6 +330,15 @@ KEYWORDS = {
         "suggest a property",
         "properties for me",
         "find a property for me",
+
+        # Preference-based recommendations
+        "show me properties based on my preferences",
+        "show properties based on my preferences",
+        "properties based on my preferences",
+        "properties according to my preferences",
+        "find properties based on my preferences",
+        "recommend properties based on my preferences",
+        "show me properties that match my preferences",
     ],
 
     ScoutOperation.PROPERTY_SEARCH: [
@@ -327,11 +346,25 @@ KEYWORDS = {
         "search properties",
         "find property",
         "search property",
+        "find apartment",
+        "find apartments",
+        "search apartment",
+        "search apartments",
+        "find a property",
+        "find a place",
+        "find a home",
+        "find a house",
+        "find a flat",
+        "find flats",
         "properties in",
         "apartments in",
         "houses in",
         "homes in",
     ],
+
+    # --------------------------------------------------------
+    # M1
+    # --------------------------------------------------------
 
     ScoutOperation.RENT_PREDICTION: [
         "predict rent",
@@ -342,6 +375,10 @@ KEYWORDS = {
         "how much rent",
     ],
 
+    # --------------------------------------------------------
+    # M3
+    # --------------------------------------------------------
+
     ScoutOperation.RENTAL_DEMAND: [
         "rental demand",
         "rent demand",
@@ -349,6 +386,10 @@ KEYWORDS = {
         "demand for properties",
         "property demand",
     ],
+
+    # --------------------------------------------------------
+    # M4
+    # --------------------------------------------------------
 
     ScoutOperation.PAYMENT_RISK: [
         "payment risk",
@@ -358,6 +399,10 @@ KEYWORDS = {
         "tenant risk",
     ],
 
+    # --------------------------------------------------------
+    # M5
+    # --------------------------------------------------------
+
     ScoutOperation.PREDICTIVE_MAINTENANCE: [
         "predict maintenance",
         "maintenance prediction",
@@ -365,6 +410,10 @@ KEYWORDS = {
         "maintenance needs",
         "predict repairs",
     ],
+
+    # --------------------------------------------------------
+    # M6
+    # --------------------------------------------------------
 
     ScoutOperation.PROFITABILITY: [
         "profitability",
@@ -382,9 +431,6 @@ KEYWORDS = {
 # ============================================================
 
 def get_source_for_operation(operation: ScoutOperation) -> ScoutSource:
-    """
-    Return the source associated with a Scout operation.
-    """
 
     definition = OPERATION_DEFINITIONS.get(operation)
 
@@ -395,19 +441,463 @@ def get_source_for_operation(operation: ScoutOperation) -> ScoutSource:
 
 
 # ============================================================
-# 8. INTENT DETECTION
+# 8. PARAMETER EXTRACTION
+# ============================================================
+
+def extract_city(text: str):
+
+    known_cities = [
+        "hyderabad",
+        "bangalore",
+        "bengaluru",
+        "chennai",
+        "mumbai",
+        "delhi",
+        "pune",
+        "kolkata",
+    ]
+
+    for city in known_cities:
+
+        if city in text:
+
+            if city == "bengaluru":
+                return "Bangalore"
+
+            return city.title()
+
+    return None
+
+
+def extract_budget(text: str):
+
+    budget_match = re.search(
+        r"(?:under|below|upto|up to|max(?:imum)?|within)"
+        r"\s*[₹rs.]?\s*([\d,]+)",
+        text,
+    )
+
+    if budget_match:
+
+        budget = budget_match.group(1).replace(",", "")
+
+        return float(budget)
+
+    return None
+
+
+def extract_bedrooms(text: str):
+
+    bedroom_match = re.search(
+        r"(\d+)\s*(?:bedroom|bedrooms|bhk)",
+        text,
+    )
+
+    if bedroom_match:
+        return int(bedroom_match.group(1))
+
+    return None
+
+
+def extract_property_type(text: str):
+
+    property_types = {
+
+        "apartment": [
+            "apartment",
+            "apartments",
+            "flat",
+            "flats",
+        ],
+
+        "house": [
+            "house",
+            "houses",
+        ],
+
+        "villa": [
+            "villa",
+            "villas",
+        ],
+
+        "room": [
+            "room",
+            "rooms",
+        ],
+    }
+
+    for property_type, words in property_types.items():
+
+        for word in words:
+
+            if word in text:
+                return property_type
+
+    return None
+
+
+def extract_furnishing(text: str):
+
+    if "fully furnished" in text:
+        return "Fully Furnished"
+
+    if "semi furnished" in text or "semi-furnished" in text:
+        return "Semi-Furnished"
+
+    if "unfurnished" in text:
+        return "Unfurnished"
+
+    return None
+
+
+def extract_parking(text: str):
+
+    parking_phrases = [
+        "with parking",
+        "parking available",
+        "has parking",
+        "parking facility",
+    ]
+
+    for phrase in parking_phrases:
+
+        if phrase in text:
+            return True
+
+    return None
+
+
+def extract_amenities(text: str):
+
+    known_amenities = [
+        "gym",
+        "swimming pool",
+        "pool",
+        "security",
+        "lift",
+        "elevator",
+        "balcony",
+        "power backup",
+        "playground",
+        "garden",
+        "wifi",
+    ]
+
+    amenities = []
+
+    for amenity in known_amenities:
+
+        if amenity in text:
+
+            if amenity == "pool":
+                amenity_value = "Swimming Pool"
+
+            elif amenity == "elevator":
+                amenity_value = "Lift"
+
+            else:
+                amenity_value = amenity.title()
+
+            if amenity_value not in amenities:
+                amenities.append(amenity_value)
+
+    return amenities
+
+
+def extract_distance(text: str):
+
+    distance_match = re.search(
+        r"(?:within|less than|under)"
+        r"\s*(\d+(?:\.\d+)?)"
+        r"\s*(?:km|kilometers)",
+        text,
+    )
+
+    if distance_match:
+        return float(distance_match.group(1))
+
+    return None
+
+
+def extract_top_n(text: str):
+
+    top_n_match = re.search(
+        r"(?:top|show|give me|list)\s+(\d+)",
+        text,
+    )
+
+    if top_n_match:
+        return int(top_n_match.group(1))
+
+    return None
+
+
+def extract_area(text: str):
+
+    area_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*"
+        r"(?:sq\.?\s*ft|sqft|square\s*feet)",
+        text,
+    )
+
+    if area_match:
+        return float(area_match.group(1))
+
+    return None
+
+
+def extract_bathrooms(text: str):
+
+    bathroom_match = re.search(
+        r"(\d+)\s*(?:bathroom|bathrooms|bath)",
+        text,
+    )
+
+    if bathroom_match:
+        return int(bathroom_match.group(1))
+
+    return None
+
+
+def extract_property_age(text: str):
+
+    age_match = re.search(
+        r"(?:property age|age)?\s*"
+        r"(\d+)\s*(?:year|years)\s*old",
+        text,
+    )
+
+    if age_match:
+        return int(age_match.group(1))
+
+    return None
+
+
+def extract_occupancy_rate(text: str):
+
+    occupancy_match = re.search(
+        r"(?:occupancy rate|occupancy)"
+        r"\s*(?:is|of)?\s*"
+        r"(\d+(?:\.\d+)?)\s*%",
+        text,
+    )
+
+    if occupancy_match:
+        return float(occupancy_match.group(1))
+
+    return None
+
+
+# ============================================================
+# 9. PARAMETER EXTRACTION
+# ============================================================
+
+def extract_parameters(
+    message: str,
+    operation: ScoutOperation,
+) -> dict:
+
+    parameters = {}
+
+    if not message:
+        return parameters
+
+    text = message.lower().strip()
+
+    city = extract_city(text)
+    property_type = extract_property_type(text)
+    furnishing = extract_furnishing(text)
+    bedrooms = extract_bedrooms(text)
+    parking = extract_parking(text)
+    amenities = extract_amenities(text)
+    distance = extract_distance(text)
+
+    # --------------------------------------------------------
+    # M2 PROPERTY SEARCH / RECOMMENDATION
+    # --------------------------------------------------------
+
+    if operation in [
+        ScoutOperation.PROPERTY_SEARCH,
+        ScoutOperation.PROPERTY_RECOMMENDATION,
+    ]:
+
+        if city:
+            parameters["preferred_city"] = city
+
+        budget = extract_budget(text)
+
+        if budget is not None:
+            parameters["max_budget"] = budget
+
+        if bedrooms is not None:
+            parameters["min_bedrooms"] = bedrooms
+
+        if property_type:
+            parameters["property_type"] = property_type
+
+        if furnishing:
+            parameters["furnishing"] = furnishing
+
+        if parking is not None:
+            parameters["parking"] = parking
+
+        if amenities:
+            parameters["amenities"] = amenities
+
+        if distance is not None:
+            parameters["max_distance"] = distance
+
+        if operation == ScoutOperation.PROPERTY_RECOMMENDATION:
+
+            top_n = extract_top_n(text)
+
+            if top_n is not None:
+                parameters["top_n"] = top_n
+
+    # --------------------------------------------------------
+    # M1 RENT PREDICTION
+    # --------------------------------------------------------
+
+    elif operation == ScoutOperation.RENT_PREDICTION:
+
+        if city:
+            parameters["city"] = city
+
+        area = extract_area(text)
+
+        if area is not None:
+            parameters["area"] = area
+
+        if property_type:
+            parameters["property_type"] = property_type
+
+        if bedrooms is not None:
+            parameters["bedrooms"] = bedrooms
+
+        bathrooms = extract_bathrooms(text)
+
+        if bathrooms is not None:
+            parameters["bathrooms"] = bathrooms
+
+        if furnishing:
+            parameters["furnishing"] = furnishing
+
+    # --------------------------------------------------------
+    # M3 RENTAL DEMAND
+    # --------------------------------------------------------
+
+    elif operation == ScoutOperation.RENTAL_DEMAND:
+
+        if city:
+            parameters["city"] = city
+
+        if property_type:
+            parameters["property_type"] = property_type
+
+        time_periods = [
+            "this month",
+            "next month",
+            "this year",
+            "next year",
+            "last month",
+            "last year",
+        ]
+
+        for period in time_periods:
+
+            if period in text:
+
+                parameters["time_period"] = period
+
+                break
+
+    # --------------------------------------------------------
+    # M5 PREDICTIVE MAINTENANCE
+    # --------------------------------------------------------
+
+    elif operation == ScoutOperation.PREDICTIVE_MAINTENANCE:
+
+        property_age = extract_property_age(text)
+
+        if property_age is not None:
+            parameters["property_age"] = property_age
+
+        maintenance_types = [
+            "plumbing",
+            "electrical",
+            "hvac",
+            "ac",
+            "air conditioning",
+            "painting",
+            "roof",
+            "roofing",
+            "appliance",
+        ]
+
+        for maintenance_type in maintenance_types:
+
+            if maintenance_type in text:
+
+                parameters["maintenance_type"] = maintenance_type
+
+                break
+
+    # --------------------------------------------------------
+    # M6 PROFITABILITY
+    # --------------------------------------------------------
+
+    elif operation == ScoutOperation.PROFITABILITY:
+
+        budget = extract_budget(text)
+
+        if budget is not None:
+            parameters["monthly_rent"] = budget
+
+        occupancy_rate = extract_occupancy_rate(text)
+
+        if occupancy_rate is not None:
+            parameters["occupancy_rate"] = occupancy_rate
+
+        operating_cost_match = re.search(
+            r"(?:operating cost|operating costs|expenses)"
+            r"\s*(?:is|of)?\s*[₹rs.]?\s*([\d,]+)",
+            text,
+        )
+
+        if operating_cost_match:
+
+            operating_cost = (
+                operating_cost_match.group(1)
+                .replace(",", "")
+            )
+
+            parameters["operating_cost"] = float(
+                operating_cost
+            )
+
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # tenant_id is NOT extracted from user text.
+    #
+    # Later:
+    # JWT/session -> authenticated tenant_id
+    # --------------------------------------------------------
+
+    return parameters
+
+
+# ============================================================
+# 10. INTENT DETECTION
 # ============================================================
 
 def detect_intent(message: str) -> ScoutIntent:
-    """
-    Detect the Scout operation from a user message.
 
-    This is intentionally rule-based for Phase 1.
-    Later we can add an LLM-based fallback without
-    changing the ScoutOperation contract.
-    """
+    # --------------------------------------------------------
+    # Empty message
+    # --------------------------------------------------------
 
     if not message or not message.strip():
+
         return ScoutIntent(
             operation=ScoutOperation.GENERAL,
             source=ScoutSource.GENERAL,
@@ -417,32 +907,114 @@ def detect_intent(message: str) -> ScoutIntent:
 
     text = message.lower().strip()
 
-    # More specific intents are checked first.
-    # Recommendation must come before generic property search.
+    # --------------------------------------------------------
+    # Intent priority
+    # --------------------------------------------------------
+
     operation_priority = [
+
+        # M2 recommendation first
         ScoutOperation.PROPERTY_RECOMMENDATION,
+
+        # Backend
         ScoutOperation.RENT_STATUS,
         ScoutOperation.PAYMENT_HISTORY,
         ScoutOperation.APPLICATION_STATUS,
         ScoutOperation.MAINTENANCE_REQUESTS,
         ScoutOperation.AGREEMENT_DETAILS,
+
+        # AI modules
         ScoutOperation.RENT_PREDICTION,
         ScoutOperation.RENTAL_DEMAND,
         ScoutOperation.PAYMENT_RISK,
         ScoutOperation.PREDICTIVE_MAINTENANCE,
         ScoutOperation.PROFITABILITY,
+
+        # Generic property search last
         ScoutOperation.PROPERTY_SEARCH,
     ]
 
+    # --------------------------------------------------------
+    # Keyword matching
+    # --------------------------------------------------------
+
     for operation in operation_priority:
+
         for keyword in KEYWORDS.get(operation, []):
+
             if keyword in text:
+
+                parameters = extract_parameters(
+                    message,
+                    operation,
+                )
+
                 return ScoutIntent(
                     operation=operation,
-                    source=get_source_for_operation(operation),
-                    parameters={},
+                    source=get_source_for_operation(
+                        operation
+                    ),
+                    parameters=parameters,
                     confidence=0.90,
                 )
+
+    # --------------------------------------------------------
+    # PROPERTY SEARCH FALLBACK
+    # --------------------------------------------------------
+    #
+    # Handles natural sentences such as:
+    #
+    # "Find a 3 bedroom apartment in Hyderabad"
+    # "Search for a house in Hyderabad"
+    # "I am looking for a villa in Hyderabad"
+    #
+    # --------------------------------------------------------
+
+    property_search_words = [
+        "find",
+        "search",
+        "looking for",
+        "look for",
+    ]
+
+    property_words = [
+        "apartment",
+        "apartments",
+        "flat",
+        "flats",
+        "house",
+        "houses",
+        "villa",
+        "villas",
+        "room",
+        "rooms",
+    ]
+
+    has_search_word = any(
+        word in text
+        for word in property_search_words
+    )
+
+    has_property_word = any(
+        word in text
+        for word in property_words
+    )
+
+    if has_search_word and has_property_word:
+
+        return ScoutIntent(
+            operation=ScoutOperation.PROPERTY_SEARCH,
+            source=ScoutSource.M2,
+            parameters=extract_parameters(
+                message,
+                ScoutOperation.PROPERTY_SEARCH,
+            ),
+            confidence=0.90,
+        )
+
+    # --------------------------------------------------------
+    # GENERAL
+    # --------------------------------------------------------
 
     return ScoutIntent(
         operation=ScoutOperation.GENERAL,

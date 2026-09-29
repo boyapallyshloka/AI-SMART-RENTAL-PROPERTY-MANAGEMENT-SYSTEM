@@ -13,7 +13,10 @@ router = APIRouter(
 @router.post("/chat", response_model=ScoutChatResponse)
 def chat(request: ScoutChatRequest):
 
-    response, intent = process_message(request.message)
+    response, intent, data = process_message(
+        request.message,
+        request.tenant_id
+    )
 
     return ScoutChatResponse(
         response=response,
@@ -21,4 +24,5 @@ def chat(request: ScoutChatRequest):
         source=intent.source,
         confidence=intent.confidence,
         parameters=intent.parameters,
+        data=data
     )

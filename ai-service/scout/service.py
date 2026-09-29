@@ -1,8 +1,19 @@
 from scout.intent import ScoutOperation, ScoutIntent, detect_intent
+from M2_Property_Recommendation.service import generate_recommendations
 
 
-def process_message(message: str) -> tuple[str, ScoutIntent]:
+def process_message(
+    message: str,
+    tenant_id: str | None = None
+) -> tuple[str, ScoutIntent, dict | None]:
+
     intent = detect_intent(message)
+
+    # Add authenticated tenant ID to the intent
+    if tenant_id is not None:
+        intent.parameters["tenant_id"] = tenant_id
+
+    data = None
 
     if intent.operation == ScoutOperation.RENT_STATUS:
         response = "You are asking about your rent payment status."
@@ -20,10 +31,83 @@ def process_message(message: str) -> tuple[str, ScoutIntent]:
         response = "You are asking about your rental agreement or lease."
 
     elif intent.operation == ScoutOperation.PROPERTY_SEARCH:
-        response = "You are looking for available properties."
+        tenant_id_value = intent.parameters.get("tenant_id")
+
+        if not tenant_id_value:
+            response = "Tenant ID is required to search for properties."
+        else:
+            try:
+                data = generate_recommendations(
+                    tenant_id=tenant_id_value,
+                    top_n=int(intent.parameters.get("top_n", 5)),
+                    preferred_city=intent.parameters.get("preferred_city"),
+                    max_budget=intent.parameters.get("max_budget"),
+                    min_bedrooms=intent.parameters.get("min_bedrooms"),
+                    property_type=intent.parameters.get("property_type"),
+                    furnishing=intent.parameters.get("furnishing"),
+                    parking=intent.parameters.get("parking"),
+                    amenities=intent.parameters.get("amenities"),
+                    max_distance=intent.parameters.get("max_distance"),
+                )
+
+                response = (
+                    f"I found {data.get('count', 0)} properties "
+                    "based on your preferences."
+                )
+
+            except ValueError as exc:
+                response = str(exc)
+                data = {
+                    "success": False,
+                    "message": str(exc)
+                }
+
+            except Exception as exc:
+                response = "Unable to get property recommendations."
+                data = {
+                    "success": False,
+                    "message": str(exc)
+                }
 
     elif intent.operation == ScoutOperation.PROPERTY_RECOMMENDATION:
-        response = "You are looking for property recommendations."
+        tenant_id_value = intent.parameters.get("tenant_id")
+
+        if not tenant_id_value:
+            response = "Tenant ID is required for property recommendations."
+        else:
+            try:
+                data = generate_recommendations(
+                    tenant_id=tenant_id_value,
+                    top_n=int(intent.parameters.get("top_n", 5)),
+                    preferred_city=intent.parameters.get("preferred_city"),
+                    max_budget=intent.parameters.get("max_budget"),
+                    min_bedrooms=intent.parameters.get("min_bedrooms"),
+                    property_type=intent.parameters.get("property_type"),
+                    furnishing=intent.parameters.get("furnishing"),
+                    parking=intent.parameters.get("parking"),
+                    amenities=intent.parameters.get("amenities"),
+                    max_distance=intent.parameters.get("max_distance"),
+                )
+
+                response = (
+                    f"I found {data.get('count', 0)} "
+                    "property recommendations "
+                    "based on your preferences."
+                )
+
+            except ValueError as exc:
+                response = str(exc)
+                data = {
+                    "success": False,
+                    "message": str(exc)
+                }
+
+            except Exception as exc:
+                response = "Unable to get property recommendations."
+                data = {
+                    "success": False,
+                    "message": str(exc)
+                }
 
     elif intent.operation == ScoutOperation.RENT_PREDICTION:
         response = "You are asking for a rent prediction."
@@ -43,4 +127,4 @@ def process_message(message: str) -> tuple[str, ScoutIntent]:
     else:
         response = "I can help you with rental and property-related questions."
 
-    return response, intent
+    return response, intent, data
