@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.rental.dto;
 
 import java.math.BigDecimal;
@@ -19,6 +20,8 @@ public class RentalAgreementResponse {
     private LocalDate startDate;
 
     private LocalDate endDate;
+
+    private Integer leaseDurationMonths;
 
     private BigDecimal monthlyRent;
 
@@ -91,6 +94,14 @@ public class RentalAgreementResponse {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    public Integer getLeaseDurationMonths() {
+        return leaseDurationMonths;
+    }
+
+    public void setLeaseDurationMonths(Integer leaseDurationMonths) {
+        this.leaseDurationMonths = leaseDurationMonths;
     }
 
     public BigDecimal getMonthlyRent() {
@@ -181,3 +192,4 @@ public class RentalAgreementResponse {
         this.updatedAt = updatedAt;
     }
 }
+

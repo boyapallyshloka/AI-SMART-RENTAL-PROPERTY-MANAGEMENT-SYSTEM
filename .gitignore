@@ -27,3 +27,4 @@ ai-service/data/processed/
 
 # Archives
 *.zip
+/.metadata/

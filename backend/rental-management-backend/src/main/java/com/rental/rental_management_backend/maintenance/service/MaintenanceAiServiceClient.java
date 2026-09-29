@@ -12,7 +12,7 @@ public class MaintenanceAiServiceClient {
 
     private final RestClient restClient;
 
-    public MaintenanceAiServiceClient(@Value("${ai.service.url:http://127.0.0.1:8005}") String aiUrl) {
+    public MaintenanceAiServiceClient(@Value("${ai.service.maintenance-prediction-url:http://127.0.0.1:8000}") String aiUrl) {
         this.restClient = RestClient.builder()
                 .baseUrl(aiUrl)
                 .build();
@@ -20,7 +20,7 @@ public class MaintenanceAiServiceClient {
 
     public M5PredictionResponse callPrediction(M5PredictionRequest payload) {
         return restClient.post()
-                .uri("/predict-maintenance")
+                .uri("/m5/predict-maintenance")
                 .body(payload)
                 .retrieve()
                 .body(M5PredictionResponse.class);

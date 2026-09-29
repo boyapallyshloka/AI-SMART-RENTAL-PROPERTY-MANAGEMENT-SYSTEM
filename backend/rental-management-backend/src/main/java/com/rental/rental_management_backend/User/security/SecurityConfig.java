@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.User.security;
 
 import java.util.List;
@@ -57,14 +56,12 @@ public class SecurityConfig {
                         "PUT",
                         "PATCH",
                         "DELETE",
-                        "OPTIONS"
-                ));
+                        "OPTIONS"));
 
         configuration.setAllowedHeaders(
                 List.of(
                         "Authorization",
-                        "Content-Type"
-                ));
+                        "Content-Type"));
 
         configuration.setAllowCredentials(true);
 
@@ -86,147 +83,144 @@ public class SecurityConfig {
 
         http
 
-            // CORS
-            .cors(cors ->
-                cors.configurationSource(
-                    corsConfigurationSource()))
+                // CORS
+                .cors(cors -> cors.configurationSource(
+                        corsConfigurationSource()))
 
-            // JWT application - CSRF disabled
-            .csrf(csrf -> csrf.disable())
+                // JWT application - CSRF disabled
+                .csrf(csrf -> csrf.disable())
 
-            // JWT is stateless
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(
-                    SessionCreationPolicy.STATELESS))
-
-            // =================================================
-            // AUTHORIZATION
-            // =================================================
-
-            .authorizeHttpRequests(auth -> auth
-
-                // -------------------------------------------------
-                // PUBLIC AUTHENTICATION APIs
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/auth/register",
-                    "/api/auth/login",
-                    "/api/auth/forgot-password",
-                    "/api/auth/reset-password"
-                ).permitAll()
-
-                // -------------------------------------------------
-                // SWAGGER + UPLOADED FILES
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/v3/api-docs/**",
-                    "/uploads/property-images/**",
-                    "/uploads/tenant-documents/**"
-                ).permitAll()
-
-                // -------------------------------------------------
-                // CURRENT USER PROFILE
-                // ALL AUTHENTICATED USERS
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/users/me"
-                ).authenticated()
-
-                // -------------------------------------------------
-                // USER MANAGEMENT
-                // SUPER ADMIN ONLY
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/users/**"
-                ).hasRole("SUPER_ADMIN")
+                // JWT is stateless
+                .sessionManagement(session -> session.sessionCreationPolicy(
+                        SessionCreationPolicy.STATELESS))
 
                 // =================================================
-                // PROPERTY LIST & DETAILS
-                // OWNER & TENANT BROWSING
+                // AUTHORIZATION
                 // =================================================
 
-                .requestMatchers(
-                    HttpMethod.GET,
-                    "/api/owner/properties",
-                    "/api/owner/properties/*/details"
-                ).hasAnyRole("PROPERTY_OWNER", "TENANT")
+                .authorizeHttpRequests(auth -> auth
+
+                        // -------------------------------------------------
+                        // PUBLIC AUTHENTICATION APIs
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password")
+                        .permitAll()
+
+                        // -------------------------------------------------
+                        // SWAGGER + UPLOADED FILES
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/uploads/property-images/**",
+                                "/uploads/tenant-documents/**",
+                                "/uploads/maintenance/**")
+                        .permitAll()
+
+                        // -------------------------------------------------
+                        // CURRENT USER PROFILE
+                        // ALL AUTHENTICATED USERS
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/users/me")
+                        .authenticated()
+
+                        // -------------------------------------------------
+                        // USER MANAGEMENT
+                        // SUPER ADMIN ONLY
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/users/**")
+                        .hasRole("SUPER_ADMIN")
+
+                        // =================================================
+                        // PROPERTY LIST & DETAILS
+                        // OWNER & TENANT BROWSING
+                        // =================================================
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/owner/properties",
+                                "/api/owner/properties/*/details")
+                        .hasAnyRole("PROPERTY_OWNER", "TENANT")
+
+                        // =================================================
+                        // PROPERTY OWNER APIs
+                        // =================================================
+
+                        .requestMatchers(
+                                "/api/owner/**")
+                        .hasRole("PROPERTY_OWNER")
+
+                        // =================================================
+                        // PROPERTY MANAGER APIs
+                        // =================================================
+
+                        .requestMatchers(
+                                "/api/property-manager/**",
+                                "/api/manager/**")
+                        .hasRole("PROPERTY_MANAGER")
+
+                        // -------------------------------------------------
+                        // TENANT APIs
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/tenant/**")
+                        .hasRole("TENANT")
+
+                        // -------------------------------------------------
+                        // MAINTENANCE REQUEST
+                        // Authentication required
+                        // Actual roles handled by @PreAuthorize
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/maintenance/**")
+                        .authenticated()
+
+                        // -------------------------------------------------
+                        // MAINTENANCE WORKER
+                        // Authentication required
+                        // Actual roles handled by @PreAuthorize
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/maintenance-workers/**")
+                        .authenticated()
+
+                        // -------------------------------------------------
+                        // MAINTENANCE ASSIGNMENT
+                        // Authentication required
+                        // Actual roles handled by @PreAuthorize
+                        // -------------------------------------------------
+
+                        .requestMatchers(
+                                "/api/maintenance-assignments/**")
+                        .authenticated()
+
+                        // -------------------------------------------------
+                        // EVERYTHING ELSE
+                        // -------------------------------------------------
+
+                        .anyRequest().authenticated())
 
                 // =================================================
-                // PROPERTY OWNER APIs
+                // JWT FILTER
                 // =================================================
 
-                .requestMatchers(
-                    "/api/owner/**"
-                ).hasRole("PROPERTY_OWNER")
-
-                // =================================================
-                // PROPERTY MANAGER APIs
-                // =================================================
-
-                .requestMatchers(
-                    "/api/property-manager/**",
-                    "/api/manager/**"
-                ).hasRole("PROPERTY_MANAGER")
-
-                // -------------------------------------------------
-                // TENANT APIs
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/tenant/**"
-                ).hasRole("TENANT")
-
-                // -------------------------------------------------
-                // MAINTENANCE REQUEST
-                // Authentication required
-                // Actual roles handled by @PreAuthorize
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/maintenance/**"
-                ).authenticated()
-
-                // -------------------------------------------------
-                // MAINTENANCE WORKER
-                // Authentication required
-                // Actual roles handled by @PreAuthorize
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/maintenance-workers/**"
-                ).authenticated()
-
-                // -------------------------------------------------
-                // MAINTENANCE ASSIGNMENT
-                // Authentication required
-                // Actual roles handled by @PreAuthorize
-                // -------------------------------------------------
-
-                .requestMatchers(
-                    "/api/maintenance-assignments/**"
-                ).authenticated()
-
-                // -------------------------------------------------
-                // EVERYTHING ELSE
-                // -------------------------------------------------
-
-                .anyRequest().authenticated()
-            )
-
-            // =================================================
-            // JWT FILTER
-            // =================================================
-
-            .addFilterBefore(
-                jwtAuthenticationFilter,
-                UsernamePasswordAuthenticationFilter.class
-            );
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,12 +1,22 @@
-
 package com.rental.rental_management_backend.ai.service.impl;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rental.rental_management_backend.ai.client.M2RecommendationClient;
 import com.rental.rental_management_backend.ai.dto.AvailableUnitResponse;
 import com.rental.rental_management_backend.ai.dto.M2RecommendationItem;
@@ -33,6 +43,10 @@ public class PropertyRecommendationServiceImpl
 
     private final PropertyDetailsService propertyDetailsService;
 
+    private final ObjectMapper objectMapper;
+
+    private final HttpClient httpClient;
+
     public PropertyRecommendationServiceImpl(
 
             TenantRepository tenantRepository,
@@ -41,7 +55,9 @@ public class PropertyRecommendationServiceImpl
 
             UnitRepository unitRepository,
 
-            PropertyDetailsService propertyDetailsService) {
+            PropertyDetailsService propertyDetailsService,
+
+            ObjectMapper objectMapper) {
 
         this.tenantRepository = tenantRepository;
 
@@ -50,6 +66,14 @@ public class PropertyRecommendationServiceImpl
         this.unitRepository = unitRepository;
 
         this.propertyDetailsService = propertyDetailsService;
+
+        this.objectMapper = objectMapper;
+
+        this.httpClient = HttpClient.newBuilder()
+
+                .connectTimeout(Duration.ofSeconds(5))
+
+                .build();
     }
 
     @Override
@@ -57,7 +81,13 @@ public class PropertyRecommendationServiceImpl
 
             Long tenantId,
 
-            Integer topN) {
+            Integer topN,
+
+            Double currentLatitude,
+
+            Double currentLongitude,
+
+            String currentAddress) {
 
         /*
          * ============================================================
@@ -68,11 +98,8 @@ public class PropertyRecommendationServiceImpl
         tenantRepository.findById(tenantId)
 
                 .orElseThrow(() ->
-
                         new RuntimeException(
-
-                                "Tenant not found with ID: "
-                                        + tenantId));
+                                "Tenant not found with ID: " + tenantId));
 
         /*
          * ============================================================
@@ -83,219 +110,528 @@ public class PropertyRecommendationServiceImpl
         if (topN == null || topN <= 0) {
 
             throw new IllegalArgumentException(
-
                     "topN must be greater than 0");
         }
 
         /*
          * ============================================================
-         * 3. CREATE M2 REQUEST
+         * 3. RESOLVE CURRENT LOCATION
          * ============================================================
          *
-         * M2 continues to receive exactly the same request.
-         * No AI/FastAPI changes are required.
+         * Priority:
+         *
+         * 1. Valid GPS coordinates
+         * 2. Address geocoding if GPS is unavailable
+         * 3. No coordinates if geocoding fails
+         *
+         * IMPORTANT:
+         *
+         * We never send a partial or invalid coordinate pair to M2.
          */
 
-        M2RecommendationRequest request =
+        Double validLatitude = null;
 
-                new M2RecommendationRequest(
-
-                        String.valueOf(tenantId),
-
-                        topN
-                );
+        Double validLongitude = null;
 
         /*
-         * ============================================================
-         * 4. CALL M2 AI SERVICE
-         * ============================================================
+         * ------------------------------------------------------------
+         * 3A. USE VALID GPS DIRECTLY
+         * ------------------------------------------------------------
          */
 
-        M2RecommendationResponse response =
+        if (isValidLatitude(currentLatitude)
+                && isValidLongitude(currentLongitude)) {
 
-                m2RecommendationClient
-                        .recommendProperties(request);
+            validLatitude = currentLatitude;
+
+            validLongitude = currentLongitude;
+        }
 
         /*
-         * ============================================================
-         * 5. ENRICH AI RECOMMENDATIONS WITH CURRENT DATABASE DATA
-         * ============================================================
+         * ------------------------------------------------------------
+         * 3B. GPS NOT AVAILABLE -> TRY ADDRESS GEOCODING
+         * ------------------------------------------------------------
          */
 
-        if (response != null
+        else if (currentAddress != null
+                && !currentAddress.trim().isEmpty()) {
 
-                && response.getRecommendations() != null) {
+            try {
 
-            /*
-             * Get CURRENT vacant units from PostgreSQL.
-             *
-             * This means availability is checked every time
-             * the recommendation API is called.
-             */
+                double[] coordinates =
+                        geocodeAddress(currentAddress.trim());
 
-            List<Unit> vacantUnits =
+                if (coordinates != null
+                        && isValidLatitude(coordinates[0])
+                        && isValidLongitude(coordinates[1])) {
 
-                    unitRepository.findByStatus(
-                            UnitStatus.VACANT);
+                    validLatitude = coordinates[0];
 
-            /*
-             * Process every property returned by M2.
-             */
-
-            for (M2RecommendationItem recommendation
-
-                    : response.getRecommendations()) {
-
-                /*
-                 * ----------------------------------------------------
-                 * PROPERTY ID VALIDATION
-                 * ----------------------------------------------------
-                 */
-
-                if (recommendation.getPropertyId() == null) {
-
-                    recommendation.setAvailableUnits(
-                            new ArrayList<>());
-
-                    recommendation.setPropertyDetails(null);
-
-                    continue;
+                    validLongitude = coordinates[1];
                 }
 
-                Long recommendedPropertyId;
-
-                try {
-
-                    recommendedPropertyId =
-
-                            Long.valueOf(
-                                    recommendation.getPropertyId());
-
-                } catch (NumberFormatException ex) {
-
-                    recommendation.setAvailableUnits(
-                            new ArrayList<>());
-
-                    recommendation.setPropertyDetails(null);
-
-                    continue;
-                }
+            } catch (Exception ex) {
 
                 /*
-                 * ----------------------------------------------------
-                 * CURRENT PROPERTY DETAILS
-                 * ----------------------------------------------------
+                 * Geocoding failure must NOT fail the recommendation.
                  *
-                 * IMPORTANT:
-                 *
-                 * M2 gives us only the propertyId.
-                 *
-                 * We now use that propertyId to fetch the
-                 * CURRENT property information from PostgreSQL.
-                 *
-                 * This reuses your existing:
-                 *
-                 * PropertyDetailsService
-                 *
-                 * and specifically:
-                 *
-                 * getPublicPropertyDetails(propertyId)
+                 * M2 can continue without distance calculation.
                  */
 
-                try {
+                validLatitude = null;
 
-                    PropertyDetailsResponse propertyDetails =
-
-                            propertyDetailsService
-                                    .getPublicPropertyDetails(
-                                            recommendedPropertyId);
-
-                    recommendation.setPropertyDetails(
-                            propertyDetails);
-
-                } catch (Exception ex) {
-
-                    /*
-                     * If the property is no longer available
-                     * for tenant browsing, do not expose stale
-                     * property details.
-                     */
-
-                    recommendation.setPropertyDetails(null);
-                }
-
-                /*
-                 * ----------------------------------------------------
-                 * CURRENT AVAILABLE UNITS
-                 * ----------------------------------------------------
-                 */
-
-                List<AvailableUnitResponse> availableUnits =
-
-                        new ArrayList<>();
-
-                for (Unit unit : vacantUnits) {
-
-                    /*
-                     * Safety checks for property hierarchy.
-                     */
-
-                    if (unit.getFloor() == null
-
-                            || unit.getFloor()
-                                    .getBuilding() == null
-
-                            || unit.getFloor()
-                                    .getBuilding()
-                                    .getProperty() == null) {
-
-                        continue;
-                    }
-
-                    Long unitPropertyId =
-
-                            unit.getFloor()
-                                    .getBuilding()
-                                    .getProperty()
-                                    .getPropertyId();
-
-                    /*
-                     * Add only units belonging to the
-                     * currently recommended property.
-                     */
-
-                    if (recommendedPropertyId
-                            .equals(unitPropertyId)) {
-
-                        availableUnits.add(
-
-                                new AvailableUnitResponse(
-
-                                        unit.getUnitId(),
-
-                                        unit.getMonthlyRent(),
-
-                                        unit.getBedrooms()
-                                )
-                        );
-                    }
-                }
-
-                /*
-                 * Set CURRENT available units.
-                 */
-
-                recommendation.setAvailableUnits(
-                        availableUnits);
+                validLongitude = null;
             }
         }
 
         /*
          * ============================================================
-         * 6. RETURN FINAL RESPONSE
+         * 4. CREATE M2 REQUEST
+         * ============================================================
+         *
+         * IMPORTANT:
+         *
+         * We do NOT send tenant preferences.
+         *
+         * M2 reads the tenant's live preferences directly from Neon
+         * using tenantId.
+         *
+         * currentLatitude/currentLongitude represent the current
+         * request-time location.
+         */
+
+        M2RecommendationRequest request =
+                new M2RecommendationRequest(
+
+                        String.valueOf(tenantId),
+
+                        topN,
+
+                        validLatitude,
+
+                        validLongitude,
+
+                        currentAddress
+                );
+
+        /*
+         * ============================================================
+         * 5. CALL M2 AI SERVICE
+         * ============================================================
+         */
+
+        M2RecommendationResponse response =
+                m2RecommendationClient.recommendProperties(request);
+
+        /*
+         * ============================================================
+         * 6. HANDLE EMPTY M2 RESPONSE
+         * ============================================================
+         */
+
+        if (response == null
+                || response.getRecommendations() == null
+                || response.getRecommendations().isEmpty()) {
+
+            return response;
+        }
+
+        /*
+         * ============================================================
+         * 7. ENRICH ONLY M2-SELECTED UNITS
+         * ============================================================
+         *
+         * IMPORTANT:
+         *
+         * We do NOT fetch every vacant unit.
+         *
+         * M2 has already selected the qualifying units.
+         *
+         * Spring Boot only revalidates those units against the
+         * current database state.
+         */
+
+        List<M2RecommendationItem> validRecommendations =
+                new ArrayList<>();
+
+        for (M2RecommendationItem recommendation
+                : response.getRecommendations()) {
+
+            /*
+             * --------------------------------------------------------
+             * PROPERTY ID VALIDATION
+             * --------------------------------------------------------
+             */
+
+            if (recommendation == null
+                    || recommendation.getPropertyId() == null) {
+
+                continue;
+            }
+
+            Long recommendedPropertyId;
+
+            try {
+
+                recommendedPropertyId =
+                        Long.valueOf(
+                                recommendation.getPropertyId());
+
+            } catch (NumberFormatException ex) {
+
+                continue;
+            }
+
+            /*
+             * --------------------------------------------------------
+             * PROPERTY DETAILS
+             * --------------------------------------------------------
+             *
+             * Get current property information from PostgreSQL.
+             */
+
+            try {
+
+                PropertyDetailsResponse propertyDetails =
+                        propertyDetailsService
+                                .getPublicPropertyDetails(
+                                        recommendedPropertyId);
+
+                recommendation.setPropertyDetails(
+                        propertyDetails);
+
+            } catch (Exception ex) {
+
+                /*
+                 * Property may no longer be available for public
+                 * browsing.
+                 *
+                 * Do not return stale property information.
+                 */
+
+                continue;
+            }
+
+            /*
+             * --------------------------------------------------------
+             * M2-SELECTED AVAILABLE UNITS
+             * --------------------------------------------------------
+             */
+
+            List<AvailableUnitResponse> m2Units =
+                    recommendation.getAvailableUnits();
+
+            List<AvailableUnitResponse> currentAvailableUnits =
+                    new ArrayList<>();
+
+            /*
+             * No units returned by M2 means this property cannot
+             * be returned as a usable recommendation.
+             */
+
+            if (m2Units == null || m2Units.isEmpty()) {
+
+                continue;
+            }
+
+            /*
+             * Keep track of unit IDs returned by M2.
+             */
+
+            Set<Long> m2UnitIds = new HashSet<>();
+
+            for (AvailableUnitResponse m2Unit : m2Units) {
+
+                if (m2Unit == null
+                        || m2Unit.getUnitId() == null) {
+
+                    continue;
+                }
+
+                m2UnitIds.add(m2Unit.getUnitId());
+            }
+
+            /*
+             * --------------------------------------------------------
+             * REVALIDATE EACH M2 UNIT
+             * --------------------------------------------------------
+             *
+             * Only units selected by M2 are checked.
+             *
+             * If a unit has become OCCUPIED after M2 generated
+             * recommendations, it is removed.
+             */
+
+            for (Long unitId : m2UnitIds) {
+
+                Unit unit;
+
+                try {
+
+                    unit = unitRepository.findById(unitId)
+                            .orElse(null);
+
+                } catch (Exception ex) {
+
+                    continue;
+                }
+
+                if (unit == null) {
+
+                    continue;
+                }
+
+                /*
+                 * Unit must still be VACANT.
+                 */
+
+                if (unit.getStatus() != UnitStatus.VACANT) {
+
+                    continue;
+                }
+
+                /*
+                 * Verify that the unit still belongs to the
+                 * property recommended by M2.
+                 */
+
+                if (unit.getFloor() == null
+                        || unit.getFloor().getBuilding() == null
+                        || unit.getFloor()
+                                .getBuilding()
+                                .getProperty() == null) {
+
+                    continue;
+                }
+
+                Long actualPropertyId =
+                        unit.getFloor()
+                                .getBuilding()
+                                .getProperty()
+                                .getPropertyId();
+
+                if (!recommendedPropertyId.equals(actualPropertyId)) {
+
+                    continue;
+                }
+
+                /*
+                 * Use CURRENT database values rather than stale
+                 * values returned by M2.
+                 */
+
+                currentAvailableUnits.add(
+
+                        new AvailableUnitResponse(
+
+                                unit.getUnitId(),
+
+                                unit.getMonthlyRent(),
+
+                                unit.getBedrooms()
+
+                        )
+                );
+            }
+
+            /*
+             * --------------------------------------------------------
+             * REMOVE PROPERTY IF ALL M2 UNITS ARE UNAVAILABLE
+             * --------------------------------------------------------
+             */
+
+            if (currentAvailableUnits.isEmpty()) {
+
+                continue;
+            }
+
+            /*
+             * Set only the currently valid M2-selected units.
+             */
+
+            recommendation.setAvailableUnits(
+                    currentAvailableUnits);
+
+            /*
+             * Keep this property recommendation.
+             */
+
+            validRecommendations.add(recommendation);
+        }
+
+        /*
+         * ============================================================
+         * 8. REPLACE STALE RECOMMENDATIONS
+         * ============================================================
+         */
+
+        response.setRecommendations(
+                validRecommendations);
+
+        /*
+         * Count represents DISTINCT recommended properties.
+         */
+
+        response.setCount(
+                validRecommendations.size());
+
+        /*
+         * ============================================================
+         * 9. RETURN FINAL RESPONSE
          * ============================================================
          */
 
         return response;
+    }
+
+    /*
+     * ================================================================
+     * GPS VALIDATION
+     * ================================================================
+     */
+
+    private boolean isValidLatitude(Double latitude) {
+
+        return latitude != null
+
+                && Double.isFinite(latitude)
+
+                && latitude >= -90.0
+
+                && latitude <= 90.0;
+    }
+
+    private boolean isValidLongitude(Double longitude) {
+
+        return longitude != null
+
+                && Double.isFinite(longitude)
+
+                && longitude >= -180.0
+
+                && longitude <= 180.0;
+    }
+
+    /*
+     * ================================================================
+     * ADDRESS -> COORDINATES
+     * ================================================================
+     *
+     * Uses OpenStreetMap Nominatim for address resolution.
+     *
+     * If the address cannot be resolved, this method returns null.
+     *
+     * The recommendation flow continues without coordinates.
+     *
+     * M2 remains responsible for distance calculation.
+     */
+
+    private double[] geocodeAddress(String address)
+
+            throws Exception {
+
+        String encodedAddress =
+
+                URLEncoder.encode(
+
+                        address,
+
+                        StandardCharsets.UTF_8);
+
+        String url =
+
+                "https://nominatim.openstreetmap.org/search"
+
+                        + "?q=" + encodedAddress
+
+                        + "&format=json"
+
+                        + "&limit=1";
+
+        HttpRequest request =
+
+                HttpRequest.newBuilder()
+
+                        .uri(URI.create(url))
+
+                        .timeout(Duration.ofSeconds(5))
+
+                        .header(
+
+                                "User-Agent",
+
+                                "AI-Smart-Rental-Property-Management-System")
+
+                        .GET()
+
+                        .build();
+
+        HttpResponse<String> response =
+
+                httpClient.send(
+
+                        request,
+
+                        HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+
+            return null;
+        }
+
+        JsonNode root =
+
+                objectMapper.readTree(
+
+                        response.body());
+
+        if (!root.isArray()
+
+                || root.isEmpty()) {
+
+            return null;
+        }
+
+        JsonNode firstResult =
+
+                root.get(0);
+
+        JsonNode latitudeNode =
+
+                firstResult.get("lat");
+
+        JsonNode longitudeNode =
+
+                firstResult.get("lon");
+
+        if (latitudeNode == null
+
+                || longitudeNode == null) {
+
+            return null;
+        }
+
+        double latitude =
+
+                latitudeNode.asDouble();
+
+        double longitude =
+
+                longitudeNode.asDouble();
+
+        if (!isValidLatitude(latitude)
+
+                || !isValidLongitude(longitude)) {
+
+            return null;
+        }
+
+        return new double[] {
+
+                latitude,
+
+                longitude
+
+        };
     }
 }

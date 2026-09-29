@@ -1,13 +1,28 @@
+
 package com.rental.rental_management_backend.rental.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.rental.enums.RentalApplicationStatus;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(
@@ -25,38 +40,33 @@ public class RentalApplication {
     @Column(name = "application_id")
     private Long applicationId;
 
-    // Tenant who submits the rental application
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    // Unit for which the tenant is applying
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 
-    // Date on which the application was submitted
     @Column(name = "application_date", nullable = false)
     private LocalDate applicationDate;
 
-    // Tenant's preferred move-in date
     @Column(name = "preferred_move_in_date")
     private LocalDate preferredMoveInDate;
 
-    // Optional message from tenant
+    @Column(name = "preferred_lease_duration_months")
+    private Integer preferredLeaseDurationMonths;
+
     @Column(name = "message", columnDefinition = "TEXT")
     private String message;
 
-    // Application status
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private RentalApplicationStatus status;
 
-    // Used only when the application is rejected
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
-    // Date/time when owner or manager reviewed the application
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
@@ -80,8 +90,13 @@ public class RentalApplication {
             status = RentalApplicationStatus.PENDING;
         }
 
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (createdAt == null) {
+            createdAt = now;
+        }
+
+        updatedAt = now;
     }
 
     @PreUpdate
@@ -127,6 +142,14 @@ public class RentalApplication {
 
     public void setPreferredMoveInDate(LocalDate preferredMoveInDate) {
         this.preferredMoveInDate = preferredMoveInDate;
+    }
+
+    public Integer getPreferredLeaseDurationMonths() {
+        return preferredLeaseDurationMonths;
+    }
+
+    public void setPreferredLeaseDurationMonths(Integer preferredLeaseDurationMonths) {
+        this.preferredLeaseDurationMonths = preferredLeaseDurationMonths;
     }
 
     public String getMessage() {
@@ -177,3 +200,4 @@ public class RentalApplication {
         this.updatedAt = updatedAt;
     }
 }
+

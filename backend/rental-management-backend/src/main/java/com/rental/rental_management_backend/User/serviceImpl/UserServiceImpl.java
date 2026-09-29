@@ -30,7 +30,6 @@ import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
-
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
@@ -147,7 +146,6 @@ public class UserServiceImpl implements UserService {
 
             Tenant tenant = new Tenant();
             tenant.setUser(savedUser);
-
             tenantRepository.save(tenant);
         }
 

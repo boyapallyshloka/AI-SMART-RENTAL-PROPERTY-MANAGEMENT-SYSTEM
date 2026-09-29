@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -7,7 +8,7 @@ from m1_rent_prediction.api import (
     router as m1_router,
     predict_rent_endpoint,
     PropertyInput,
-    RentPredictionResponse
+    RentPredictionResponse,
 )
 from M2_Property_Recommendation.api import router as m2_router
 from m3_rental_demand.api import router as m3_router
@@ -15,15 +16,15 @@ from m4_payment_risk.api import router as m4_router
 from m5_predictive_maintenance.api import router as m5_router
 from m6_profitability_prediction.api import router as m6_router
 from scout.api import router as scout_router
-from scout.schemas import ScoutChatRequest, ScoutChatResponse
-from scout.service import process_message
+
 
 logger = logging.getLogger("avenue360.ai_service")
+
 
 app = FastAPI(
     title="Avenue360 AI Service",
     description="Central AI/ML service integrating M1-M6 and Scout chatbot",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -34,35 +35,50 @@ app = FastAPI(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
-    exc: RequestValidationError
+    exc: RequestValidationError,
 ) -> JSONResponse:
     """Standardized validation error response per Avenue360 ML Standard."""
+
     errors = []
+
     for error in exc.errors():
-        loc_parts = [str(item) for item in error.get("loc", []) if item != "body"]
+        loc_parts = [
+            str(item)
+            for item in error.get("loc", [])
+            if item != "body"
+        ]
+
         location = " -> ".join(loc_parts) if loc_parts else "body"
-        errors.append(f"{location}: {error.get('msg', 'invalid value')}")
+
+        errors.append(
+            f"{location}: {error.get('msg', 'invalid value')}"
+        )
 
     return JSONResponse(
         status_code=422,
         content={
             "success": False,
             "errorCode": "INVALID_INPUT",
-            "message": "; ".join(errors) if errors else "Invalid request payload."
-        }
+            "message": (
+                "; ".join(errors)
+                if errors
+                else "Invalid request payload."
+            ),
+        },
     )
 
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(
     request: Request,
-    exc: HTTPException
+    exc: HTTPException,
 ) -> JSONResponse:
-    """Unwraps dictionary details to prevent nested detail responses."""
+    """Unwrap dictionary details to prevent nested detail responses."""
+
     if isinstance(exc.detail, dict) and "errorCode" in exc.detail:
         return JSONResponse(
             status_code=exc.status_code,
-            content=exc.detail
+            content=exc.detail,
         )
 
     return JSONResponse(
@@ -70,25 +86,33 @@ async def http_exception_handler(
         content={
             "success": False,
             "errorCode": "HTTP_ERROR",
-            "message": str(exc.detail)
-        }
+            "message": str(exc.detail),
+        },
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(
     request: Request,
-    exc: Exception
+    exc: Exception,
 ) -> JSONResponse:
     """Catches unhandled errors without leaking stack traces or internal paths."""
-    logger.error(f"Unhandled server error: {exc}", exc_info=True)
+
+    logger.error(
+        f"Unhandled server error: {exc}",
+        exc_info=True,
+    )
+
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
             "errorCode": "INTERNAL_ERROR",
-            "message": "An internal server error occurred while processing the request."
-        }
+            "message": (
+                "An internal server error occurred "
+                "while processing the request."
+            ),
+        },
     )
 
 
@@ -105,31 +129,25 @@ app.include_router(m6_router)
 
 
 # ============================================================
-# SCOUT ROUTER & COMPATIBILITY ENDPOINTS
+# SCOUT ROUTER
 # ============================================================
 
 app.include_router(scout_router)
 
 
+# ============================================================
+# DIRECT RENT PREDICTION COMPATIBILITY ENDPOINT
+# ============================================================
+
 @app.post(
     "/predict-rent",
     response_model=RentPredictionResponse,
-    tags=["Rent Prediction"]
+    tags=["Rent Prediction"],
 )
 def predict_rent_direct(property_data: PropertyInput):
     """Direct alias for backend compatibility (ai.fastapi.rent-prediction-url)."""
+
     return predict_rent_endpoint(property_data)
-
-
-@app.post(
-    "/api/v1/chatbot/chat",
-    response_model=ScoutChatResponse,
-    tags=["Scout"]
-)
-def chatbot_chat_v1(request: ScoutChatRequest) -> ScoutChatResponse:
-    """Compatibility alias for backend/frontend chatbot integration."""
-    response = process_message(request.message)
-    return ScoutChatResponse(response=response)
 
 
 # ============================================================
@@ -141,7 +159,7 @@ def home():
     return {
         "message": "Avenue360 AI Service is running",
         "status": "online",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
 
 
@@ -149,5 +167,5 @@ def home():
 def health():
     return {
         "status": "healthy",
-        "service": "avenue360-ai-service"
+        "service": "avenue360-ai-service",
     }

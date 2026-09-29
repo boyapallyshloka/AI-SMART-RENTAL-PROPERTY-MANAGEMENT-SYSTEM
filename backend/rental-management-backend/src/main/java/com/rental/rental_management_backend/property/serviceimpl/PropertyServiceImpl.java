@@ -43,7 +43,7 @@ public class PropertyServiceImpl implements PropertyService {
         this.propertyManagerRepository = propertyManagerRepository;
     }
 
-    @Override
+    @Override 
     public PropertyResponse createProperty(PropertyRequest request) {
 
         User owner = getLoggedInUser();
@@ -68,7 +68,7 @@ public class PropertyServiceImpl implements PropertyService {
 
         /*
          * Owner is taken from the authenticated JWT user.
-         * Client cannot choose ownerId.
+         * Client cannot choose  ownerId.
          */
 
         property.setOwner(owner);
