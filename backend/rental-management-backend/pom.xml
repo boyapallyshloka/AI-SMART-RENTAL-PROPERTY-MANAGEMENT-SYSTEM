@@ -111,29 +111,23 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-<<<<<<< Updated upstream
-        <!-- PDF Generation -->
+
 <dependency>
     <groupId>org.apache.pdfbox</groupId>
     <artifactId>pdfbox</artifactId>
     <version>3.0.6</version>
 </dependency>
+
 <dependency>
     <groupId>com.razorpay</groupId>
     <artifactId>razorpay-java</artifactId> 
     <version>1.4.8</version>
 </dependency>
-=======
+
         
         <!-- Apache PDFBox for PDF generation -->
-<dependency>
-    <groupId>org.apache.pdfbox</groupId>
-    <artifactId>pdfbox</artifactId>
-    <version>3.0.5</version>
-</dependency>
-        
 
->>>>>>> Stashed changes
+
 
     </dependencies>
 
