@@ -1,9 +1,12 @@
+
 package com.rental.rental_management_backend.payment.dto;
 
 import java.math.BigDecimal;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+
+import com.rental.rental_management_backend.payment.enums.PaymentMethod;
 
 public class PaymentCreateDTO {
 
@@ -16,6 +19,9 @@ public class PaymentCreateDTO {
             message = "Payment amount must be greater than zero"
     )
     private BigDecimal amount;
+
+    @NotNull(message = "Payment method is required")
+    private PaymentMethod paymentMethod;
 
     public PaymentCreateDTO() {
     }
@@ -34,5 +40,13 @@ public class PaymentCreateDTO {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 }

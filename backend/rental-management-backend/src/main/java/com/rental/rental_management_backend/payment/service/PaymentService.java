@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.payment.service;
 
 import java.util.List;
@@ -7,25 +8,23 @@ import com.rental.rental_management_backend.payment.dto.PaymentResponse;
 
 public interface PaymentService {
 
-    PaymentResponse createPaymentOrder(
-            PaymentCreateDTO request
-    );
+    PaymentResponse createPayment(
+            PaymentCreateDTO request,
+            String email);
 
-    PaymentResponse verifyPayment(
-            String razorpayOrderId,
-            String razorpayPaymentId,
-            String razorpaySignature
-    );
+    PaymentResponse confirmPayment(
+            Long paymentId,
+            String email);
 
     PaymentResponse getPaymentById(
-            Long paymentId
-    );
+            Long paymentId,
+            String email);
 
     List<PaymentResponse> getPaymentsByTenant(
-            Long tenantId
-    );
+            Long tenantId,
+            String email);
 
     List<PaymentResponse> getPaymentsByInvoice(
-            Long invoiceId
-    );
+            Long invoiceId,
+            String email);
 }

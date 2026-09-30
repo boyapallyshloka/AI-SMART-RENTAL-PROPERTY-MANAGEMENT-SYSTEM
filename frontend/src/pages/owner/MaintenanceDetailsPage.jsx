@@ -15,6 +15,16 @@ import {
   MAINTENANCE_STATUSES,
 } from '../../api/maintenanceApi'
 import {
+  getPropertyDetails,
+  getMyProperties,
+} from '../../api/propertyApi'
+import {
+  getApplicationsForUnit,
+  getApplicationsForProperty,
+  getApplicationById,
+} from '../../api/applicationApi'
+import axiosClient from '../../api/axiosClient'
+import {
   Button,
   StatusBadge,
   EmptyState,
@@ -56,6 +66,29 @@ const TIMELINE_STEPS = [
   { key: 'COMPLETED', label: 'Resolved' },
 ]
 
+/**
+ * Normalizes property names into Title Case for clean user-facing presentation.
+ * Example: "sri sai residency" -> "Sri Sai Residency"
+ */
+const formatPropertyName = (name) => {
+  if (!name || typeof name !== 'string') return ''
+  const trimmed = name.trim()
+  if (!trimmed) return ''
+  return trimmed
+    .split(/\s+/)
+    .map((word) =>
+      word
+        .split('-')
+        .map((part) =>
+          part
+            ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+            : ''
+        )
+        .join('-')
+    )
+    .join(' ')
+}
+
 export default function MaintenanceDetailsPage() {
   const { id } = useParams()
   const [request, setRequest] = useState(null)
@@ -63,6 +96,11 @@ export default function MaintenanceDetailsPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [statusUpdating, setStatusUpdating] = useState(false)
+
+  // Human-readable Property, Unit, and Tenant display state
+  const [propertyName, setPropertyName] = useState('')
+  const [unitNumber, setUnitNumber] = useState('')
+  const [tenantName, setTenantName] = useState('')
 
   // Worker Assignment State
   const [assignment, setAssignment] = useState(null)
@@ -78,13 +116,222 @@ export default function MaintenanceDetailsPage() {
   const [predictionLoading, setPredictionLoading] = useState(false)
   const [predictionError, setPredictionError] = useState('')
 
+  // Load human-readable details for property, unit, and tenant
+  const loadRelatedEntities = async (ticketData) => {
+    if (!ticketData) return
+
+    // If backend response already contains human-readable fields, populate them
+    if (ticketData.propertyName) {
+      setPropertyName(ticketData.propertyName)
+    }
+    if (ticketData.unitNumber) {
+      setUnitNumber(String(ticketData.unitNumber))
+    }
+    if (ticketData.tenantName) {
+      setTenantName(ticketData.tenantName)
+    }
+
+    const { propertyId, unitId, tenantId } = ticketData
+
+    // 1. Fetch Property details using getPropertyDetails and traverse Property -> Buildings -> Floors -> Units
+    if (propertyId) {
+      try {
+        let details = null
+        try {
+          details = await getPropertyDetails(propertyId)
+        } catch (ownErr) {
+          // If property details hierarchy fails, fallback to owner-authorized getMyProperties
+          try {
+            const myProps = await getMyProperties()
+            const list = Array.isArray(myProps?.data)
+              ? myProps.data
+              : Array.isArray(myProps)
+                ? myProps
+                : []
+            const matchedProp = list.find(
+              (p) => String(p.propertyId || p.id) === String(propertyId)
+            )
+            if (matchedProp) {
+              const pName = matchedProp.propertyName || matchedProp.name || matchedProp.title
+              if (pName) {
+                setPropertyName((prev) => prev || pName)
+              }
+            }
+          } catch (fallbackErr) {
+            // Ignore - resolveTenantName will also attempt resolution
+          }
+        }
+
+        if (details) {
+          // Resolve Property Name
+          const propName =
+            details?.property?.propertyName ||
+            details?.propertyName ||
+            details?.property?.name ||
+            details?.name ||
+            details?.title
+          if (propName) {
+            setPropertyName(propName)
+          }
+
+          // Resolve Unit Number: Traverse Property -> Buildings -> Floors -> Units
+          if (unitId) {
+            let foundUnitNum = null
+
+            if (Array.isArray(details?.buildings)) {
+              for (const b of details.buildings) {
+                if (Array.isArray(b?.floors)) {
+                  for (const f of b.floors) {
+                    if (Array.isArray(f?.units)) {
+                      for (const u of f.units) {
+                        if (String(u?.unitId) === String(unitId)) {
+                          foundUnitNum = u.unitNumber
+                          break
+                        }
+                      }
+                    }
+                    if (foundUnitNum) break
+                  }
+                }
+                if (foundUnitNum) break
+              }
+            }
+
+            // Fallback: check flat units array if present
+            if (!foundUnitNum && Array.isArray(details?.units)) {
+              const uMatch = details.units.find(
+                (u) => String(u?.unitId) === String(unitId)
+              )
+              if (uMatch?.unitNumber) {
+                foundUnitNum = uMatch.unitNumber
+              }
+            }
+
+            if (foundUnitNum) {
+              setUnitNumber(String(foundUnitNum))
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load property details:', err)
+      }
+    }
+
+    // 2. Resolve Tenant Name using existing Rental Applications and Agreements APIs
+    const resolveTenantName = async () => {
+      // 2a. Check applications submitted for this unit
+      if (unitId) {
+        try {
+          const unitApps = await getApplicationsForUnit(unitId)
+          const list = Array.isArray(unitApps?.data)
+            ? unitApps.data
+            : Array.isArray(unitApps)
+              ? unitApps
+              : []
+          if (list.length > 0) {
+            const match = list.find((a) => String(a.tenantId) === String(tenantId))
+            if (match?.tenantName) {
+              if (match.unitNumber) setUnitNumber((prev) => prev || String(match.unitNumber))
+              if (match.propertyName) setPropertyName((prev) => prev || match.propertyName)
+              return match.tenantName
+            }
+            const approved = list.find((a) => a.status === 'APPROVED' && a.tenantName)
+            if (approved?.tenantName) {
+              if (approved.unitNumber) setUnitNumber((prev) => prev || String(approved.unitNumber))
+              if (approved.propertyName) setPropertyName((prev) => prev || approved.propertyName)
+              return approved.tenantName
+            }
+            const first = list.find((a) => a.tenantName)
+            if (first?.tenantName) {
+              if (first.unitNumber) setUnitNumber((prev) => prev || String(first.unitNumber))
+              return first.tenantName
+            }
+          }
+        } catch (e) {
+          // Continue to next resolution strategy
+        }
+      }
+
+      // 2b. Check applications submitted for this property
+      if (propertyId) {
+        try {
+          const propApps = await getApplicationsForProperty(propertyId)
+          const list = Array.isArray(propApps?.data)
+            ? propApps.data
+            : Array.isArray(propApps)
+              ? propApps
+              : []
+          if (list.length > 0) {
+            const match = list.find(
+              (a) => String(a.tenantId) === String(tenantId) && a.tenantName
+            )
+            if (match?.tenantName) {
+              if (match.unitNumber) setUnitNumber((prev) => prev || String(match.unitNumber))
+              return match.tenantName
+            }
+            if (unitId) {
+              const unitMatch = list.find(
+                (a) => String(a.unitId) === String(unitId) && a.tenantName
+              )
+              if (unitMatch?.tenantName) {
+                if (unitMatch.unitNumber) setUnitNumber((prev) => prev || String(unitMatch.unitNumber))
+                return unitMatch.tenantName
+              }
+            }
+          }
+        } catch (e) {
+          // Continue to next resolution strategy
+        }
+      }
+
+      // 2c. Check active rental agreements
+      try {
+        const agrs = await axiosClient.get('/rental-agreements')
+        const agrList = Array.isArray(agrs?.data)
+          ? agrs.data
+          : Array.isArray(agrs)
+            ? agrs
+            : []
+        const match = agrList.find(
+          (a) =>
+            (tenantId && String(a.tenantId) === String(tenantId)) ||
+            (unitId && String(a.unitId) === String(unitId))
+        )
+        if (match?.applicationId) {
+          const app = await getApplicationById(match.applicationId)
+          if (app?.tenantName) return app.tenantName
+        }
+      } catch (e) {
+        // Fallback
+      }
+
+      return null
+    }
+
+    resolveTenantName()
+      .then((resolvedName) => {
+        if (resolvedName) {
+          setTenantName(resolvedName)
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not resolve tenant name:', err)
+      })
+  }
+
   // Load ticket details and associated data
   const loadTicketDetails = async () => {
     setLoading(true)
     setErrorMessage('')
+    setPropertyName('')
+    setUnitNumber('')
+    setTenantName('')
     try {
       const data = await getMaintenanceRequestById(id)
       setRequest(data)
+
+      // Fetch human-readable property, unit, and tenant names
+      loadRelatedEntities(data)
 
       // Fetch workers and assignments
       try {
@@ -235,6 +482,34 @@ export default function MaintenanceDetailsPage() {
     return <StatusBadge status={formatStatusLabel(status)} size="md" />
   }
 
+  // Human-readable display values with safe fallback to database IDs
+  const displayPropertyName =
+    formatPropertyName(propertyName) ||
+    (request?.propertyId ? `Property #${request.propertyId}` : '—')
+
+  const displayUnitNumber =
+    unitNumber !== null && unitNumber !== undefined && String(unitNumber).trim()
+      ? String(unitNumber).trim().replace(/^Unit\s*/i, '')
+      : (request?.unitId ? `Unit #${request.unitId}` : '—')
+
+  const displayTenantName =
+    tenantName?.trim() ||
+    (request?.tenantId ? `Tenant #${request.tenantId}` : '—')
+
+  const displayAiSubtitle = (() => {
+    const propPart =
+      formatPropertyName(propertyName) ||
+      (request?.propertyId ? `Property #${request.propertyId}` : 'Property')
+    let unitPart = ''
+    if (unitNumber && String(unitNumber).trim()) {
+      const cleanNum = String(unitNumber).trim().replace(/^Unit\s*/i, '')
+      unitPart = ` (Unit ${cleanNum})`
+    } else if (request?.unitId) {
+      unitPart = ` (Unit #${request.unitId})`
+    }
+    return `Machine learning degradation forecast for ${propPart}${unitPart}`
+  })()
+
   return (
     <DashboardLayout
       defaultRole="owner"
@@ -333,7 +608,7 @@ export default function MaintenanceDetailsPage() {
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-[#5B6875] mt-1.5">
-                    Property #{request.propertyId || '—'} {request.unitId ? `• Unit #${request.unitId}` : ''}
+                    {displayPropertyName} {displayUnitNumber && displayUnitNumber !== '—' ? (displayUnitNumber.startsWith('Unit') ? `• ${displayUnitNumber}` : `• Unit ${displayUnitNumber}`) : ''}
                     {' '}&bull; Submitted: {request.requestedDate ? new Date(request.requestedDate).toLocaleString() : 'Recent'}
                   </p>
                 </div>
@@ -432,23 +707,21 @@ export default function MaintenanceDetailsPage() {
                   return (
                     <div
                       key={step.key}
-                      className={`p-3.5 rounded-xl border text-center space-y-1.5 transition-colors ${
-                        isCurrent
-                          ? 'bg-[#EAF2F7] border-[#315A7D] shadow-2xs'
-                          : isCompleted
+                      className={`p-3.5 rounded-xl border text-center space-y-1.5 transition-colors ${isCurrent
+                        ? 'bg-[#EAF2F7] border-[#315A7D] shadow-2xs'
+                        : isCompleted
                           ? 'bg-[#EDF7EE] border-[#C6DEC8]'
                           : 'bg-[#F7F8FA] border-[#D9E0E6] opacity-70'
-                      }`}
+                        }`}
                     >
                       <div className="flex justify-center">
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                            isCurrent
-                              ? 'bg-[#315A7D] text-white animate-pulse'
-                              : isCompleted
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isCurrent
+                            ? 'bg-[#315A7D] text-white animate-pulse'
+                            : isCompleted
                               ? 'bg-[#3F7D58] text-white'
                               : 'bg-[#D9E0E6] text-[#5B6875]'
-                          }`}
+                            }`}
                         >
                           {isCompleted ? (
                             <Check className="w-3.5 h-3.5" />
@@ -458,13 +731,12 @@ export default function MaintenanceDetailsPage() {
                         </div>
                       </div>
                       <p
-                        className={`text-xs font-semibold ${
-                          isCurrent
-                            ? 'text-[#315A7D]'
-                            : isCompleted
+                        className={`text-xs font-semibold ${isCurrent
+                          ? 'text-[#315A7D]'
+                          : isCompleted
                             ? 'text-[#2A583B]'
                             : 'text-[#5B6875]'
-                        }`}
+                          }`}
                       >
                         {step.label}
                       </p>
@@ -472,8 +744,8 @@ export default function MaintenanceDetailsPage() {
                         {isCurrent
                           ? 'Current'
                           : isCompleted
-                          ? 'Completed'
-                          : 'Upcoming'}
+                            ? 'Completed'
+                            : 'Upcoming'}
                       </span>
                     </div>
                   )
@@ -491,12 +763,10 @@ export default function MaintenanceDetailsPage() {
                   <div>
                     <h2 className="text-base font-bold text-[#243447] flex items-center gap-2">
                       AI Predictive Maintenance Analytics
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
-                        M5 ML Pipeline
-                      </span>
+
                     </h2>
                     <p className="text-xs text-[#5B6875] mt-0.5">
-                      Machine learning degradation forecast for Property #{request.propertyId || '—'} {request.unitId ? `(Unit #${request.unitId})` : ''}
+                      {displayAiSubtitle}
                     </p>
                   </div>
                 </div>
@@ -537,13 +807,12 @@ export default function MaintenanceDetailsPage() {
                           {prediction.maintenance_risk?.risk_level || 'Evaluated'}
                         </span>
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${
-                            String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'HIGH'
-                              ? 'bg-[#FDF2F2] text-[#8A2E2C] border-[#F4B4B4]'
-                              : String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'MEDIUM'
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'HIGH'
+                            ? 'bg-[#FDF2F2] text-[#8A2E2C] border-[#F4B4B4]'
+                            : String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'MEDIUM'
                               ? 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]'
                               : 'bg-[#EDF7EE] text-[#2A583B] border-[#C6DEC8]'
-                          }`}
+                            }`}
                         >
                           {prediction.maintenance_risk?.risk_level || 'Active'}
                         </span>
@@ -561,7 +830,7 @@ export default function MaintenanceDetailsPage() {
                           ? `${(prediction.maintenance_risk.probability * 100).toFixed(1)}%`
                           : '—'}
                       </div>
-                      <p className="text-[11px] text-[#5B6875]">Confidence Score</p>
+                      <p className="text-[11px] text-[#5B6875]">Predicted Failure Risk</p>
                     </div>
 
                     {/* Metric 3: Next Month Incident Forecast */}
@@ -586,8 +855,8 @@ export default function MaintenanceDetailsPage() {
                       <div className="text-xl font-extrabold text-[#2A583B]">
                         {prediction.next_month_maintenance_cost != null
                           ? `₹${Number(prediction.next_month_maintenance_cost).toLocaleString(undefined, {
-                              maximumFractionDigits: 0,
-                            })}`
+                            maximumFractionDigits: 0,
+                          })}`
                           : '₹0'}
                       </div>
                       <p className="text-[11px] text-[#5B6875]">HistGradientBoosting Estimate</p>
@@ -608,17 +877,17 @@ export default function MaintenanceDetailsPage() {
                     <p className="text-xs text-[#243447] leading-relaxed">
                       {String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'HIGH'
                         ? `Critical preventive notice: Elevated failure risk detected (${(
-                            (prediction.maintenance_risk?.probability || 0) * 100
-                          ).toFixed(1)}%). We recommend scheduling a certified technician inspection for ${formatCategoryLabel(
-                            request.category
-                          )} fixtures within 7 days to forestall emergent failures and curb estimated monthly expenses (₹${Number(
-                            prediction.next_month_maintenance_cost || 0
-                          ).toLocaleString()}).`
+                          (prediction.maintenance_risk?.probability || 0) * 100
+                        ).toFixed(1)}%). We recommend scheduling a certified technician inspection for ${formatCategoryLabel(
+                          request.category
+                        )} fixtures within 7 days to forestall emergent failures and curb estimated monthly expenses (₹${Number(
+                          prediction.next_month_maintenance_cost || 0
+                        ).toLocaleString()}).`
                         : String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'MEDIUM'
-                        ? `Standard preventive notice: Moderate equipment wear detected. Dispatch regular servicing for ${formatCategoryLabel(
+                          ? `Standard preventive notice: Moderate equipment wear detected. Dispatch regular servicing for ${formatCategoryLabel(
                             request.category
                           )} equipment prior to next billing cycle.`
-                        : `Low risk profile: Asset degradation metrics are within healthy nominal limits. Standard periodic maintenance routine recommended.`}
+                          : `Low risk profile: Asset degradation metrics are within healthy nominal limits. Standard periodic maintenance routine recommended.`}
                     </p>
                   </div>
                 </div>
@@ -663,23 +932,23 @@ export default function MaintenanceDetailsPage() {
                       <Building2 className="w-3.5 h-3.5 text-[#5B6875]" /> Leased Property
                     </span>
                     <span className="font-medium text-[#243447] text-right">
-                      Property #{request.propertyId || '—'}
+                      {displayPropertyName}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875]">Unit Number</span>
                     <span className="inline-block px-2 py-0.5 rounded-md text-xs font-semibold bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
-                      Unit #{request.unitId || '—'}
+                      {displayUnitNumber}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875] flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-[#5B6875]" /> Tenant ID
+                      <User className="w-3.5 h-3.5 text-[#5B6875]" /> Tenant
                     </span>
                     <span className="font-semibold text-[#243447]">
-                      Tenant #{request.tenantId || '—'}
+                      {displayTenantName}
                     </span>
                   </div>
 

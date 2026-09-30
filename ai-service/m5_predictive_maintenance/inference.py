@@ -335,11 +335,13 @@ def predict_maintenance(data: dict) -> dict:
     predicted_cost = (
         cost_risk_probability * positive_cost
     )
-
+    
     predicted_cost = max(
         0.0,
         predicted_cost
     )
+    
+    predicted_cost = predicted_cost * 1000
 
     # --------------------------------------------------------
     # RISK LEVEL

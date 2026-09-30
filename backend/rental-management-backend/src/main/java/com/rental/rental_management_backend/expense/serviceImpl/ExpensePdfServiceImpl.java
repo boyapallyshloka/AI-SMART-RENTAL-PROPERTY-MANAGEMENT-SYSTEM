@@ -1,0 +1,232 @@
+package com.rental.rental_management_backend.expense.serviceImpl;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.springframework.stereotype.Service;
+
+import com.rental.rental_management_backend.expense.entity.Expense;
+import com.rental.rental_management_backend.expense.service.ExpensePdfService;
+
+@Service
+public class ExpensePdfServiceImpl implements ExpensePdfService {
+
+    private static final String RECEIPT_DIRECTORY =
+            "uploads/expense-receipts/";
+
+    @Override
+    public String generateExpenseReceiptPdf(
+            Expense expense,
+            String receiptNumber) {
+
+        try {
+
+            // Create receipt directory if it does not exist
+            Path directory =
+                    Paths.get(RECEIPT_DIRECTORY);
+
+            if (!Files.exists(directory)) {
+                Files.createDirectories(directory);
+            }
+
+            // PDF file name
+            String fileName =
+                    "expense-receipt-"
+                            + expense.getExpenseId()
+                            + ".pdf";
+
+            Path filePath =
+                    directory.resolve(fileName);
+
+            // Create PDF document
+            PDDocument document =
+                    new PDDocument();
+
+            // Create A4 page
+            PDPage page =
+                    new PDPage(PDRectangle.A4);
+
+            document.addPage(page);
+
+            // Fonts
+            PDType1Font titleFont =
+                    new PDType1Font(
+                            Standard14Fonts.FontName.HELVETICA_BOLD);
+
+            PDType1Font normalFont =
+                    new PDType1Font(
+                            Standard14Fonts.FontName.HELVETICA);
+
+            // Write content to PDF
+            PDPageContentStream contentStream =
+                    new PDPageContentStream(
+                            document,
+                            page);
+
+            // -----------------------------
+            // TITLE
+            // -----------------------------
+
+            contentStream.beginText();
+
+            contentStream.setFont(
+                    titleFont,
+                    18);
+
+            contentStream.newLineAtOffset(
+                    180,
+                    750);
+
+            contentStream.showText(
+                    "PROPERTY EXPENSE RECEIPT");
+
+            contentStream.endText();
+
+
+            // -----------------------------
+            // RECEIPT DETAILS
+            // -----------------------------
+
+            float yPosition = 700;
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Receipt Number: "
+                            + receiptNumber,
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Expense ID: "
+                            + expense.getExpenseId(),
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Property ID: "
+                            + expense.getProperty()
+                            .getPropertyId(),
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Category: "
+                            + expense.getCategory(),
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Description: "
+                            + safeText(
+                                    expense.getDescription()),
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Amount: INR "
+                            + expense.getAmount(),
+                    yPosition);
+
+            yPosition = writeLine(
+                    contentStream,
+                    normalFont,
+                    "Expense Date: "
+                            + expense.getExpenseDate(),
+                    yPosition);
+
+
+            // -----------------------------
+            // FOOTER
+            // -----------------------------
+
+            contentStream.beginText();
+
+            contentStream.setFont(
+                    normalFont,
+                    10);
+
+            contentStream.newLineAtOffset(
+                    200,
+                    100);
+
+            contentStream.showText(
+                    "Generated by Rental Management System");
+
+            contentStream.endText();
+
+            // Close content stream
+            contentStream.close();
+
+            // Save PDF
+            document.save(filePath.toFile());
+
+            // Close document
+            document.close();
+
+            return filePath.toString();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Failed to generate expense receipt PDF",
+                    e);
+        }
+    }
+
+
+    // -----------------------------------------
+    // Helper method to write one line
+    // -----------------------------------------
+
+    private float writeLine(
+            PDPageContentStream contentStream,
+            PDType1Font font,
+            String text,
+            float yPosition)
+            throws IOException {
+
+        contentStream.beginText();
+
+        contentStream.setFont(
+                font,
+                12);
+
+        contentStream.newLineAtOffset(
+                80,
+                yPosition);
+
+        contentStream.showText(text);
+
+        contentStream.endText();
+
+        return yPosition - 35;
+    }
+
+
+    // -----------------------------------------
+    // Prevent null description
+    // -----------------------------------------
+
+    private String safeText(String text) {
+
+        if (text == null || text.isBlank()) {
+            return "N/A";
+        }
+
+        return text;
+    }
+}

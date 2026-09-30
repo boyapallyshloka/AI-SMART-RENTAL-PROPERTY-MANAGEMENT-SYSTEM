@@ -11,149 +11,134 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleResourceNotFound(ResourceNotFoundException ex) {
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
 
-        return buildResponse(
-                HttpStatus.NOT_FOUND,
-                ex.getMessage()
-        );
-    }
+                return buildResponse(
+                                HttpStatus.NOT_FOUND,
+                                ex.getMessage());
+        }
 
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleAccessDenied(AccessDeniedException ex) {
+        @ExceptionHandler(AccessDeniedException.class)
+        public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
 
-        return buildResponse(
-                HttpStatus.FORBIDDEN,
-                "Access denied: you do not have permission to perform this action"
-        );
-    }
+                return buildResponse(
+                                HttpStatus.FORBIDDEN,
+                                "Access denied: you do not have permission to perform this action");
+        }
 
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleUserAlreadyExists(UserAlreadyExistsException ex) {
+        @ExceptionHandler(UserAlreadyExistsException.class)
+        public ResponseEntity<Map<String, Object>> handleUserAlreadyExists(UserAlreadyExistsException ex) {
 
-        return buildResponse(
-                HttpStatus.CONFLICT,
-                ex.getMessage()
-        );
-    }
+                return buildResponse(
+                                HttpStatus.CONFLICT,
+                                ex.getMessage());
+        }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleIllegalArgument(IllegalArgumentException ex) {
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
 
-        return buildResponse(
-                HttpStatus.BAD_REQUEST,
-                ex.getMessage()
-        );
-    }
+                return buildResponse(
+                                HttpStatus.BAD_REQUEST,
+                                ex.getMessage());
+        }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleValidationErrors(
-            MethodArgumentNotValidException ex) {
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<Map<String, Object>> handleValidationErrors(
+                        MethodArgumentNotValidException ex) {
 
-        Map<String, String> errors = new HashMap<>();
+                Map<String, String> errors = new HashMap<>();
 
-        ex.getBindingResult()
-                .getFieldErrors()
-                .forEach(error ->
-                        errors.put(
-                                error.getField(),
-                                error.getDefaultMessage()
-                        )
-                );
+                ex.getBindingResult()
+                                .getFieldErrors()
+                                .forEach(error -> errors.put(
+                                                error.getField(),
+                                                error.getDefaultMessage()));
 
-        Map<String, Object> response = new HashMap<>();
+                Map<String, Object> response = new HashMap<>();
 
-        response.put(
-                "timestamp",
-                LocalDateTime.now()
-        );
+                response.put(
+                                "timestamp",
+                                LocalDateTime.now());
 
-        response.put(
-                "status",
-                HttpStatus.BAD_REQUEST.value()
-        );
+                response.put(
+                                "status",
+                                HttpStatus.BAD_REQUEST.value());
 
-        response.put(
-                "error",
-                "Validation Failed"
-        );
+                response.put(
+                                "error",
+                                "Validation Failed");
 
-        response.put(
-                "messages",
-                errors
-        );
+                response.put(
+                                "messages",
+                                errors);
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
-    }
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(response);
+        }
 
-    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleMaxUploadSizeExceeded(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+        public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(
+                        org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
 
-        return buildResponse(
-                HttpStatus.BAD_REQUEST,
-                "File size exceeds the allowed limit (maximum 10 MB)"
-        );
-    }
+                return buildResponse(
+                                HttpStatus.BAD_REQUEST,
+                                "File size exceeds the allowed limit (maximum 10 MB)");
+        }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>>
-    handleGeneralException(Exception ex) {
+        @ExceptionHandler(NoResourceFoundException.class)
+        public ResponseEntity<Map<String, Object>> handleNoResourceFound(
+                        NoResourceFoundException ex) {
 
-        /*
-         * Print the actual exception and full stack trace
-         * in the STS Console for debugging.
-         */
-        ex.printStackTrace();
+                return buildResponse(
+                                HttpStatus.NOT_FOUND,
+                                ex.getMessage());
+        }
 
-        return buildResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                ex.getMessage()
-        );
-    }
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
 
-    private ResponseEntity<Map<String, Object>>
-    buildResponse(
-            HttpStatus status,
-            String message) {
+                /*
+                 * Print the actual exception and full stack trace
+                 * in the STS Console for debugging.
+                 */
+                ex.printStackTrace();
 
-        Map<String, Object> response = new HashMap<>();
+                return buildResponse(
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                ex.getMessage());
+        }
 
-        response.put(
-                "timestamp",
-                LocalDateTime.now()
-        );
+        private ResponseEntity<Map<String, Object>> buildResponse(
+                        HttpStatus status,
+                        String message) {
 
-        response.put(
-                "status",
-                status.value()
-        );
+                Map<String, Object> response = new HashMap<>();
 
-        response.put(
-                "error",
-                status.getReasonPhrase()
-        );
+                response.put(
+                                "timestamp",
+                                LocalDateTime.now());
 
-        response.put(
-                "message",
-                message
-        );
+                response.put(
+                                "status",
+                                status.value());
 
-        return ResponseEntity
-                .status(status)
-                .body(response);
-    }
+                response.put(
+                                "error",
+                                status.getReasonPhrase());
+
+                response.put(
+                                "message",
+                                message);
+
+                return ResponseEntity
+                                .status(status)
+                                .body(response);
+        }
 }
-

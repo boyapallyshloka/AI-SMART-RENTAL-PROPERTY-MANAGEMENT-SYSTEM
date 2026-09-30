@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.payment.serviceImpl;
 
 import java.math.BigDecimal;
@@ -5,436 +6,478 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.razorpay.Order;
-import com.razorpay.Payment;
-import com.razorpay.RazorpayClient;
-import com.razorpay.RazorpayException;
-import com.razorpay.Utils;
-
+import com.rental.rental_management_backend.User.Repository.UserRepository;
+import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
+import com.rental.rental_management_backend.payment.entity.Payment;
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
 import com.rental.rental_management_backend.payment.repository.PaymentRepository;
 import com.rental.rental_management_backend.payment.service.PaymentService;
-
+import com.rental.rental_management_backend.property.entity.Property;
+import com.rental.rental_management_backend.property.entity.Unit;
+import com.rental.rental_management_backend.property.repository.UnitRepository;
 import com.rental.rental_management_backend.rental.entity.RentInvoice;
 import com.rental.rental_management_backend.rental.enums.InvoiceStatus;
 import com.rental.rental_management_backend.rental.repository.RentInvoiceRepository;
+import com.rental.rental_management_backend.tenant.entity.Tenant;
+import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 
 @Service
 @Transactional
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
-
     private final RentInvoiceRepository rentInvoiceRepository;
-
-    private final RazorpayClient razorpayClient;
-
-    @Value("${razorpay.key.id}")
-    private String razorpayKeyId;
-
-    @Value("${razorpay.key.secret}")
-    private String razorpayKeySecret;
+    private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
+    private final UnitRepository unitRepository;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
-            RentInvoiceRepository rentInvoiceRepository) {
+            RentInvoiceRepository rentInvoiceRepository,
+            UserRepository userRepository,
+            TenantRepository tenantRepository,
+            UnitRepository unitRepository) {
 
         this.paymentRepository = paymentRepository;
         this.rentInvoiceRepository = rentInvoiceRepository;
-
-        try {
-
-            this.razorpayClient = new RazorpayClient(
-                    razorpayKeyId,
-                    razorpayKeySecret
-            );
-
-        } catch (RazorpayException e) {
-
-            throw new RuntimeException(
-                    "Unable to initialize Razorpay client",
-                    e
-            );
-        }
+        this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
+        this.unitRepository = unitRepository;
     }
 
-    @Override
-    public PaymentResponse createPaymentOrder(
-            PaymentCreateDTO request) {
+    // =========================================================
+    // CREATE PAYMENT
+    // TENANT ONLY - OWN INVOICE
+    // =========================================================
 
-        // 1. Find invoice
+    @Override
+    public PaymentResponse createPayment(
+            PaymentCreateDTO request,
+            String email) {
+
+        User user = getLoggedInUser(email);
+
+        if (user.getRole() != RoleType.TENANT) {
+            throw new RuntimeException(
+                    "Only tenants can create payments");
+        }
+
+        Tenant tenant = tenantRepository
+                .findByUser_Id(user.getId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Tenant profile not found for user"));
+
         RentInvoice invoice = rentInvoiceRepository
                 .findById(request.getInvoiceId())
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Invoice not found with ID: "
-                                        + request.getInvoiceId()
-                        )
-                );
+                                        + request.getInvoiceId()));
 
-        // 2. Check invoice status
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
+        // Tenant can pay only their own invoice
+        if (!invoice.getTenantId()
+                .equals(tenant.getTenantId())) {
 
             throw new RuntimeException(
-                    "Invoice is already fully paid"
-            );
+                    "You are not authorized to make payment for this invoice");
+        }
+
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw new RuntimeException(
+                    "Invoice is already fully paid");
         }
 
         if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
-
             throw new RuntimeException(
-                    "Payment cannot be made for a cancelled invoice"
-            );
+                    "Payment cannot be made for a cancelled invoice");
         }
 
-        // 3. Get tenant ID directly from invoice
         Long tenantId = invoice.getTenantId();
 
-        // 4. Calculate amount already successfully paid
         BigDecimal alreadyPaid =
                 getSuccessfullyPaidAmount(
-                        invoice.getInvoiceId()
-                );
+                        invoice.getInvoiceId());
 
-        // 5. Calculate remaining amount
         BigDecimal remainingAmount =
                 invoice.getTotalAmount()
                         .subtract(alreadyPaid)
                         .setScale(
                                 2,
-                                RoundingMode.HALF_UP
-                        );
+                                RoundingMode.HALF_UP);
 
-        // 6. Validate requested amount
         BigDecimal requestedAmount =
                 request.getAmount()
                         .setScale(
                                 2,
-                                RoundingMode.HALF_UP
-                        );
+                                RoundingMode.HALF_UP);
 
-        if (requestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (requestedAmount.compareTo(
+                BigDecimal.ZERO) <= 0) {
 
             throw new RuntimeException(
-                    "Payment amount must be greater than zero"
-            );
+                    "Payment amount must be greater than zero");
         }
 
-        if (requestedAmount.compareTo(remainingAmount) > 0) {
+        if (requestedAmount.compareTo(
+                remainingAmount) > 0) {
 
             throw new RuntimeException(
                     "Payment amount cannot be greater than the remaining invoice amount: "
-                            + remainingAmount
-            );
+                            + remainingAmount);
         }
 
-        // 7. Convert rupees to paise
-        long amountInPaise =
-                requestedAmount
-                        .multiply(BigDecimal.valueOf(100))
-                        .longValueExact();
+        Payment payment = new Payment();
 
-        try {
+        payment.setInvoice(invoice);
 
-            // 8. Create Razorpay order
-            JSONObject orderRequest =
-                    new JSONObject();
+        payment.setTenantId(tenantId);
 
-            orderRequest.put(
-                    "amount",
-                    amountInPaise
-            );
+        payment.setAmount(requestedAmount);
 
-            orderRequest.put(
-                    "currency",
-                    "INR"
-            );
+        payment.setPaymentStatus(
+                PaymentStatus.PENDING);
 
-            orderRequest.put(
-                    "receipt",
-                    invoice.getInvoiceNumber()
-            );
+        // Payment method selected by tenant
+        payment.setPaymentMethod(
+                request.getPaymentMethod());
 
-            // Each application-level partial payment
-            // gets its own Razorpay order.
-            orderRequest.put(
-                    "partial_payment",
-                    false
-            );
+        // Razorpay fields kept for future integration
+        payment.setRazorpayOrderId(null);
 
-            Order razorpayOrder =
-                    razorpayClient.orders.create(
-                            orderRequest
-                    );
+        payment.setRazorpayPaymentId(null);
 
-            // 9. Get Razorpay order ID
-            String razorpayOrderId =
-                    razorpayOrder.get("id");
+        payment.setPaymentDate(null);
 
-            // 10. Create local payment record
-            com.rental.rental_management_backend.payment.entity.Payment payment =
-                    new com.rental.rental_management_backend.payment.entity.Payment();
+        payment.setCreatedAt(
+                LocalDateTime.now());
 
-            payment.setInvoice(invoice);
+        payment.setUpdatedAt(
+                LocalDateTime.now());
 
-            payment.setTenantId(tenantId);
+        Payment savedPayment =
+                paymentRepository.save(payment);
 
-            payment.setAmount(requestedAmount);
-
-            payment.setPaymentStatus(
-                    PaymentStatus.PENDING
-            );
-
-            payment.setRazorpayOrderId(
-                    razorpayOrderId
-            );
-
-            payment.setPaymentDate(null);
-
-            payment.setCreatedAt(
-                    LocalDateTime.now()
-            );
-
-            payment.setUpdatedAt(
-                    LocalDateTime.now()
-            );
-
-            payment =
-                    paymentRepository.save(payment);
-
-            return mapToResponse(payment);
-
-        } catch (RazorpayException e) {
-
-            throw new RuntimeException(
-                    "Unable to create Razorpay order: "
-                            + e.getMessage(),
-                    e
-            );
-        }
+        return mapToResponse(savedPayment);
     }
 
+    // =========================================================
+    // CONFIRM PAYMENT
+    // TENANT ONLY - OWN PAYMENT
+    // =========================================================
+
     @Override
-    public PaymentResponse verifyPayment(
-            String razorpayOrderId,
-            String razorpayPaymentId,
-            String razorpaySignature) {
+    public PaymentResponse confirmPayment(
+            Long paymentId,
+            String email) {
 
-        // 1. Find our local payment using Razorpay order ID
-        com.rental.rental_management_backend.payment.entity.Payment payment =
-                paymentRepository
-                        .findByRazorpayOrderId(
-                                razorpayOrderId
-                        )
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Payment record not found for Razorpay order: "
-                                                + razorpayOrderId
-                                )
-                        );
+        User user = getLoggedInUser(email);
 
-        // 2. Prevent duplicate verification
+        if (user.getRole() != RoleType.TENANT) {
+            throw new RuntimeException(
+                    "Only tenants can confirm payments");
+        }
+
+        Tenant tenant = tenantRepository
+                .findByUser_Id(user.getId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Tenant profile not found for user"));
+
+        Payment payment = paymentRepository
+                .findById(paymentId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Payment not found with ID: "
+                                        + paymentId));
+
+        // Tenant can confirm only their own payment
+        if (!payment.getTenantId()
+                .equals(tenant.getTenantId())) {
+
+            throw new RuntimeException(
+                    "You are not authorized to confirm this payment");
+        }
+
         if (payment.getPaymentStatus()
                 == PaymentStatus.SUCCESS) {
 
             return mapToResponse(payment);
         }
 
-        try {
-
-            // 3. Verify Razorpay signature
-            JSONObject verificationData =
-                    new JSONObject();
-
-            verificationData.put(
-                    "razorpay_order_id",
-                    razorpayOrderId
-            );
-
-            verificationData.put(
-                    "razorpay_payment_id",
-                    razorpayPaymentId
-            );
-
-            verificationData.put(
-                    "razorpay_signature",
-                    razorpaySignature
-            );
-
-            boolean signatureValid =
-                    Utils.verifyPaymentSignature(
-                            verificationData,
-                            razorpayKeySecret
-                    );
-
-            if (!signatureValid) {
-
-                payment.setPaymentStatus(
-                        PaymentStatus.FAILED
-                );
-
-                payment.setUpdatedAt(
-                        LocalDateTime.now()
-                );
-
-                paymentRepository.save(payment);
-
-                throw new RuntimeException(
-                        "Invalid Razorpay payment signature"
-                );
-            }
-
-            // 4. Fetch payment details from Razorpay
-            Payment razorpayPayment =
-                    razorpayClient.payments.fetch(
-                            razorpayPaymentId
-                    );
-
-            // 5. Check that payment belongs to our order
-            String fetchedOrderId =
-                    razorpayPayment.get("order_id");
-
-            if (fetchedOrderId == null
-                    || !razorpayOrderId.equals(
-                            fetchedOrderId)) {
-
-                throw new RuntimeException(
-                        "Razorpay payment does not belong to the requested order"
-                );
-            }
-
-            // 6. Check Razorpay payment amount
-            Integer razorpayAmount =
-                    razorpayPayment.get("amount");
-
-            BigDecimal paidAmount =
-                    BigDecimal.valueOf(
-                            razorpayAmount
-                    ).divide(
-                            BigDecimal.valueOf(100),
-                            2,
-                            RoundingMode.HALF_UP
-                    );
-
-            if (paidAmount.compareTo(
-                    payment.getAmount()) != 0) {
-
-                throw new RuntimeException(
-                        "Razorpay payment amount does not match the payment record"
-                );
-            }
-
-            // 7. Check payment status
-            String razorpayStatus =
-                    razorpayPayment.get("status");
-
-            if (!"captured".equalsIgnoreCase(
-                    razorpayStatus)) {
-
-                throw new RuntimeException(
-                        "Razorpay payment is not captured. Current status: "
-                                + razorpayStatus
-                );
-            }
-
-            // 8. Store Razorpay payment ID
-            payment.setRazorpayPaymentId(
-                    razorpayPaymentId
-            );
-
-            // 9. Get payment method from Razorpay
-            String method =
-                    razorpayPayment.get("method");
-
-            payment.setPaymentMethod(
-                    convertPaymentMethod(method)
-            );
-
-            // 10. Mark local payment successful
-            payment.setPaymentStatus(
-                    PaymentStatus.SUCCESS
-            );
-
-            payment.setPaymentDate(
-                    LocalDateTime.now()
-            );
-
-            payment.setUpdatedAt(
-                    LocalDateTime.now()
-            );
-
-            payment =
-                    paymentRepository.save(payment);
-
-            // 11. Update invoice status
-            updateInvoiceStatus(
-                    payment.getInvoice()
-            );
-
-            return mapToResponse(payment);
-
-        } catch (RazorpayException e) {
+        if (payment.getPaymentStatus()
+                != PaymentStatus.PENDING) {
 
             throw new RuntimeException(
-                    "Unable to verify Razorpay payment: "
-                            + e.getMessage(),
-                    e
-            );
+                    "Only pending payments can be confirmed");
         }
+
+        payment.setPaymentStatus(
+                PaymentStatus.SUCCESS);
+
+        payment.setPaymentDate(
+                LocalDateTime.now());
+
+        payment.setUpdatedAt(
+                LocalDateTime.now());
+
+        Payment savedPayment =
+                paymentRepository.save(payment);
+
+        updateInvoiceStatus(
+                savedPayment.getInvoice());
+
+        return mapToResponse(savedPayment);
     }
+
+    // =========================================================
+    // GET PAYMENT BY ID
+    // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public PaymentResponse getPaymentById(
-            Long paymentId) {
+            Long paymentId,
+            String email) {
 
-        com.rental.rental_management_backend.payment.entity.Payment payment =
-                paymentRepository
-                        .findById(paymentId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Payment not found with ID: "
-                                                + paymentId
-                                )
-                        );
+        User user = getLoggedInUser(email);
+
+        Payment payment = paymentRepository
+                .findById(paymentId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Payment not found with ID: "
+                                        + paymentId));
+
+        validatePaymentAccess(payment, user);
 
         return mapToResponse(payment);
     }
 
+    // =========================================================
+    // GET PAYMENTS BY TENANT
+    // =========================================================
+
     @Override
     @Transactional(readOnly = true)
     public List<PaymentResponse> getPaymentsByTenant(
-            Long tenantId) {
+            Long tenantId,
+            String email) {
 
-        return paymentRepository
-                .findByTenantId(tenantId)
+        User user = getLoggedInUser(email);
+
+        List<Payment> payments =
+                paymentRepository.findByTenantId(tenantId);
+
+        // Tenant can see only their own payments
+        if (user.getRole() == RoleType.TENANT) {
+
+            Tenant tenant = tenantRepository
+                    .findByUser_Id(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Tenant profile not found for user"));
+
+            if (!tenant.getTenantId().equals(tenantId)) {
+
+                throw new RuntimeException(
+                        "You are not authorized to access these payments");
+            }
+
+            return payments
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // SUPER ADMIN can see all
+        if (user.getRole() == RoleType.SUPER_ADMIN) {
+
+            return payments
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        // OWNER / MANAGER
+        for (Payment payment : payments) {
+            validatePaymentAccess(payment, user);
+        }
+
+        return payments
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
+
+    // =========================================================
+    // GET PAYMENTS BY INVOICE
+    // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public List<PaymentResponse> getPaymentsByInvoice(
-            Long invoiceId) {
+            Long invoiceId,
+            String email) {
 
-        return paymentRepository
-                .findByInvoice_InvoiceId(invoiceId)
+        User user = getLoggedInUser(email);
+
+        RentInvoice invoice =
+                rentInvoiceRepository
+                        .findById(invoiceId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Invoice not found with ID: "
+                                                + invoiceId));
+
+        // Check whether logged-in user can access invoice
+        validateInvoiceAccess(invoice, user);
+
+        List<Payment> payments =
+                paymentRepository
+                        .findByInvoice_InvoiceId(invoiceId);
+
+        return payments
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    // ---------------------------------------------------------
-    // Calculate successful payments for an invoice
-    // ---------------------------------------------------------
+    // =========================================================
+    // GET LOGGED-IN USER
+    // =========================================================
+
+    private User getLoggedInUser(String email) {
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Logged-in user not found"));
+    }
+
+    // =========================================================
+    // PAYMENT ACCESS
+    // =========================================================
+
+    private void validatePaymentAccess(
+            Payment payment,
+            User user) {
+
+        // SUPER ADMIN
+        if (user.getRole() == RoleType.SUPER_ADMIN) {
+            return;
+        }
+
+        RentInvoice invoice =
+                payment.getInvoice();
+
+        validateInvoiceAccess(
+                invoice,
+                user);
+    }
+
+    // =========================================================
+    // INVOICE ACCESS
+    // =========================================================
+
+    private void validateInvoiceAccess(
+            RentInvoice invoice,
+            User user) {
+
+        // SUPER ADMIN
+        if (user.getRole() == RoleType.SUPER_ADMIN) {
+            return;
+        }
+
+        // TENANT
+        if (user.getRole() == RoleType.TENANT) {
+
+            Tenant tenant = tenantRepository
+                    .findByUser_Id(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Tenant profile not found for user"));
+
+            if (!invoice.getTenantId()
+                    .equals(tenant.getTenantId())) {
+
+                throw new RuntimeException(
+                        "You are not authorized to access this invoice");
+            }
+
+            return;
+        }
+
+        // Get Unit
+        Unit unit = unitRepository
+                .findById(invoice.getUnitId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Unit not found with ID: "
+                                        + invoice.getUnitId()));
+
+        // Unit
+        // ↓
+        // Floor
+        // ↓
+        // Building
+        // ↓
+        // Property
+
+        Property property =
+                unit.getFloor()
+                        .getBuilding()
+                        .getProperty();
+
+        // PROPERTY OWNER
+        if (user.getRole()
+                == RoleType.PROPERTY_OWNER) {
+
+            if (property.getOwner() == null
+                    || !property.getOwner()
+                            .getId()
+                            .equals(user.getId())) {
+
+                throw new RuntimeException(
+                        "You are not authorized to access this invoice");
+            }
+
+            return;
+        }
+
+        // PROPERTY MANAGER
+        if (user.getRole()
+                == RoleType.PROPERTY_MANAGER) {
+
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager()
+                            .getUser() == null
+                    || !property.getPropertyManager()
+                            .getUser()
+                            .getId()
+                            .equals(user.getId())) {
+
+                throw new RuntimeException(
+                        "You are not authorized to access this invoice");
+            }
+
+            return;
+        }
+
+        throw new RuntimeException(
+                "You are not authorized to access this invoice");
+    }
+
+    // =========================================================
+    // CALCULATE SUCCESSFULLY PAID AMOUNT
+    // =========================================================
 
     private BigDecimal getSuccessfullyPaidAmount(
             Long invoiceId) {
@@ -444,142 +487,94 @@ public class PaymentServiceImpl implements PaymentService {
                 .stream()
                 .filter(payment ->
                         payment.getPaymentStatus()
-                                == PaymentStatus.SUCCESS
-                )
-                .map(payment -> payment.getAmount())
+                                == PaymentStatus.SUCCESS)
+                .map(Payment::getAmount)
                 .reduce(
                         BigDecimal.ZERO,
-                        BigDecimal::add
-                )
+                        BigDecimal::add)
                 .setScale(
                         2,
-                        RoundingMode.HALF_UP
-                );
+                        RoundingMode.HALF_UP);
     }
 
-    // ---------------------------------------------------------
-    // Update invoice status after successful payment
-    // ---------------------------------------------------------
+    // =========================================================
+    // UPDATE INVOICE STATUS
+    // =========================================================
 
     private void updateInvoiceStatus(
             RentInvoice invoice) {
 
         BigDecimal totalPaid =
                 getSuccessfullyPaidAmount(
-                        invoice.getInvoiceId()
-                );
+                        invoice.getInvoiceId());
 
         BigDecimal totalAmount =
                 invoice.getTotalAmount();
 
-        if (totalPaid.compareTo(
-                totalAmount) >= 0) {
+        if (totalPaid.compareTo(totalAmount) >= 0) {
 
             invoice.setStatus(
-                    InvoiceStatus.PAID
-            );
+                    InvoiceStatus.PAID);
 
         } else if (totalPaid.compareTo(
                 BigDecimal.ZERO) > 0) {
 
             invoice.setStatus(
-                    InvoiceStatus.PARTIALLY_PAID
-            );
+                    InvoiceStatus.PARTIALLY_PAID);
 
         } else {
 
             invoice.setStatus(
-                    InvoiceStatus.PENDING
-            );
+                    InvoiceStatus.PENDING);
         }
 
         rentInvoiceRepository.save(invoice);
     }
 
-    // ---------------------------------------------------------
-    // Convert Razorpay payment method
-    // ---------------------------------------------------------
-
-    private com.rental.rental_management_backend.payment.enums.PaymentMethod
-    convertPaymentMethod(String method) {
-
-        if (method == null) {
-            return null;
-        }
-
-        return switch (method.toLowerCase()) {
-
-            case "upi" ->
-                    com.rental.rental_management_backend.payment.enums.PaymentMethod.UPI;
-
-            case "card" ->
-                    com.rental.rental_management_backend.payment.enums.PaymentMethod.CARD;
-
-            case "netbanking" ->
-                    com.rental.rental_management_backend.payment.enums.PaymentMethod.NET_BANKING;
-
-            case "wallet" ->
-                    com.rental.rental_management_backend.payment.enums.PaymentMethod.WALLET;
-
-            default ->
-                    null;
-        };
-    }
-
-    // ---------------------------------------------------------
-    // Convert Payment entity to response
-    // ---------------------------------------------------------
+    // =========================================================
+    // MAP PAYMENT TO RESPONSE
+    // =========================================================
 
     private PaymentResponse mapToResponse(
-            com.rental.rental_management_backend.payment.entity.Payment payment) {
+            Payment payment) {
 
         PaymentResponse response =
                 new PaymentResponse();
 
         response.setPaymentId(
-                payment.getPaymentId()
-        );
+                payment.getPaymentId());
 
         response.setInvoiceId(
                 payment.getInvoice()
-                        .getInvoiceId()
-        );
+                        .getInvoiceId());
 
         response.setTenantId(
-                payment.getTenantId()
-        );
+                payment.getTenantId());
 
         response.setAmount(
-                payment.getAmount()
-        );
+                payment.getAmount());
 
         response.setPaymentStatus(
-                payment.getPaymentStatus()
-        );
+                payment.getPaymentStatus());
 
         response.setPaymentMethod(
-                payment.getPaymentMethod()
-        );
+                payment.getPaymentMethod());
 
+        // Future Razorpay integration
         response.setRazorpayOrderId(
-                payment.getRazorpayOrderId()
-        );
+                payment.getRazorpayOrderId());
 
         response.setRazorpayPaymentId(
-                payment.getRazorpayPaymentId()
-        );
+                payment.getRazorpayPaymentId());
 
         response.setPaymentDate(
-                payment.getPaymentDate()
-        );
+                payment.getPaymentDate());
 
         response.setCreatedAt(
-                payment.getCreatedAt()
-        );
+                payment.getCreatedAt());
 
         response.setUpdatedAt(
-                payment.getUpdatedAt()
-        );
+                payment.getUpdatedAt());
 
         return response;
     }

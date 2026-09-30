@@ -31,4 +31,10 @@ public interface MaintenanceRequestRepository extends JpaRepository<MaintenanceR
 
     @Query("SELECT m FROM MaintenanceRequest m WHERE m.unit.unitId = :unitId")
     List<MaintenanceRequest> findByUnitId(@Param("unitId") Long unitId);
+
+    @Query("SELECT m FROM MaintenanceRequest m WHERE m.property.owner.id = :ownerId")
+    List<MaintenanceRequest> findByPropertyOwnerId(@Param("ownerId") Long ownerId);
+
+    @Query("SELECT m FROM MaintenanceRequest m WHERE m.property.propertyManager.user.id = :managerUserId")
+    List<MaintenanceRequest> findByPropertyManagerUserId(@Param("managerUserId") Long managerUserId);
 }
