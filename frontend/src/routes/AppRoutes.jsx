@@ -288,6 +288,7 @@ export default function AppRoutes() {
                 <Route path="payments" element={<TenantPaymentsPage />} />
                 <Route path="maintenance" element={<TenantMaintenancePage />} />
                 <Route path="maintenance/new" element={<CreateMaintenanceRequestPage />} />
+                <Route path="preferences" element={<Navigate to="/tenant/find-properties" replace />} />
                 <Route path="*" element={<Navigate to="/tenant/dashboard" replace />} />
               </Routes>
             </RoleRoute>
@@ -330,6 +331,10 @@ export default function AppRoutes() {
                 <Route path="applications" element={<ManagerApplicationsPage />} />
                 <Route path="applications/:id" element={<ManagerApplicationDetailsPage />} />
                 <Route path="maintenance" element={<ManagerMaintenancePage />} />
+                <Route path="agreements" element={<AgreementsPage />} />
+                <Route path="agreements/new" element={<CreateAgreementPage />} />
+                <Route path="payments" element={<PaymentsPage />} />
+                <Route path="payments/:id" element={<PaymentDetailsPage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>

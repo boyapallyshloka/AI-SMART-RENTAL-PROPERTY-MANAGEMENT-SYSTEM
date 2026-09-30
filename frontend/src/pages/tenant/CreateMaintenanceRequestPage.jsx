@@ -10,7 +10,8 @@ import {
   formatCategoryLabel,
   formatPriorityLabel,
 } from '../../api/maintenanceApi'
-import { getStoredAgreements } from '../../utils/agreementMockData'
+import { getMyAgreements } from '../../api/agreementApi'
+import { getMyApplications } from '../../api/applicationApi'
 import {
   Button,
   Input,
@@ -81,21 +82,60 @@ export default function CreateMaintenanceRequestPage() {
         // Silently fall back to agreement/stored values if endpoint is role-restricted
       }
 
-      // Check active agreements for property / unit hints
+      // Check active agreements from real backend for property / unit hints
       try {
-        const agreements = getStoredAgreements()
-        const myAgr = agreements.find(
-          (a) =>
-            (a.tenantEmail || '').toLowerCase().trim() === tenantEmail.toLowerCase().trim() ||
-            (a.tenantName || '').toLowerCase().trim() === tenantName.toLowerCase().trim()
-        )
-        if (myAgr && isMounted) {
-          if (myAgr.propertyId) setPropertyId(String(myAgr.propertyId))
-          if (myAgr.propertyName) setPropertyName(myAgr.propertyName)
-          if (myAgr.unitId) setUnitId(String(myAgr.unitId))
-          if (myAgr.unit) setUnitNumber(myAgr.unit)
+        const [agreementsRes, appsRes] = await Promise.allSettled([
+          getMyAgreements(),
+          getMyApplications(),
+        ])
+
+        const rawAgreements =
+          agreementsRes.status === 'fulfilled'
+            ? Array.isArray(agreementsRes.value)
+              ? agreementsRes.value
+              : agreementsRes.value?.data || []
+            : []
+
+        const rawApps =
+          appsRes.status === 'fulfilled'
+            ? Array.isArray(appsRes.value)
+              ? appsRes.value
+              : appsRes.value?.data || []
+            : []
+
+        const appMap = new Map()
+        rawApps.forEach((a) => {
+          if (a && a.applicationId) {
+            appMap.set(Number(a.applicationId), a)
+          }
+        })
+
+        const activeAgr =
+          rawAgreements.find(
+            (a) => String(a.status).toUpperCase() === 'ACTIVE'
+          ) || rawAgreements[0]
+
+        if (activeAgr && isMounted) {
+          const matchedApp = activeAgr.applicationId
+            ? appMap.get(Number(activeAgr.applicationId))
+            : null
+
+          if (matchedApp?.propertyId) {
+            setPropertyId(String(matchedApp.propertyId))
+            setPropertyName(matchedApp.propertyName || 'Rented Property')
+          }
+          if (activeAgr.unitId || matchedApp?.unitId) {
+            setUnitId(String(activeAgr.unitId || matchedApp.unitId))
+          }
+          if (matchedApp?.unitNumber) {
+            setUnitNumber(`Unit #${matchedApp.unitNumber}`)
+          } else if (activeAgr.unitId) {
+            setUnitNumber(`Unit #${activeAgr.unitId}`)
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Could not load tenant active agreement for maintenance:', e)
+      }
     }
 
     loadProperties()

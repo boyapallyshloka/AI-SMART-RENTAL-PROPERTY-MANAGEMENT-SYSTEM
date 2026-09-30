@@ -69,6 +69,9 @@ axiosClient.interceptors.request.use(
  */
 axiosClient.interceptors.response.use(
   (response) => {
+    if (response.config?.returnFullResponse) {
+      return response
+    }
     return response.data
   },
   (error) => {
@@ -78,12 +81,14 @@ axiosClient.interceptors.response.use(
     if (!message && data?.messages && typeof data.messages === 'object') {
       message = Object.values(data.messages).join('. ')
     }
-    message = message || data?.error || error.message
+    if (!message && data?.error && typeof data.error === 'string') {
+      message = data.error
+    }
 
     switch (status) {
       case 401:
         // Unauthorized: token expired or invalid credentials
-        message = message || 'Your session has expired. Please sign in again.'
+        message = 'Your session has expired. Please sign in again.'
         try {
           localStorage.removeItem('token')
           localStorage.removeItem('homesphere_token')
@@ -95,12 +100,12 @@ axiosClient.interceptors.response.use(
 
       case 403:
         // Forbidden: user doesn't have permission for this resource
-        message = message || 'You do not have permission to perform this action.'
+        message = message || 'You do not have permission to access or download this resource.'
         break
 
       case 404:
         // Not Found
-        message = message || 'The requested resource was not found.'
+        message = message || 'The requested document or resource was not found.'
         break
 
       case 500:
@@ -108,13 +113,15 @@ axiosClient.interceptors.response.use(
       case 503:
       case 504:
         // Server Errors
-        message = message || 'A server error occurred. Please try again later.'
+        message = message || 'A server error occurred while retrieving the document. Please try again later.'
         break
 
       default:
         if (!error.response) {
           // Network connection or timeout error
           message = 'Unable to connect to the server. Please check your network connection.'
+        } else if (!message) {
+          message = error.message || 'An unexpected error occurred.'
         }
         break
     }

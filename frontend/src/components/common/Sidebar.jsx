@@ -158,13 +158,15 @@ export default function Sidebar({
         navigate('/manager/properties')
       } else if (id === 'applications') {
         navigate('/manager/applications')
+      } else if (id === 'agreements') {
+        navigate('/manager/agreements')
+      } else if (id === 'payments') {
+        navigate('/manager/payments')
       } else if (id === 'maintenance') {
         navigate('/manager/maintenance')
       } else {
         const itemLabels = {
           inspections: 'Property & Unit Inspections',
-          agreements: 'Tenant Agreements',
-          payments: 'Rent Payments & Invoices',
           reports: 'Operational & Financial Reports',
         }
         const label = itemLabels[id] || 'This feature'

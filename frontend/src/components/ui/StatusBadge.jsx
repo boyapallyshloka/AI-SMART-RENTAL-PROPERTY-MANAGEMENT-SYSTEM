@@ -88,6 +88,16 @@ const STATUS_CONFIG = {
     badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
     dot: 'bg-[#B7791F]',
   },
+  'partially paid': {
+    label: 'Partially Paid',
+    badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
+    dot: 'bg-[#B7791F]',
+  },
+  partially_paid: {
+    label: 'Partially Paid',
+    badge: 'bg-[#FEF7EC] text-[#8A5B16] border-[#F4E2B6]',
+    dot: 'bg-[#B7791F]',
+  },
 
   // Error / Rejected / Overdue / Failed
   rejected: {
@@ -153,6 +163,11 @@ const STATUS_CONFIG = {
     label: 'Cancelled',
     badge: 'bg-[#FDF2F2] text-[#8A2E2C] border-[#EFC8C7]',
     dot: 'bg-[#B94A48]',
+  },
+  refunded: {
+    label: 'Refunded',
+    badge: 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]',
+    dot: 'bg-[#5B6875]',
   },
   draft: {
     label: 'Draft',

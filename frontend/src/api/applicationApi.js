@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient'
-import { getMyProperties } from './propertyApi'
+import { getMyProperties, getManagerAssignedProperties } from './propertyApi'
 
 /**
  * Rental Applications API Service (Spring Boot Integration)
@@ -143,8 +143,21 @@ export const getAllApplications = async () => {
 export const getOwnerApplications = async (knownProperties = null) => {
   let propList = knownProperties
   if (!propList) {
-    const propRes = await getMyProperties()
-    propList = Array.isArray(propRes?.data) ? propRes.data : Array.isArray(propRes) ? propRes : []
+    try {
+      const propRes = await getMyProperties()
+      propList = Array.isArray(propRes?.data) ? propRes.data : Array.isArray(propRes) ? propRes : []
+    } catch {
+      propList = []
+    }
+
+    if (!propList || propList.length === 0) {
+      try {
+        const mgrRes = await getManagerAssignedProperties()
+        propList = Array.isArray(mgrRes?.data) ? mgrRes.data : Array.isArray(mgrRes) ? mgrRes : []
+      } catch {
+        propList = []
+      }
+    }
   }
 
   if (propList.length === 0) {

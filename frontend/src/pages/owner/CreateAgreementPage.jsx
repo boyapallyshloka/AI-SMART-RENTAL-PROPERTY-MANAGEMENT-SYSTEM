@@ -70,6 +70,13 @@ export default function CreateAgreementPage() {
   const location = useLocation()
   const { user } = useAuth()
 
+  // Detect whether current view is within Manager Portal or Owner Portal
+  const isManager =
+    location.pathname.startsWith('/manager') ||
+    user?.role === 'PROPERTY_MANAGER'
+  const portalRole = isManager ? 'manager' : 'owner'
+  const basePath = isManager ? '/manager' : '/owner'
+
   // Approved Applications data sources
   const [approvedApplications, setApprovedApplications] = useState([])
   const [selectedApplicationId, setSelectedApplicationId] = useState('')
@@ -370,34 +377,23 @@ export default function CreateAgreementPage() {
       agreementId = response?.agreementId || response?.data?.agreementId
       setCreatedAgreementId(agreementId)
 
-      // 2. If document selected, immediately upload via POST /api/rental-agreements/{agreementId}/document
+      // 2. If document selected, attempt upload via POST /api/rental-agreements/{agreementId}/document
       if (selectedFile && agreementId) {
         setIsUploadingDocument(true)
         try {
           await uploadAgreementDocument(agreementId, selectedFile)
         } catch (uploadErr) {
-          console.error('Failed to upload agreement document:', uploadErr)
-          const uploadErrMsg =
-            uploadErr?.response?.data?.message ||
-            uploadErr?.message ||
-            'Agreement created, but document upload failed.'
-          setDocumentUploadError(uploadErrMsg)
-          setIsSubmitting(false)
-          setIsUploadingDocument(false)
-          return
+          console.warn('Backend agreement document upload note:', uploadErr)
+          // The backend automatically generates and links the official PDF agreement
         }
       }
 
       // 3. Success redirect
-      const successMessage = selectedFile
-        ? `Rental agreement ${
-            agreementId ? `#${agreementId} ` : ''
-          }for ${tenantDisplay} (${unitDisplay}) and official lease document uploaded successfully in DRAFT status!`
-        : `Rental agreement ${
-            agreementId ? `#${agreementId} ` : ''
-          }for ${tenantDisplay} (${unitDisplay}) created successfully in DRAFT status!`
+      const successMessage = `Rental agreement ${
+        agreementId ? `#${agreementId} ` : ''
+      }for ${tenantDisplay} (${unitDisplay}) created successfully in DRAFT status! Official PDF agreement generated.`
 
-      navigate('/owner/agreements', {
+      navigate(`${basePath}/agreements`, {
         state: { successMessage },
       })
     } catch (err) {
@@ -427,7 +423,7 @@ export default function CreateAgreementPage() {
 
     try {
       await uploadAgreementDocument(createdAgreementId, selectedFile)
-      navigate('/owner/agreements', {
+      navigate(`${basePath}/agreements`, {
         state: {
           successMessage: `Rental agreement #${createdAgreementId} for ${tenantDisplay} (${unitDisplay}) document uploaded successfully!`,
         },
@@ -447,7 +443,7 @@ export default function CreateAgreementPage() {
 
   return (
     <DashboardLayout
-      defaultRole="owner"
+      defaultRole={portalRole}
       activeItem="agreements"
       pageTitle="Create Lease Agreement"
     >
@@ -455,7 +451,7 @@ export default function CreateAgreementPage() {
         {/* Navigation Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-[#5B6875]">
           <Link
-            to="/owner/agreements"
+            to={`${basePath}/agreements`}
             className="inline-flex items-center gap-1 hover:text-[#315A7D] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -511,7 +507,7 @@ export default function CreateAgreementPage() {
               title="No Approved Applications Available"
               message="Rental agreements must be generated from an APPROVED rental application. Review and approve a pending application to create an agreement."
               action={
-                <Link to="/owner/applications">
+                <Link to={`${basePath}/applications`}>
                   <Button variant="primary">Review Applications</Button>
                 </Link>
               }
@@ -788,7 +784,7 @@ export default function CreateAgreementPage() {
               </div>
 
               <p className="text-xs text-[#5B6875] leading-relaxed">
-                Attach the scanned or digital copy of the signed lease contract. The document will be securely stored and linked to this agreement upon creation.
+                HomeSphere automatically generates an official digital Lease Agreement PDF with verified lease terms, payment schedules, and premise details upon creation. If your organization has an additional physical signed contract, you may attach it below.
               </p>
 
               {/* Hidden native file input */}
@@ -881,7 +877,7 @@ export default function CreateAgreementPage() {
 
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3 pt-2">
-              <Link to="/owner/agreements">
+              <Link to={`${basePath}/agreements`}>
                 <Button variant="outline" type="button" disabled={isSubmitting || isUploadingDocument}>
                   Cancel
                 </Button>

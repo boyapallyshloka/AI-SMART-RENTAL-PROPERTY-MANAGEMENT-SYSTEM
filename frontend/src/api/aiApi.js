@@ -34,20 +34,48 @@ export const getPredictiveMaintenanceAlerts = async () => {
  * Spring Boot Endpoint: GET /api/ai/recommendations
  *
  * Communicates ONLY with Spring Boot (which orchestrates with the AI/ML service).
- * Request: GET /ai/recommendations?tenantId={tenantId}&topN={topN}
+ * Request: GET /ai/recommendations?tenantId={tenantId}&topN={topN}&currentLatitude=...&currentLongitude=...&currentAddress=...
  *
  * @param {number|string} tenantId - Authenticated tenant ID (Long)
  * @param {number} [topN=5] - Number of recommendations to retrieve
+ * @param {Object} [locationContext={}] - Optional tenant location context
+ * @param {number} [locationContext.currentLatitude] - Optional latitude
+ * @param {number} [locationContext.currentLongitude] - Optional longitude
+ * @param {string} [locationContext.currentAddress] - Optional address
  * @returns {Promise<Object>} M2RecommendationResponse { success, tenantId, recommendations, count, modelVersion }
  */
-export const getPropertyRecommendations = async (tenantId, topN = 5) => {
+export const getPropertyRecommendations = async (
+  tenantId,
+  topN = 5,
+  locationContext = {}
+) => {
   if (!tenantId) {
     throw new Error('A valid tenantId is required to retrieve property recommendations.')
   }
+
+  const params = {
+    tenantId,
+    topN,
+  }
+
+  if (locationContext?.currentLatitude != null && !isNaN(Number(locationContext.currentLatitude))) {
+    params.currentLatitude = Number(locationContext.currentLatitude)
+  }
+
+  if (locationContext?.currentLongitude != null && !isNaN(Number(locationContext.currentLongitude))) {
+    params.currentLongitude = Number(locationContext.currentLongitude)
+  }
+
+  if (
+    typeof locationContext?.currentAddress === 'string' &&
+    locationContext.currentAddress.trim() !== ''
+  ) {
+    params.currentAddress = locationContext.currentAddress.trim()
+  }
+
   return await axiosClient.get('/ai/recommendations', {
-    params: {
-      tenantId,
-      topN,
-    },
+    params,
+    timeout: 60000,
   })
 }
+

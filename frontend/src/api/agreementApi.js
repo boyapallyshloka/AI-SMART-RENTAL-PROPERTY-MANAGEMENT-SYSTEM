@@ -53,19 +53,14 @@ export const getMyAgreements = async () => {
  * Create a new rental agreement from an APPROVED rental application
  * Endpoint: POST /api/rental-agreements
  *
- * Payload contract matching RentalAgreementRequest:
- * {
- *   applicationId: Long (required),
- *   startDate: LocalDate (YYYY-MM-DD, required),
- *   endDate: LocalDate (YYYY-MM-DD, required),
- *   monthlyRent: BigDecimal (number, required),
- *   securityDeposit: BigDecimal (number, optional),
- *   dueDay: Integer (1-31, optional),
- *   noticePeriodDays: Integer (>= 0, optional),
- *   moveInDate: LocalDate (YYYY-MM-DD, optional),
- *   termsAndConditions: String (optional),
- *   agreementDocument: String (optional)
- * }
+ * Backend RentalAgreementRequest fields:
+ * - applicationId: Long (@NotNull)
+ * - dueDay: Integer (1-31, optional)
+ * - noticePeriodDays: Integer (>= 0, optional)
+ * - termsAndConditions: String (optional)
+ *
+ * (Note: Unit, tenant, rent, security deposit, start/end dates are
+ * automatically derived by the backend from the approved Rental Application)
  *
  * @param {Object} payload
  * @returns {Promise<Object>} RentalAgreementResponse
@@ -73,13 +68,6 @@ export const getMyAgreements = async () => {
 export const createAgreement = async (payload) => {
   const requestBody = {
     applicationId: Number(payload.applicationId),
-    startDate: payload.startDate,
-    endDate: payload.endDate,
-    monthlyRent: Number(payload.monthlyRent),
-    securityDeposit:
-      payload.securityDeposit != null && payload.securityDeposit !== ''
-        ? Number(payload.securityDeposit)
-        : undefined,
     dueDay:
       payload.dueDay != null && payload.dueDay !== ''
         ? Number(payload.dueDay)
@@ -88,14 +76,9 @@ export const createAgreement = async (payload) => {
       payload.noticePeriodDays != null && payload.noticePeriodDays !== ''
         ? Number(payload.noticePeriodDays)
         : undefined,
-    moveInDate: payload.moveInDate || undefined,
     termsAndConditions:
       payload.termsAndConditions && payload.termsAndConditions.trim()
         ? payload.termsAndConditions.trim()
-        : undefined,
-    agreementDocument:
-      payload.agreementDocument && payload.agreementDocument.trim()
-        ? payload.agreementDocument.trim()
         : undefined,
   }
 
@@ -139,7 +122,7 @@ export const updateAgreementMoveOut = async (agreementId, moveOutDate) => {
 }
 
 /**
- * Upload a document (PDF) for an existing rental agreement
+ * Upload a document (PDF) for an existing rental agreement if backend supports it
  * Endpoint: POST /api/rental-agreements/{agreementId}/document
  *
  * @param {number|string} agreementId
@@ -156,7 +139,7 @@ export const uploadAgreementDocument = async (agreementId, file) => {
 }
 
 /**
- * Download or view the PDF document for an existing rental agreement
+ * View inline PDF document for an existing rental agreement
  * Endpoint: GET /api/rental-agreements/{agreementId}/document
  *
  * @param {number|string} agreementId
@@ -166,4 +149,20 @@ export const getAgreementDocument = async (agreementId) => {
   return await axiosClient.get(`/rental-agreements/${agreementId}/document`, {
     responseType: 'blob',
   })
+}
+
+/**
+ * Download attachment PDF document for an existing rental agreement
+ * Endpoint: GET /api/rental-agreements/{agreementId}/document/download
+ *
+ * @param {number|string} agreementId
+ * @returns {Promise<Blob>}
+ */
+export const downloadAgreementDocument = async (agreementId) => {
+  return await axiosClient.get(
+    `/rental-agreements/${agreementId}/document/download`,
+    {
+      responseType: 'blob',
+    }
+  )
 }
