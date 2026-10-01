@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.*;
 
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
+import com.rental.rental_management_backend.payment.dto.RazorpayOrderRequestDTO;
+import com.rental.rental_management_backend.payment.dto.RazorpayOrderResponseDTO;
+import com.rental.rental_management_backend.payment.dto.RazorpayPaymentVerificationRequestDTO;
 import com.rental.rental_management_backend.payment.service.PaymentService;
 
 import jakarta.validation.Valid;
@@ -23,11 +26,7 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
-    // =========================================================
-    // CREATE PAYMENT
-    // TENANT ONLY
-    // =========================================================
-
+    // Existing payment creation
     @PostMapping("/create")
     @PreAuthorize("hasRole('TENANT')")
     public ResponseEntity<PaymentResponse> createPayment(
@@ -40,28 +39,33 @@ public class PaymentController {
                         authentication.getName()));
     }
 
-    // =========================================================
-    // CONFIRM PAYMENT
-    // TENANT ONLY
-    // =========================================================
-
-    @PostMapping("/confirm/{paymentId}")
+    // CREATE RAZORPAY ORDER
+    @PostMapping("/razorpay/order")
     @PreAuthorize("hasRole('TENANT')")
-    public ResponseEntity<PaymentResponse> confirmPayment(
-            @PathVariable Long paymentId,
+    public ResponseEntity<RazorpayOrderResponseDTO> createRazorpayOrder(
+            @Valid @RequestBody RazorpayOrderRequestDTO request,
             Authentication authentication) {
 
         return ResponseEntity.ok(
-                paymentService.confirmPayment(
-                        paymentId,
+                paymentService.createRazorpayOrder(
+                        request,
                         authentication.getName()));
     }
 
-    // =========================================================
-    // GET PAYMENT BY ID
-    // SUPER_ADMIN / OWNER / MANAGER / TENANT
-    // =========================================================
+    // VERIFY RAZORPAY PAYMENT
+    @PostMapping("/razorpay/verify")
+    @PreAuthorize("hasRole('TENANT')")
+    public ResponseEntity<PaymentResponse> verifyRazorpayPayment(
+            @Valid @RequestBody RazorpayPaymentVerificationRequestDTO request,
+            Authentication authentication) {
 
+        return ResponseEntity.ok(
+                paymentService.verifyRazorpayPayment(
+                        request,
+                        authentication.getName()));
+    }
+
+    // GET PAYMENT BY ID
     @GetMapping("/{paymentId}")
     @PreAuthorize("""
         hasAnyRole(
@@ -81,11 +85,7 @@ public class PaymentController {
                         authentication.getName()));
     }
 
-    // =========================================================
     // GET PAYMENTS BY TENANT
-    // SUPER_ADMIN / OWNER / MANAGER / TENANT
-    // =========================================================
-
     @GetMapping("/tenant/{tenantId}")
     @PreAuthorize("""
         hasAnyRole(
@@ -105,11 +105,7 @@ public class PaymentController {
                         authentication.getName()));
     }
 
-    // =========================================================
     // GET PAYMENTS BY INVOICE
-    // SUPER_ADMIN / OWNER / MANAGER / TENANT
-    // =========================================================
-
     @GetMapping("/invoice/{invoiceId}")
     @PreAuthorize("""
         hasAnyRole(

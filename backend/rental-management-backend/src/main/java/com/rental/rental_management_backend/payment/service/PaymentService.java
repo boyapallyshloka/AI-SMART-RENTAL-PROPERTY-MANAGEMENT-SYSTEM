@@ -1,10 +1,13 @@
-
 package com.rental.rental_management_backend.payment.service;
 
 import java.util.List;
 
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
+import com.rental.rental_management_backend.payment.dto.RazorpayOrderRequestDTO;
+import com.rental.rental_management_backend.payment.dto.RazorpayOrderResponseDTO;
+import com.rental.rental_management_backend.payment.dto.RazorpayPaymentVerificationRequestDTO;
+
 
 public interface PaymentService {
 
@@ -12,8 +15,12 @@ public interface PaymentService {
             PaymentCreateDTO request,
             String email);
 
-    PaymentResponse confirmPayment(
-            Long paymentId,
+    RazorpayOrderResponseDTO createRazorpayOrder(
+            RazorpayOrderRequestDTO request,
+            String email);
+
+    PaymentResponse verifyRazorpayPayment(
+            RazorpayPaymentVerificationRequestDTO request,
             String email);
 
     PaymentResponse getPaymentById(
