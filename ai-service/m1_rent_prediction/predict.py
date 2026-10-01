@@ -130,19 +130,20 @@ if __name__ == "__main__":
         "parking_available": True,
         "property_age_years": 10,
         "amenity_count": 5,
-        "amenity_parking": 1,
-        "amenity_lift": 1,
-        "amenity_gym": 1,
-        "amenity_security": 1,
-        "amenity_power_backup": 1,
-        "amenity_air_conditioning": 0,
-        "amenity_wifi": 0,
-        "amenity_garden": 0,
+
+        "amenity_parking": True,
+        "amenity_lift": True,
+        "amenity_gym": True,
+        "amenity_security": True,
+        "amenity_power_backup": True,
+        "amenity_air_conditioning": False,
+        "amenity_wifi": False,
+        "amenity_garden": False,
+        
         "latitude": 17.46,
         "longitude": 78.36,
         "property_type": "APARTMENT"
     }
-
     predicted_rent = predict_rent(
         sample_property
     )

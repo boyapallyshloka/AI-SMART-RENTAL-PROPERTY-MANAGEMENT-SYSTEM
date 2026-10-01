@@ -4,12 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from m1_rent_prediction.api import (
-    router as m1_router,
-    predict_rent_endpoint,
-    PropertyInput,
-    RentPredictionResponse,
-)
+from m1_rent_prediction.api import router as m1_router
 from M2_Property_Recommendation.api import router as m2_router
 from m3_rental_demand.api import router as m3_router
 from m4_payment_risk.api import router as m4_router
@@ -133,22 +128,6 @@ app.include_router(m6_router)
 # ============================================================
 
 app.include_router(scout_router)
-
-
-# ============================================================
-# DIRECT RENT PREDICTION COMPATIBILITY ENDPOINT
-# ============================================================
-
-@app.post(
-    "/predict-rent",
-    response_model=RentPredictionResponse,
-    tags=["Rent Prediction"],
-)
-def predict_rent_direct(property_data: PropertyInput):
-    """Direct alias for backend compatibility (ai.fastapi.rent-prediction-url)."""
-
-    return predict_rent_endpoint(property_data)
-
 
 # ============================================================
 # ROOT & HEALTH ENDPOINTS

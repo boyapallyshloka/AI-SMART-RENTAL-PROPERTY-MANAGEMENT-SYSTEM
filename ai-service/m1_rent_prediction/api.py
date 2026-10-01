@@ -4,13 +4,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
-
 from . import preprocessing
 sys.modules.setdefault("preprocessing", preprocessing)
-
 from .predict import predict_rent
-
-
 router = APIRouter(
     prefix="/m1",
     tags=["Rent Prediction"]
@@ -39,14 +35,14 @@ class PropertyInput(BaseModel):
     property_age_years: int = Field(ge=0)
 
     amenity_count: int = Field(ge=0)
-    amenity_parking: int = Field(ge=0)
-    amenity_lift: int = Field(ge=0)
-    amenity_gym: int = Field(ge=0)
-    amenity_security: int = Field(ge=0)
-    amenity_power_backup: int = Field(ge=0)
-    amenity_air_conditioning: int = Field(ge=0)
-    amenity_wifi: int = Field(ge=0)
-    amenity_garden: int = Field(ge=0)
+    amenity_parking: bool
+    amenity_lift: bool
+    amenity_gym: bool
+    amenity_security: bool
+    amenity_power_backup: bool
+    amenity_air_conditioning: bool
+    amenity_wifi: bool
+    amenity_garden: bool
 
     latitude: float
     longitude: float
@@ -56,7 +52,7 @@ class PropertyInput(BaseModel):
 
 class RentPredictionResponse(BaseModel):
     success: bool
-    prediction: float
+    predictedRent: float
     modelVersion: str
 
 
@@ -132,7 +128,7 @@ def predict_rent_endpoint(property_data: PropertyInput):
 
         return {
             "success": True,
-            "prediction": predicted_rent,
+            "predictedRent": predicted_rent,
             "modelVersion": MODEL_VERSION
         }
 

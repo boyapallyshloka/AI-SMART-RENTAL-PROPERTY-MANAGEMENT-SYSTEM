@@ -530,7 +530,7 @@ def extract_property_type(text: str):
 
         for word in words:
 
-            if word in text:
+            if re.search(rf"\b{re.escape(word)}\b", text):
                 return property_type
 
     return None

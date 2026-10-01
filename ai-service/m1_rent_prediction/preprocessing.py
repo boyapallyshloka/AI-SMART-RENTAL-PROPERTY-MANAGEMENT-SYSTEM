@@ -106,6 +106,19 @@ class M1Preprocessor(BaseEstimator, TransformerMixin):
         numeric_df = X[
             self.numeric_columns_
         ].reset_index(drop=True)
+        amenity_columns = [
+            "amenity_parking",
+            "amenity_lift",
+            "amenity_gym",
+            "amenity_security",
+            "amenity_power_backup",
+            "amenity_air_conditioning",
+            "amenity_wifi",
+            "amenity_garden"
+        ]
+
+        for column in amenity_columns:
+            numeric_df[column] = numeric_df[column].astype(int)
 
         # One-hot encoded categorical features.
         encoded = self.encoder_.transform(
