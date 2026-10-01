@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.payment.serviceImpl;
 
 import java.math.BigDecimal;
@@ -27,6 +26,7 @@ import com.rental.rental_management_backend.payment.dto.RazorpayOrderRequestDTO;
 import com.rental.rental_management_backend.payment.dto.RazorpayOrderResponseDTO;
 import com.rental.rental_management_backend.payment.dto.RazorpayPaymentVerificationRequestDTO;
 import com.rental.rental_management_backend.payment.entity.Payment;
+import com.rental.rental_management_backend.payment.enums.PaymentMethod;
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
 import com.rental.rental_management_backend.payment.repository.PaymentRepository;
 import com.rental.rental_management_backend.payment.service.PaymentService;
@@ -41,6 +41,7 @@ import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
+
 import com.rental.rental_management_backend.receipt.service.ReceiptService;
 
 @Service
@@ -53,7 +54,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final TenantRepository tenantRepository;
     private final UnitRepository unitRepository;
     private final ReceiptService receiptService;
-
     private final RazorpayClient razorpayClient;
 
     @Value("${razorpay.key.id}")
@@ -63,33 +63,20 @@ public class PaymentServiceImpl implements PaymentService {
     private String razorpayKeySecret;
 
     public PaymentServiceImpl(
-
             PaymentRepository paymentRepository,
-
             RentInvoiceRepository rentInvoiceRepository,
-
             UserRepository userRepository,
-
             TenantRepository tenantRepository,
-
             UnitRepository unitRepository,
-
             ReceiptService receiptService,
-
             RazorpayClient razorpayClient) {
 
         this.paymentRepository = paymentRepository;
-
         this.rentInvoiceRepository = rentInvoiceRepository;
-
         this.userRepository = userRepository;
-
         this.tenantRepository = tenantRepository;
-
         this.unitRepository = unitRepository;
-
         this.receiptService = receiptService;
-
         this.razorpayClient = razorpayClient;
     }
 
@@ -172,6 +159,7 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = new Payment();
 
         payment.setInvoice(invoice);
+
         payment.setTenantId(
                 tenant.getTenantId());
 
@@ -184,6 +172,7 @@ public class PaymentServiceImpl implements PaymentService {
                 request.getPaymentMethod());
 
         payment.setRazorpayOrderId(null);
+
         payment.setRazorpayPaymentId(null);
 
         payment.setPaymentDate(null);
@@ -553,6 +542,43 @@ public class PaymentServiceImpl implements PaymentService {
                             request.getRazorpayPaymentId());
 
             // ----------------------------------------------------
+            // Get actual payment method from Razorpay
+            // ----------------------------------------------------
+
+            String razorpayMethod =
+                    razorpayPayment.get("method");
+
+            if (razorpayMethod != null) {
+
+                switch (razorpayMethod.toLowerCase()) {
+
+                    case "upi":
+                        payment.setPaymentMethod(
+                                PaymentMethod.UPI);
+                        break;
+
+                    case "card":
+                        payment.setPaymentMethod(
+                                PaymentMethod.CARD);
+                        break;
+
+                    case "netbanking":
+                        payment.setPaymentMethod(
+                                PaymentMethod.NET_BANKING);
+                        break;
+
+                    case "wallet":
+                        payment.setPaymentMethod(
+                                PaymentMethod.WALLET);
+                        break;
+
+                    default:
+                        payment.setPaymentMethod(null);
+                        break;
+                }
+            }
+
+            // ----------------------------------------------------
             // Verify Razorpay order ID
             // ----------------------------------------------------
 
@@ -624,24 +650,26 @@ public class PaymentServiceImpl implements PaymentService {
 
             paymentRepository.save(payment);
 
-         // ----------------------------------------------------
-         // Update RentInvoice
-         //
-         // SUCCESS payments are recalculated.
-         // ----------------------------------------------------
-         updateInvoiceStatus(
-                 payment.getInvoice());
+            // ----------------------------------------------------
+            // Update RentInvoice
+            //
+            // SUCCESS payments are recalculated.
+            // ----------------------------------------------------
 
-         // ----------------------------------------------------
-         // Create Receipt
-         //
-         // Receipt is created only after the payment
-         // has been successfully verified and saved.
-         // ----------------------------------------------------
-         receiptService.createReceipt(
-                 payment.getPaymentId());
+            updateInvoiceStatus(
+                    payment.getInvoice());
 
-         return mapToResponse(payment);
+            // ----------------------------------------------------
+            // Create Receipt
+            //
+            // Receipt is created only after the payment
+            // has been successfully verified and saved.
+            // ----------------------------------------------------
+
+            receiptService.createReceipt(
+                    payment.getPaymentId());
+
+            return mapToResponse(payment);
 
         } catch (RazorpayException e) {
 
@@ -713,6 +741,7 @@ public class PaymentServiceImpl implements PaymentService {
         /*
          * SUPER_ADMIN can access all payments.
          */
+
         if (user.getRole() == RoleType.SUPER_ADMIN) {
 
             return payments.stream()
@@ -723,6 +752,7 @@ public class PaymentServiceImpl implements PaymentService {
         /*
          * TENANT already validated above.
          */
+
         if (user.getRole() == RoleType.TENANT) {
 
             return payments.stream()
@@ -734,18 +764,27 @@ public class PaymentServiceImpl implements PaymentService {
          * OWNER/MANAGER:
          * Return only payments they are authorized to access.
          */
+
         return payments.stream()
                 .filter(payment -> {
+
                     try {
-                        validatePaymentAccess(payment, user);
+
+                        validatePaymentAccess(
+                                payment,
+                                user);
+
                         return true;
+
                     } catch (RuntimeException e) {
+
                         return false;
                     }
                 })
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
     // ============================================================
     // GET PAYMENTS BY INVOICE
     // ============================================================
@@ -816,6 +855,7 @@ public class PaymentServiceImpl implements PaymentService {
         // --------------------------------------------------------
 
         if (user.getRole() == RoleType.SUPER_ADMIN) {
+
             return;
         }
 
@@ -1019,6 +1059,4 @@ public class PaymentServiceImpl implements PaymentService {
         return response;
     }
 }
-
-
 
