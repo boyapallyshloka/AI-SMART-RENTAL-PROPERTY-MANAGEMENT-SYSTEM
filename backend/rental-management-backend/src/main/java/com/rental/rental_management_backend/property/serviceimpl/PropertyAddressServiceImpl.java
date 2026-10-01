@@ -4,6 +4,7 @@ package com.rental.rental_management_backend.property.serviceimpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
@@ -17,8 +18,6 @@ import com.rental.rental_management_backend.property.enums.PropertyStatus;
 import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyAddressService;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(noRollbackFor = ResourceNotFoundException.class)

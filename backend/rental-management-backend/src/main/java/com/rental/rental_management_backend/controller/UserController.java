@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rental.rental_management_backend.User.dto.ChangePasswordRequest;
+import com.rental.rental_management_backend.User.dto.ForgotPasswordRequest;
 import com.rental.rental_management_backend.User.dto.LoginRequest;
 import com.rental.rental_management_backend.User.dto.LoginResponse;
 import com.rental.rental_management_backend.User.dto.RegisterRequest;
@@ -27,9 +28,6 @@ import com.rental.rental_management_backend.User.dto.UserResponse;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.service.UserService;
-
-import com.rental.rental_management_backend.User.dto.ForgotPasswordRequest;
-
 
 import jakarta.validation.Valid;
 

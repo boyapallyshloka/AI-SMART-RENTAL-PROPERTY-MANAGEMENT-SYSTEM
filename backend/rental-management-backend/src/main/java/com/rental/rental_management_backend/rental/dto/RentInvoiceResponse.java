@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.rental.rental_management_backend.rental.enums.InvoiceStatus;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import com.rental.rental_management_backend.rental.enums.InvoiceStatus;
 
 @Getter
 @Setter

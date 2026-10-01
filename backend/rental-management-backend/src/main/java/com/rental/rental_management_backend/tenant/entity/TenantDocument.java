@@ -1,8 +1,7 @@
 package com.rental.rental_management_backend.tenant.entity;
 
 import java.time.LocalDateTime;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+
 import com.rental.rental_management_backend.tenant.enums.DocumentVerificationStatus;
 import com.rental.rental_management_backend.tenant.enums.TenantDocumentType;
 
@@ -16,6 +15,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity

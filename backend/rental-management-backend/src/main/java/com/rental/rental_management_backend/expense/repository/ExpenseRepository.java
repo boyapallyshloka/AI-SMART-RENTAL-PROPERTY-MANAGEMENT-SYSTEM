@@ -1,13 +1,12 @@
 package com.rental.rental_management_backend.expense.repository;
 
-import com.rental.rental_management_backend.expense.entity.Expense;
-import com.rental.rental_management_backend.expense.enums.ExpenseCategory;
+import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
+import com.rental.rental_management_backend.expense.entity.Expense;
+import com.rental.rental_management_backend.expense.enums.ExpenseCategory;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 

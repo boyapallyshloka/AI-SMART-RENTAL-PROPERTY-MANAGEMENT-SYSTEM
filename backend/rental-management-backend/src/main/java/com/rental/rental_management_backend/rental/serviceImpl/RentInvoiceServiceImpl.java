@@ -1,14 +1,9 @@
 package com.rental.rental_management_backend.rental.serviceImpl;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,10 +11,8 @@ import org.springframework.stereotype.Service;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
-
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
 import com.rental.rental_management_backend.payment.repository.PaymentRepository;
-
 import com.rental.rental_management_backend.rental.dto.RentInvoiceRequest;
 import com.rental.rental_management_backend.rental.dto.RentInvoiceResponse;
 import com.rental.rental_management_backend.rental.entity.RentInvoice;

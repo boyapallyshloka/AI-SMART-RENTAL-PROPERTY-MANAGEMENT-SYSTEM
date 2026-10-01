@@ -11,9 +11,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
@@ -27,8 +26,6 @@ import com.rental.rental_management_backend.tenant.enums.TenantDocumentType;
 import com.rental.rental_management_backend.tenant.repository.TenantDocumentRepository;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.tenant.service.TenantDocumentService;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional

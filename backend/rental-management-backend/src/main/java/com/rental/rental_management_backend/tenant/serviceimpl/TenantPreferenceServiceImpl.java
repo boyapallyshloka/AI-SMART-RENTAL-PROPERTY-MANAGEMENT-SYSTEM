@@ -13,17 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
-
 import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.entity.Amenity;
 import com.rental.rental_management_backend.property.repository.AmenityRepository;
-
 import com.rental.rental_management_backend.tenant.dto.TenantPreferenceDTO;
 import com.rental.rental_management_backend.tenant.dto.TenantPreferenceResponseDTO;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.entity.TenantPreference;
-import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.tenant.repository.TenantPreferenceRepository;
+import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.tenant.service.TenantPreferenceService;
 
 @Service

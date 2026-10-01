@@ -1,6 +1,9 @@
 package com.rental.rental_management_backend.maintenance.entity;
 
+import java.time.LocalDate;
+
 import com.rental.rental_management_backend.property.entity.Property;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -14,8 +17,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "property_inspections")

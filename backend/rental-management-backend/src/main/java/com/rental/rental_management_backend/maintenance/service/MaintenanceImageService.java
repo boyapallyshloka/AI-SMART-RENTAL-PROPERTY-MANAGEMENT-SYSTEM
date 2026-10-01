@@ -12,47 +12,39 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class MaintenanceImageService {
 
-    private final Path uploadDirectory =
-            Paths.get("uploads/maintenance");
+	private final Path uploadDirectory = Paths.get("uploads/maintenance");
 
-    public String saveImage(MultipartFile image) throws IOException {
+	public String saveImage(MultipartFile image) throws IOException {
 
-        // If no image is uploaded
-        if (image == null || image.isEmpty()) {
-            return null;
-        }
+		// If no image is uploaded
+		if (image == null || image.isEmpty()) {
+			return null;
+		}
 
-        // Create the upload folder if it does not exist
-        Files.createDirectories(uploadDirectory);
+		// Create the upload folder if it does not exist
+		Files.createDirectories(uploadDirectory);
 
-        // Get the original file name
-        String originalFileName = image.getOriginalFilename();
+		// Get the original file name
+		String originalFileName = image.getOriginalFilename();
 
-        // Get file extension
-        String extension = "";
+		// Get file extension
+		String extension = "";
 
-        if (originalFileName != null &&
-                originalFileName.contains(".")) {
+		if (originalFileName != null && originalFileName.contains(".")) {
 
-            extension = originalFileName.substring(
-                    originalFileName.lastIndexOf("."));
-        }
+			extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+		}
 
-        // Create a unique file name
-        String fileName =
-                UUID.randomUUID().toString() + extension;
+		// Create a unique file name
+		String fileName = UUID.randomUUID().toString() + extension;
 
-        // Create the complete file path
-        Path filePath =
-                uploadDirectory.resolve(fileName);
+		// Create the complete file path
+		Path filePath = uploadDirectory.resolve(fileName);
 
-        // Save the uploaded image
-        Files.copy(
-                image.getInputStream(),
-                filePath
-        );
+		// Save the uploaded image
+		Files.copy(image.getInputStream(), filePath);
 
-        // Return the URL that will be stored in the database
-        return "/uploads/maintenance/" + fileName;
-    }
+		// Return the URL that will be stored in the database
+		return "/uploads/maintenance/" + fileName;
+	}
 }
