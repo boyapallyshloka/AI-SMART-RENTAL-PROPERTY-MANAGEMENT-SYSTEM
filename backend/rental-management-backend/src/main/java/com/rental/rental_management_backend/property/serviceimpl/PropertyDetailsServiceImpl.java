@@ -8,7 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.dto.BuildingDetailsResponse;
 import com.rental.rental_management_backend.property.dto.BuildingResponse;

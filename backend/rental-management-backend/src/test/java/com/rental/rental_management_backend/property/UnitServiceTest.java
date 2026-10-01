@@ -19,7 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.UnitResponse;
 import com.rental.rental_management_backend.property.entity.Building;
 import com.rental.rental_management_backend.property.entity.Floor;

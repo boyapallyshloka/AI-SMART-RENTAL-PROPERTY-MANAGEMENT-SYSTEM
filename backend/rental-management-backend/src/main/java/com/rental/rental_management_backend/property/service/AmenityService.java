@@ -19,7 +19,7 @@ public interface AmenityService {
     AmenityResponse getAmenityById(
             Long amenityId);
 
-    AmenityResponse updateAmenity(
+    AmenityResponse updateAmenity( 
             Long amenityId,
             AmenityRequest request);
 

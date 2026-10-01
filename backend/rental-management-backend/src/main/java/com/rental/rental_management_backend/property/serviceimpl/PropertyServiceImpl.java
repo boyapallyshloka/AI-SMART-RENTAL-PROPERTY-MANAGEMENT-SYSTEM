@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.entity.Property;

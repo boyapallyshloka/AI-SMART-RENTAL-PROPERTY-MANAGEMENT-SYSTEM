@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.rental.rental_management_backend.ai.client.FastApiRentPredictionClient;
+import com.rental.rental_management_backend.ai.dto.RentPredictionPreviewRequestDTO;
 import com.rental.rental_management_backend.ai.dto.RentPredictionRequestDTO;
 import com.rental.rental_management_backend.ai.dto.RentPredictionResponseDTO;
 import com.rental.rental_management_backend.ai.service.RentPredictionService;
@@ -21,61 +22,97 @@ import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyAddress;
 import com.rental.rental_management_backend.property.entity.PropertyAmenity;
-import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.enums.AreaType;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
 import com.rental.rental_management_backend.property.enums.PropertyType;
+import com.rental.rental_management_backend.property.repository.FloorRepository;
 import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
 import com.rental.rental_management_backend.property.repository.PropertyAmenityRepository;
-import com.rental.rental_management_backend.property.repository.UnitRepository;
 
 @Service
 @Transactional(readOnly = true)
 public class RentPredictionServiceImpl implements RentPredictionService {
 
-    private final UnitRepository unitRepository;
+    private final FloorRepository floorRepository;
+
     private final PropertyAddressRepository propertyAddressRepository;
+
     private final PropertyAmenityRepository propertyAmenityRepository;
+
     private final FastApiRentPredictionClient fastApiRentPredictionClient;
 
     public RentPredictionServiceImpl(
-            UnitRepository unitRepository,
+            FloorRepository floorRepository,
             PropertyAddressRepository propertyAddressRepository,
             PropertyAmenityRepository propertyAmenityRepository,
             FastApiRentPredictionClient fastApiRentPredictionClient) {
 
-        this.unitRepository = unitRepository;
+        this.floorRepository = floorRepository;
         this.propertyAddressRepository = propertyAddressRepository;
         this.propertyAmenityRepository = propertyAmenityRepository;
         this.fastApiRentPredictionClient = fastApiRentPredictionClient;
     }
 
     @Override
-    public RentPredictionResponseDTO predictRent(Long unitId) {
+    public RentPredictionResponseDTO predictRent(
+            RentPredictionPreviewRequestDTO previewRequest) {
 
         // ---------------------------------------------------------
-        // 1. Load Unit
+        // 1. Validate request
         // ---------------------------------------------------------
-        Unit unit = unitRepository.findById(unitId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Unit not found with id: " + unitId));
+
+        if (previewRequest == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Rent prediction request is required");
+        }
+
+        if (previewRequest.getFloorId() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Floor ID is required for rent prediction");
+        }
+
+        if (previewRequest.getArea() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Unit area is required for rent prediction");
+        }
+
+        if (previewRequest.getBedrooms() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Unit bedrooms are required for rent prediction");
+        }
+
+        if (previewRequest.getBathrooms() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Unit bathrooms are required for rent prediction");
+        }
 
         // ---------------------------------------------------------
         // 2. Load Floor
         // ---------------------------------------------------------
-        if (unit.getFloor() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Unit is not associated with a floor");
-        }
 
-        Floor floor = unit.getFloor();
+        Floor floor = floorRepository
+                .findById(previewRequest.getFloorId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Floor not found with id: "
+                                + previewRequest.getFloorId()));
 
         // ---------------------------------------------------------
         // 3. Load Building
         // ---------------------------------------------------------
+
         if (floor.getBuilding() == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Floor is not associated with a building");
@@ -86,7 +123,9 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         // ---------------------------------------------------------
         // 4. Load Property
         // ---------------------------------------------------------
+
         if (building.getProperty() == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Building is not associated with a property");
@@ -97,34 +136,39 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         // ---------------------------------------------------------
         // 5. Load Property Address
         // ---------------------------------------------------------
-        PropertyAddress address = propertyAddressRepository
-                .findByProperty(property)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Property address is required for rent prediction"));
+
+        PropertyAddress address =
+                propertyAddressRepository
+                        .findByProperty(property)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Property address is required for rent prediction"));
 
         // ---------------------------------------------------------
-        // 6. Validate required data
+        // 6. Validate existing data
         // ---------------------------------------------------------
+
         validateRequiredData(
-                unit,
+                previewRequest,
                 floor,
                 building,
                 property,
                 address);
 
         // ---------------------------------------------------------
-        // 7. Load property amenities
+        // 7. Load Property Amenities
         // ---------------------------------------------------------
+
         List<PropertyAmenity> propertyAmenities =
                 propertyAmenityRepository.findByProperty(property);
 
         // ---------------------------------------------------------
-        // 8. Build exact 23-field M1 request
+        // 8. Build 23-field M1 request
         // ---------------------------------------------------------
+
         RentPredictionRequestDTO request =
                 buildPredictionRequest(
-                        unit,
+                        previewRequest,
                         floor,
                         building,
                         property,
@@ -134,12 +178,16 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         // ---------------------------------------------------------
         // 9. Call FastAPI
         // ---------------------------------------------------------
+
         Map<String, Object> modelResponse;
 
         try {
+
             modelResponse =
                     fastApiRentPredictionClient.predictRent(request);
+
         } catch (Exception e) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "Failed to get rent prediction from FastAPI service",
@@ -147,32 +195,32 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         }
 
         // ---------------------------------------------------------
-        // 10. Extract predicted_rent
+        // 10. Extract predicted rent
         // ---------------------------------------------------------
+
         BigDecimal predictedRent =
                 extractPredictedRent(modelResponse);
 
         // ---------------------------------------------------------
         // 11. Build response
         // ---------------------------------------------------------
+
         RentPredictionResponseDTO response =
                 new RentPredictionResponseDTO();
 
-        response.setPropertyId(property.getPropertyId());
-        response.setUnitId(unit.getUnitId());
-        response.setPropertyName(property.getPropertyName());
-        response.setCurrentMonthlyRent(unit.getMonthlyRent());
         response.setPredictedRent(predictedRent);
-        response.setModelResponse(modelResponse);
 
         return response;
     }
 
     /**
      * Builds the exact 23-field request expected by M1 FastAPI.
+     *
+     * Unit-specific values come from the UNSAVED Unit form.
+     * Property-related values come from the existing database.
      */
     private RentPredictionRequestDTO buildPredictionRequest(
-            Unit unit,
+            RentPredictionPreviewRequestDTO previewRequest,
             Floor floor,
             Building building,
             Property property,
@@ -191,29 +239,37 @@ public class RentPredictionServiceImpl implements RentPredictionService {
                 new RentPredictionRequestDTO();
 
         // 1. city
-        request.setCity(address.getCity());
+        request.setCity(
+                address.getCity());
 
         // 2. area_locality
-        request.setArea_locality(address.getArea());
+        request.setArea_locality(
+                address.getArea());
 
         // 3. area_type
         request.setArea_type(
-                mapAreaTypeForM1(address.getAreaType()));
+                mapAreaTypeForM1(
+                        address.getAreaType()));
 
         // 4. size_sqft
-        request.setSize_sqft(unit.getArea());
+        request.setSize_sqft(
+                previewRequest.getArea());
 
         // 5. bedrooms_bhk
-        request.setBedrooms_bhk(unit.getBedrooms());
+        request.setBedrooms_bhk(
+                previewRequest.getBedrooms());
 
         // 6. bathrooms
-        request.setBathrooms(unit.getBathrooms());
+        request.setBathrooms(
+                previewRequest.getBathrooms());
 
         // 7. floor
-        request.setFloor(floor.getFloorNumber());
+        request.setFloor(
+                floor.getFloorNumber());
 
         // 8. total_floors
-        request.setTotal_floors(building.getTotalFloors());
+        request.setTotal_floors(
+                building.getTotalFloors());
 
         // 9. furnishing_status
         request.setFurnishing_status(
@@ -234,42 +290,72 @@ public class RentPredictionServiceImpl implements RentPredictionService {
 
         // 13. amenity_parking
         request.setAmenity_parking(
-                hasAmenity(propertyAmenities, "parking"));
+                hasAmenity(
+                        propertyAmenities,
+                        "parking"));
 
         // 14. amenity_lift
         request.setAmenity_lift(
-                hasAmenity(propertyAmenities, "lift"));
+                hasAmenity(
+                        propertyAmenities,
+                        "lift"));
 
         // 15. amenity_gym
         request.setAmenity_gym(
-                hasAmenity(propertyAmenities, "gym"));
+                hasAmenity(
+                        propertyAmenities,
+                        "gym"));
 
         // 16. amenity_security
         request.setAmenity_security(
-                hasAmenity(propertyAmenities, "security"));
+                hasAmenity(
+                        propertyAmenities,
+                        "security"));
 
         // 17. amenity_power_backup
         request.setAmenity_power_backup(
-                hasAmenity(propertyAmenities, "power backup")
-                        || hasAmenity(propertyAmenities, "powerbackup")
-                        || hasAmenity(propertyAmenities, "generator"));
+                hasAmenity(
+                        propertyAmenities,
+                        "power backup")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "powerbackup")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "generator"));
 
         // 18. amenity_air_conditioning
         request.setAmenity_air_conditioning(
-                hasAmenity(propertyAmenities, "air conditioning")
-                        || hasAmenity(propertyAmenities, "air-conditioning")
-                        || hasAmenity(propertyAmenities, "ac"));
+                hasAmenity(
+                        propertyAmenities,
+                        "air conditioning")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "air-conditioning")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "ac"));
 
         // 19. amenity_wifi
         request.setAmenity_wifi(
-                hasAmenity(propertyAmenities, "wifi")
-                        || hasAmenity(propertyAmenities, "wi-fi")
-                        || hasAmenity(propertyAmenities, "internet"));
+                hasAmenity(
+                        propertyAmenities,
+                        "wifi")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "wi-fi")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "internet"));
 
         // 20. amenity_garden
         request.setAmenity_garden(
-                hasAmenity(propertyAmenities, "garden")
-                        || hasAmenity(propertyAmenities, "park"));
+                hasAmenity(
+                        propertyAmenities,
+                        "garden")
+                        || hasAmenity(
+                                propertyAmenities,
+                                "park"));
 
         // 21. latitude
         request.setLatitude(
@@ -288,16 +374,13 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Maps backend AreaType enum to exact M1 training values.
-     *
-     * SUPER_BUILT_UP_AREA -> Super Area
-     * BUILT_UP_AREA      -> Built Area
-     * CARPET_AREA        -> Carpet Area
-     * PLOT_AREA          -> rejected
+     * Maps backend AreaType to M1 values.
      */
-    private String mapAreaTypeForM1(AreaType areaType) {
+    private String mapAreaTypeForM1(
+            AreaType areaType) {
 
         if (areaType == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Property area type is required for rent prediction");
@@ -322,16 +405,13 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Maps backend FurnishingStatus enum to exact M1 training values.
-     *
-     * UNFURNISHED      -> Unfurnished
-     * SEMI_FURNISHED   -> Semi-Furnished
-     * FULLY_FURNISHED  -> Furnished
+     * Maps backend FurnishingStatus to M1 values.
      */
     private String mapFurnishingStatusForM1(
             FurnishingStatus furnishingStatus) {
 
         if (furnishingStatus == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Property furnishingStatus is required for rent prediction");
@@ -351,12 +431,13 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Only these PropertyType values are supported by M1.
+     * Maps backend PropertyType to M1 values.
      */
     private String mapPropertyTypeForM1(
             PropertyType propertyType) {
 
         if (propertyType == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Property type is required for rent prediction");
@@ -389,21 +470,26 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Calculates current property age from yearBuilt.
+     * Calculates current property age.
      */
-    private Integer calculatePropertyAge(Integer yearBuilt) {
+    private Integer calculatePropertyAge(
+            Integer yearBuilt) {
 
         if (yearBuilt == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Property yearBuilt is required for rent prediction");
         }
 
-        int currentYear = Year.now().getValue();
+        int currentYear =
+                Year.now().getValue();
 
-        int age = currentYear - yearBuilt;
+        int age =
+                currentYear - yearBuilt;
 
         if (age < 0) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Property yearBuilt cannot be greater than the current year");
@@ -413,8 +499,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Checks whether the property has an amenity matching
-     * the supplied keyword.
+     * Checks whether the property has an amenity.
      */
     private boolean hasAmenity(
             List<PropertyAmenity> propertyAmenities,
@@ -422,6 +507,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
 
         if (propertyAmenities == null
                 || propertyAmenities.isEmpty()) {
+
             return false;
         }
 
@@ -433,6 +519,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
 
             if (propertyAmenity == null
                     || propertyAmenity.getAmenity() == null) {
+
                 continue;
             }
 
@@ -440,13 +527,17 @@ public class RentPredictionServiceImpl implements RentPredictionService {
                     propertyAmenity.getAmenity();
 
             if (amenity.getAmenityName() == null) {
+
                 continue;
             }
 
             String amenityName =
-                    normalize(amenity.getAmenityName());
+                    normalize(
+                            amenity.getAmenityName());
 
-            if (amenityName.contains(normalizedKeyword)) {
+            if (amenityName.contains(
+                    normalizedKeyword)) {
+
                 return true;
             }
         }
@@ -454,7 +545,8 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         return false;
     }
 
-    private String normalize(String value) {
+    private String normalize(
+            String value) {
 
         if (value == null) {
             return "";
@@ -469,11 +561,11 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Validates all database data required to construct
+     * Validates all data required to construct
      * the 23-field M1 request.
      */
     private void validateRequiredData(
-            Unit unit,
+            RentPredictionPreviewRequestDTO previewRequest,
             Floor floor,
             Building building,
             Property property,
@@ -505,7 +597,8 @@ public class RentPredictionServiceImpl implements RentPredictionService {
                     "Property area type is required for rent prediction");
         }
 
-        if (address.getAreaType() == AreaType.PLOT_AREA) {
+        if (address.getAreaType()
+                == AreaType.PLOT_AREA) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -513,7 +606,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         }
 
         // 4. size_sqft
-        if (unit.getArea() == null) {
+        if (previewRequest.getArea() == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -521,7 +614,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         }
 
         // 5. bedrooms_bhk
-        if (unit.getBedrooms() == null) {
+        if (previewRequest.getBedrooms() == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -529,7 +622,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         }
 
         // 6. bathrooms
-        if (unit.getBathrooms() == null) {
+        if (previewRequest.getBathrooms() == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -600,15 +693,16 @@ public class RentPredictionServiceImpl implements RentPredictionService {
                     "Property type is required for rent prediction");
         }
 
-        // Reject unsupported M1 property types.
-        if (property.getPropertyType() == PropertyType.HOSTEL) {
+        if (property.getPropertyType()
+                == PropertyType.HOSTEL) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "HOSTEL is not supported by the M1 rent prediction model");
         }
 
-        if (property.getPropertyType() == PropertyType.COMMERCIAL) {
+        if (property.getPropertyType()
+                == PropertyType.COMMERCIAL) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -617,7 +711,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
     }
 
     /**
-     * Reads predicted_rent from the FastAPI response.
+     * Reads predictedRent from FastAPI response.
      */
     private BigDecimal extractPredictedRent(
             Map<String, Object> modelResponse) {
@@ -631,18 +725,19 @@ public class RentPredictionServiceImpl implements RentPredictionService {
         }
 
         Object value =
-                modelResponse.get("predicted_rent");
+                modelResponse.get("predictedRent");
 
         if (value == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "FastAPI response does not contain 'predicted_rent'");
+                    "FastAPI response does not contain 'predictedRent'");
         }
 
         try {
 
             if (value instanceof Number number) {
+
                 return BigDecimal.valueOf(
                         number.doubleValue());
             }
@@ -654,7 +749,7 @@ public class RentPredictionServiceImpl implements RentPredictionService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Invalid predicted_rent returned by FastAPI",
+                    "Invalid predictedRent returned by FastAPI",
                     e);
         }
     }

@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyImageResponse;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyImage;

@@ -22,14 +22,16 @@ import com.rental.rental_management_backend.User.entity.PasswordResetToken;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.User.exception.UserAlreadyExistsException;
 import com.rental.rental_management_backend.User.security.JwtService;
 import com.rental.rental_management_backend.User.service.UserService;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
+
+
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {

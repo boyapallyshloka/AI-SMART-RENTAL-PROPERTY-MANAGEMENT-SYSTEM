@@ -172,4 +172,18 @@ public class AmenityController {
         return ResponseEntity.ok(
                 "Amenity removed from property successfully");
     }
+ // =========================================================
+ // GET PUBLIC PROPERTY AMENITIES
+ // USED FOR RECOMMENDED PROPERTY VIEW
+ // =========================================================
+
+ @GetMapping("/property/{propertyId}/public")
+ public ResponseEntity<List<AmenityResponse>>
+         getPublicPropertyAmenities(
+                 @PathVariable Long propertyId) {
+
+     return ResponseEntity.ok(
+             amenityService
+                     .getPublicPropertyAmenities(propertyId));
+ }
 }

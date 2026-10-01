@@ -18,7 +18,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.AmenityResponse;
 import com.rental.rental_management_backend.property.dto.BuildingDetailsResponse;
 import com.rental.rental_management_backend.property.dto.BuildingResponse;

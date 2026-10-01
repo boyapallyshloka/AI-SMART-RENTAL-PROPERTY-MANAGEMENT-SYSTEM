@@ -11,7 +11,7 @@ import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
-import com.rental.rental_management_backend.User.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.tenant.dto.TenantProfileUpdateRequest;
 import com.rental.rental_management_backend.tenant.dto.TenantResponse;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
