@@ -41,6 +41,7 @@ import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
+import com.rental.rental_management_backend.receipt.service.ReceiptService;
 
 @Service
 @Transactional
@@ -51,6 +52,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final UnitRepository unitRepository;
+    private final ReceiptService receiptService;
 
     private final RazorpayClient razorpayClient;
 
@@ -61,18 +63,33 @@ public class PaymentServiceImpl implements PaymentService {
     private String razorpayKeySecret;
 
     public PaymentServiceImpl(
+
             PaymentRepository paymentRepository,
+
             RentInvoiceRepository rentInvoiceRepository,
+
             UserRepository userRepository,
+
             TenantRepository tenantRepository,
+
             UnitRepository unitRepository,
+
+            ReceiptService receiptService,
+
             RazorpayClient razorpayClient) {
 
         this.paymentRepository = paymentRepository;
+
         this.rentInvoiceRepository = rentInvoiceRepository;
+
         this.userRepository = userRepository;
+
         this.tenantRepository = tenantRepository;
+
         this.unitRepository = unitRepository;
+
+        this.receiptService = receiptService;
+
         this.razorpayClient = razorpayClient;
     }
 
@@ -607,16 +624,24 @@ public class PaymentServiceImpl implements PaymentService {
 
             paymentRepository.save(payment);
 
-            // ----------------------------------------------------
-            // Update RentInvoice
-            //
-            // SUCCESS payments are recalculated.
-            // ----------------------------------------------------
+         // ----------------------------------------------------
+         // Update RentInvoice
+         //
+         // SUCCESS payments are recalculated.
+         // ----------------------------------------------------
+         updateInvoiceStatus(
+                 payment.getInvoice());
 
-            updateInvoiceStatus(
-                    payment.getInvoice());
+         // ----------------------------------------------------
+         // Create Receipt
+         //
+         // Receipt is created only after the payment
+         // has been successfully verified and saved.
+         // ----------------------------------------------------
+         receiptService.createReceipt(
+                 payment.getPaymentId());
 
-            return mapToResponse(payment);
+         return mapToResponse(payment);
 
         } catch (RazorpayException e) {
 
