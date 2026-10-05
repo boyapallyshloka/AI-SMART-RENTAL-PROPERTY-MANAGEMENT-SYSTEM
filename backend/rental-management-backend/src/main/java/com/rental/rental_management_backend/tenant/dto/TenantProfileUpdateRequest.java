@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.dto;
 
 import java.math.BigDecimal;
@@ -70,6 +71,18 @@ public class TenantProfileUpdateRequest {
 
     @Size(
         max = 100,
+        message = "Area cannot exceed 100 characters"
+    )
+    private String area;
+
+    @Size(
+        max = 100,
+        message = "District cannot exceed 100 characters"
+    )
+    private String district;
+
+    @Size(
+        max = 100,
         message = "City cannot exceed 100 characters"
     )
     private String city;
@@ -79,6 +92,12 @@ public class TenantProfileUpdateRequest {
         message = "State cannot exceed 100 characters"
     )
     private String state;
+
+    @Size(
+        max = 100,
+        message = "Country cannot exceed 100 characters"
+    )
+    private String country;
 
     @Size(
         max = 20,
@@ -161,6 +180,22 @@ public class TenantProfileUpdateRequest {
         this.currentAddress = currentAddress;
     }
 
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
     public String getCity() {
         return city;
     }
@@ -175,6 +210,14 @@ public class TenantProfileUpdateRequest {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public String getPincode() {

@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.property.entity;
 
 import java.math.BigDecimal;
@@ -46,6 +47,10 @@ public class PropertyAddress {
     @Enumerated(EnumType.STRING)
     @Column(name = "area_type", length = 30)
     private AreaType areaType;
+
+    // NEW FIELD
+    @Column(length = 100)
+    private String district;
 
     @Column(nullable = false, length = 100)
     private String city;
@@ -132,6 +137,14 @@ public class PropertyAddress {
         this.areaType = areaType;
     }
 
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
     public String getCity() {
         return city;
     }
@@ -140,12 +153,12 @@ public class PropertyAddress {
         this.city = city;
     }
 
-    public String getState() {
-        return state;
-    }
-
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getState() {
+        return state;
     }
 
     public String getCountry() {

@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.tenant.serviceimpl;
 
 import java.util.ArrayList;
@@ -121,6 +120,10 @@ public class TenantPreferenceServiceImpl
         tenantPreferenceRepository.delete(preference);
     }
 
+    // =========================================================
+    // GET AUTHENTICATED TENANT
+    // =========================================================
+
     private Tenant getAuthenticatedTenant() {
 
         Authentication authentication =
@@ -150,12 +153,42 @@ public class TenantPreferenceServiceImpl
                                 "Tenant profile not found"));
     }
 
+    // =========================================================
+    // DTO → ENTITY
+    // =========================================================
+
     private void mapDtoToEntity(
             TenantPreferenceDTO dto,
             TenantPreference entity) {
 
+        // -----------------------------------------------------
+        // PREFERRED LOCATION
+        // -----------------------------------------------------
+
+        entity.setPreferredAddress(
+                dto.getPreferredAddress());
+
+        entity.setPreferredArea(
+                dto.getPreferredArea());
+
+        entity.setPreferredDistrict(
+                dto.getPreferredDistrict());
+
         entity.setPreferredCity(
                 dto.getPreferredCity());
+
+        entity.setPreferredState(
+                dto.getPreferredState());
+
+        entity.setPreferredCountry(
+                dto.getPreferredCountry());
+
+        entity.setPreferredPincode(
+                dto.getPreferredPincode());
+
+        // -----------------------------------------------------
+        // BUDGET & PROPERTY PREFERENCES
+        // -----------------------------------------------------
 
         entity.setMaxBudget(
                 dto.getMaxBudget());
@@ -172,6 +205,10 @@ public class TenantPreferenceServiceImpl
         entity.setParkingRequired(
                 dto.getParkingRequired());
 
+        // -----------------------------------------------------
+        // LOCATION COORDINATES
+        // -----------------------------------------------------
+
         entity.setPreferredLatitude(
                 dto.getPreferredLatitude());
 
@@ -180,6 +217,10 @@ public class TenantPreferenceServiceImpl
 
         entity.setMaxDistanceKm(
                 dto.getMaxDistanceKm());
+
+        // -----------------------------------------------------
+        // PREFERRED AMENITIES
+        // -----------------------------------------------------
 
         Set<Amenity> amenities = new HashSet<>();
 
@@ -203,6 +244,10 @@ public class TenantPreferenceServiceImpl
         entity.setPreferredAmenities(amenities);
     }
 
+    // =========================================================
+    // ENTITY → RESPONSE DTO
+    // =========================================================
+
     private TenantPreferenceResponseDTO mapToResponseDTO(
             TenantPreference entity) {
 
@@ -212,8 +257,34 @@ public class TenantPreferenceServiceImpl
         response.setPreferenceId(
                 entity.getPreferenceId());
 
+        // -----------------------------------------------------
+        // PREFERRED LOCATION
+        // -----------------------------------------------------
+
+        response.setPreferredAddress(
+                entity.getPreferredAddress());
+
+        response.setPreferredArea(
+                entity.getPreferredArea());
+
+        response.setPreferredDistrict(
+                entity.getPreferredDistrict());
+
         response.setPreferredCity(
                 entity.getPreferredCity());
+
+        response.setPreferredState(
+                entity.getPreferredState());
+
+        response.setPreferredCountry(
+                entity.getPreferredCountry());
+
+        response.setPreferredPincode(
+                entity.getPreferredPincode());
+
+        // -----------------------------------------------------
+        // BUDGET & PROPERTY PREFERENCES
+        // -----------------------------------------------------
 
         response.setMaxBudget(
                 entity.getMaxBudget());
@@ -230,6 +301,10 @@ public class TenantPreferenceServiceImpl
         response.setParkingRequired(
                 entity.getParkingRequired());
 
+        // -----------------------------------------------------
+        // LOCATION COORDINATES
+        // -----------------------------------------------------
+
         response.setPreferredLatitude(
                 entity.getPreferredLatitude());
 
@@ -239,11 +314,19 @@ public class TenantPreferenceServiceImpl
         response.setMaxDistanceKm(
                 entity.getMaxDistanceKm());
 
+        // -----------------------------------------------------
+        // AUDIT
+        // -----------------------------------------------------
+
         response.setCreatedAt(
                 entity.getCreatedAt());
 
         response.setUpdatedAt(
                 entity.getUpdatedAt());
+
+        // -----------------------------------------------------
+        // AMENITIES
+        // -----------------------------------------------------
 
         List<AmenityResponse> amenityResponses =
                 new ArrayList<>();

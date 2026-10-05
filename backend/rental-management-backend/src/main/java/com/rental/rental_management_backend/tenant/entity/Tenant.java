@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.entity;
 
 import java.math.BigDecimal;
@@ -96,11 +97,20 @@ public class Tenant {
     )
     private String currentAddress;
 
+    @Column(name = "area", length = 100)
+    private String area;
+
+    @Column(name = "district", length = 100)
+    private String district;
+
     @Column(name = "city", length = 100)
     private String city;
 
     @Column(name = "state", length = 100)
     private String state;
+
+    @Column(name = "country", length = 100)
+    private String country;
 
     @Column(name = "pincode", length = 20)
     private String pincode;
@@ -132,7 +142,6 @@ public class Tenant {
 
     @jakarta.persistence.PrePersist
     protected void onCreate() {
-
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
@@ -143,7 +152,6 @@ public class Tenant {
 
     @jakarta.persistence.PreUpdate
     protected void onUpdate() {
-
         updatedAt = LocalDateTime.now();
     }
 
@@ -231,6 +239,22 @@ public class Tenant {
         this.currentAddress = currentAddress;
     }
 
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
     public String getCity() {
         return city;
     }
@@ -245,6 +269,14 @@ public class Tenant {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public String getPincode() {

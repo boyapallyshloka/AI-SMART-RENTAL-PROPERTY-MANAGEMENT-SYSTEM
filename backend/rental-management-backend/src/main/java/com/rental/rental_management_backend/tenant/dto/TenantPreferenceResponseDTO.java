@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.tenant.dto;
 
 import java.time.LocalDateTime;
@@ -13,7 +12,27 @@ public class TenantPreferenceResponseDTO {
 
     private Long preferenceId;
 
+    // =========================================================
+    // PREFERRED LOCATION
+    // =========================================================
+
+    private String preferredAddress;
+
+    private String preferredArea;
+
+    private String preferredDistrict;
+
     private String preferredCity;
+
+    private String preferredState;
+
+    private String preferredCountry;
+
+    private String preferredPincode;
+
+    // =========================================================
+    // BUDGET & PROPERTY PREFERENCES
+    // =========================================================
 
     private Integer maxBudget;
 
@@ -25,7 +44,16 @@ public class TenantPreferenceResponseDTO {
 
     private Boolean parkingRequired;
 
-    private List<AmenityResponse> preferredAmenities = new ArrayList<>();
+    // =========================================================
+    // AMENITIES
+    // =========================================================
+
+    private List<AmenityResponse> preferredAmenities =
+            new ArrayList<>();
+
+    // =========================================================
+    // LOCATION COORDINATES
+    // =========================================================
 
     private Double preferredLatitude;
 
@@ -33,12 +61,24 @@ public class TenantPreferenceResponseDTO {
 
     private Double maxDistanceKm;
 
+    // =========================================================
+    // AUDIT
+    // =========================================================
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
+    // =========================================================
+    // CONSTRUCTOR
+    // =========================================================
+
     public TenantPreferenceResponseDTO() {
     }
+
+    // =========================================================
+    // GETTERS AND SETTERS
+    // =========================================================
 
     public Long getPreferenceId() {
         return preferenceId;
@@ -48,12 +88,60 @@ public class TenantPreferenceResponseDTO {
         this.preferenceId = preferenceId;
     }
 
+    public String getPreferredAddress() {
+        return preferredAddress;
+    }
+
+    public void setPreferredAddress(String preferredAddress) {
+        this.preferredAddress = preferredAddress;
+    }
+
+    public String getPreferredArea() {
+        return preferredArea;
+    }
+
+    public void setPreferredArea(String preferredArea) {
+        this.preferredArea = preferredArea;
+    }
+
+    public String getPreferredDistrict() {
+        return preferredDistrict;
+    }
+
+    public void setPreferredDistrict(String preferredDistrict) {
+        this.preferredDistrict = preferredDistrict;
+    }
+
     public String getPreferredCity() {
         return preferredCity;
     }
 
     public void setPreferredCity(String preferredCity) {
         this.preferredCity = preferredCity;
+    }
+
+    public String getPreferredState() {
+        return preferredState;
+    }
+
+    public void setPreferredState(String preferredState) {
+        this.preferredState = preferredState;
+    }
+
+    public String getPreferredCountry() {
+        return preferredCountry;
+    }
+
+    public void setPreferredCountry(String preferredCountry) {
+        this.preferredCountry = preferredCountry;
+    }
+
+    public String getPreferredPincode() {
+        return preferredPincode;
+    }
+
+    public void setPreferredPincode(String preferredPincode) {
+        this.preferredPincode = preferredPincode;
     }
 
     public Integer getMaxBudget() {
@@ -100,7 +188,9 @@ public class TenantPreferenceResponseDTO {
         return preferredAmenities;
     }
 
-    public void setPreferredAmenities(List<AmenityResponse> preferredAmenities) {
+    public void setPreferredAmenities(
+            List<AmenityResponse> preferredAmenities) {
+
         this.preferredAmenities = preferredAmenities;
     }
 

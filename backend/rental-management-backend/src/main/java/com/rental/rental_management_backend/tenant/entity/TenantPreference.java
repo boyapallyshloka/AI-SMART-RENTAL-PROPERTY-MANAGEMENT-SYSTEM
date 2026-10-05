@@ -1,4 +1,3 @@
-
 package com.rental.rental_management_backend.tenant.entity;
 
 import java.time.LocalDateTime;
@@ -35,17 +34,54 @@ import jakarta.persistence.UniqueConstraint;
 )
 public class TenantPreference {
 
+    // =========================================================
+    // PRIMARY KEY
+    // =========================================================
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "preference_id")
     private Long preferenceId;
 
+    // =========================================================
+    // TENANT RELATIONSHIP
+    // =========================================================
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tenant_id", nullable = false, unique = true)
     private Tenant tenant;
 
+    // =========================================================
+    // PREFERRED LOCATION
+    // =========================================================
+
+    @Column(
+        name = "preferred_address",
+        columnDefinition = "TEXT"
+    )
+    private String preferredAddress;
+
+    @Column(name = "preferred_area", length = 100)
+    private String preferredArea;
+
+    @Column(name = "preferred_district", length = 100)
+    private String preferredDistrict;
+
     @Column(name = "preferred_city", length = 100)
     private String preferredCity;
+
+    @Column(name = "preferred_state", length = 100)
+    private String preferredState;
+
+    @Column(name = "preferred_country", length = 100)
+    private String preferredCountry;
+
+    @Column(name = "preferred_pincode", length = 20)
+    private String preferredPincode;
+
+    // =========================================================
+    // BUDGET & PROPERTY PREFERENCES
+    // =========================================================
 
     @Column(name = "max_budget")
     private Integer maxBudget;
@@ -64,6 +100,10 @@ public class TenantPreference {
     @Column(name = "parking_required")
     private Boolean parkingRequired;
 
+    // =========================================================
+    // PREFERRED AMENITIES
+    // =========================================================
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "tenant_preference_amenities",
@@ -77,14 +117,25 @@ public class TenantPreference {
     )
     private Set<Amenity> preferredAmenities = new HashSet<>();
 
+    // =========================================================
+    // LOCATION COORDINATES
+    // =========================================================
+
+    // Optional - populated when tenant uses Current Location
     @Column(name = "preferred_latitude")
     private Double preferredLatitude;
 
+    // Optional - populated when tenant uses Current Location
     @Column(name = "preferred_longitude")
     private Double preferredLongitude;
 
+    // Optional - used for nearby property recommendations
     @Column(name = "max_distance_km")
     private Double maxDistanceKm;
+
+    // =========================================================
+    // AUDIT
+    // =========================================================
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -92,17 +143,32 @@ public class TenantPreference {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // =========================================================
+    // PRE PERSIST
+    // =========================================================
+
     @PrePersist
     protected void onCreate() {
+
         LocalDateTime now = LocalDateTime.now();
+
         createdAt = now;
         updatedAt = now;
     }
 
+    // =========================================================
+    // PRE UPDATE
+    // =========================================================
+
     @PreUpdate
     protected void onUpdate() {
+
         updatedAt = LocalDateTime.now();
     }
+
+    // =========================================================
+    // GETTERS AND SETTERS
+    // =========================================================
 
     public Long getPreferenceId() {
         return preferenceId;
@@ -120,12 +186,60 @@ public class TenantPreference {
         this.tenant = tenant;
     }
 
+    public String getPreferredAddress() {
+        return preferredAddress;
+    }
+
+    public void setPreferredAddress(String preferredAddress) {
+        this.preferredAddress = preferredAddress;
+    }
+
+    public String getPreferredArea() {
+        return preferredArea;
+    }
+
+    public void setPreferredArea(String preferredArea) {
+        this.preferredArea = preferredArea;
+    }
+
+    public String getPreferredDistrict() {
+        return preferredDistrict;
+    }
+
+    public void setPreferredDistrict(String preferredDistrict) {
+        this.preferredDistrict = preferredDistrict;
+    }
+
     public String getPreferredCity() {
         return preferredCity;
     }
 
     public void setPreferredCity(String preferredCity) {
         this.preferredCity = preferredCity;
+    }
+
+    public String getPreferredState() {
+        return preferredState;
+    }
+
+    public void setPreferredState(String preferredState) {
+        this.preferredState = preferredState;
+    }
+
+    public String getPreferredCountry() {
+        return preferredCountry;
+    }
+
+    public void setPreferredCountry(String preferredCountry) {
+        this.preferredCountry = preferredCountry;
+    }
+
+    public String getPreferredPincode() {
+        return preferredPincode;
+    }
+
+    public void setPreferredPincode(String preferredPincode) {
+        this.preferredPincode = preferredPincode;
     }
 
     public Integer getMaxBudget() {
@@ -216,4 +330,3 @@ public class TenantPreference {
         this.updatedAt = updatedAt;
     }
 }
-

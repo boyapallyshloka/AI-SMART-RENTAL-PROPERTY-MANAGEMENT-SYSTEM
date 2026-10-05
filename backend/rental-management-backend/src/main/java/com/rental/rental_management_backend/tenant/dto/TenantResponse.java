@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.dto;
 
 import java.math.BigDecimal;
@@ -29,9 +30,13 @@ public class TenantResponse {
     private String emergencyContactName;
     private String emergencyContactPhone;
 
+    // Address information
     private String currentAddress;
+    private String area;
+    private String district;
     private String city;
     private String state;
+    private String country;
     private String pincode;
 
     private LocalDateTime createdAt;
@@ -176,6 +181,22 @@ public class TenantResponse {
         this.currentAddress = currentAddress;
     }
 
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
     public String getCity() {
         return city;
     }
@@ -190,6 +211,14 @@ public class TenantResponse {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public String getPincode() {
