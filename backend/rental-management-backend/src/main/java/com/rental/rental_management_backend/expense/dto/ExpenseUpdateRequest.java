@@ -1,14 +1,13 @@
 package com.rental.rental_management_backend.expense.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import com.rental.rental_management_backend.expense.enums.ExpenseCategory;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
 
 public class ExpenseUpdateRequest {
 

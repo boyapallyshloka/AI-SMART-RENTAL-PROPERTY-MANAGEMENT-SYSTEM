@@ -1,24 +1,18 @@
+
 package com.rental.rental_management_backend.tenant.serviceimpl;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.s3.service.S3Service;
 import com.rental.rental_management_backend.tenant.dto.TenantDocumentResponse;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.entity.TenantDocument;
@@ -28,11 +22,10 @@ import com.rental.rental_management_backend.tenant.repository.TenantDocumentRepo
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 import com.rental.rental_management_backend.tenant.service.TenantDocumentService;
 
-import org.springframework.transaction.annotation.Transactional;
-
 @Service
 @Transactional
-public class TenantDocumentServiceImpl implements TenantDocumentService {
+public class TenantDocumentServiceImpl
+        implements TenantDocumentService {
 
     private final TenantDocumentRepository tenantDocumentRepository;
 
@@ -40,13 +33,13 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
 
     private final UserRepository userRepository;
 
-    @Value("${app.tenant-document.upload-dir:uploads/tenant-documents}")
-    private String uploadDir;
+    private final S3Service s3Service;
 
     public TenantDocumentServiceImpl(
             TenantDocumentRepository tenantDocumentRepository,
             TenantRepository tenantRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            S3Service s3Service) {
 
         this.tenantDocumentRepository =
                 tenantDocumentRepository;
@@ -56,6 +49,9 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
 
         this.userRepository =
                 userRepository;
+
+        this.s3Service =
+                s3Service;
     }
 
     // =========================================================
@@ -85,7 +81,13 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
                                 createEmptyTenantProfile(user));
 
         /*
-         * Save physical file.
+         * Upload document to AWS S3.
+         *
+         * S3 folder:
+         *
+         * tenant-documents/
+         *     tenantId/
+         *         uuid_filename
          */
         String documentUrl =
                 saveFile(
@@ -107,7 +109,12 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
                 file.getOriginalFilename());
 
         /*
-         * Store relative URL only.
+         * Store S3 object key in PostgreSQL.
+         *
+         * Example:
+         *
+         * tenant-documents/32/
+         * uuid_aadhar.pdf
          */
         document.setDocumentUrl(
                 documentUrl);
@@ -121,8 +128,8 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
         /*
          * Explicitly set timestamps.
          *
-         * This fixes the PostgreSQL error:
-         * null value in column "uploaded_at"
+         * This preserves the existing PostgreSQL
+         * uploaded_at fix.
          */
         LocalDateTime now =
                 LocalDateTime.now();
@@ -225,7 +232,7 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
                                         "Document not found or you are not authorized"));
 
         /*
-         * Delete physical file.
+         * Delete document from AWS S3.
          */
         deletePhysicalFile(
                 document.getDocumentUrl());
@@ -307,7 +314,7 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
     }
 
     // =========================================================
-    // SAVE FILE
+    // SAVE FILE TO AWS S3
     // =========================================================
 
     private String saveFile(
@@ -316,68 +323,27 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
 
         try {
 
-            String originalFilename =
-                    file.getOriginalFilename();
-
-            String extension = "";
-
-            if (originalFilename != null
-                    && originalFilename.contains(".")) {
-
-                extension =
-                        originalFilename.substring(
-                                originalFilename.lastIndexOf("."));
-            }
-
-            String uniqueFilename =
-                    UUID.randomUUID()
-                            + extension;
-
             /*
-             * Physical folder:
+             * Upload to:
              *
-             * uploads/
-             *     tenant-documents/
-             *         tenantId/
-             *             uuid.png
+             * tenant-documents/{tenantId}/
+             *
+             * S3Service generates the unique filename.
              */
-            Path tenantDirectory =
-                    Paths.get(uploadDir)
-                            .toAbsolutePath()
-                            .normalize()
-                            .resolve(
-                                    String.valueOf(tenantId));
+            return s3Service.uploadFile(
+                    file,
+                    "tenant-documents/" + tenantId);
 
-            Files.createDirectories(
-                    tenantDirectory);
-
-            Path targetLocation =
-                    tenantDirectory
-                            .resolve(uniqueFilename);
-
-            Files.copy(
-                    file.getInputStream(),
-                    targetLocation,
-                    StandardCopyOption.REPLACE_EXISTING);
-
-            /*
-             * Store relative path in PostgreSQL.
-             */
-            return "/uploads/tenant-documents/"
-                    + tenantId
-                    + "/"
-                    + uniqueFilename;
-
-        } catch (IOException e) {
+        } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Failed to store tenant document file",
+                    "Failed to store tenant document file in S3",
                     e);
         }
     }
 
     // =========================================================
-    // DELETE PHYSICAL FILE
+    // DELETE FILE FROM AWS S3
     // =========================================================
 
     private void deletePhysicalFile(
@@ -389,31 +355,40 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
             return;
         }
 
-        try {
+        /*
+         * New records contain an S3 object key.
+         *
+         * Example:
+         *
+         * tenant-documents/32/
+         * uuid_aadhar.pdf
+         */
+        if (documentUrl.startsWith(
+                "tenant-documents/")) {
 
-            String prefix =
-                    "/uploads/tenant-documents/";
+            try {
 
-            if (!documentUrl.startsWith(prefix)) {
-                return;
+                s3Service.deleteFile(
+                        documentUrl);
+
+            } catch (Exception e) {
+
+                System.err.println(
+                        "Could not delete tenant document from S3: "
+                                + e.getMessage());
             }
 
-            String relativePath =
-                    documentUrl.substring(1);
-
-            Path filePath =
-                    Paths.get(relativePath)
-                            .toAbsolutePath()
-                            .normalize();
-
-            Files.deleteIfExists(filePath);
-
-        } catch (IOException e) {
-
-            System.err.println(
-                    "Could not delete tenant document file: "
-                            + e.getMessage());
+            return;
         }
+
+        /*
+         * Old local filesystem records are
+         * intentionally ignored here.
+         *
+         * This prevents an S3 migration from
+         * accidentally trying to treat an old
+         * /uploads/... path as an S3 key.
+         */
     }
 
     // =========================================================
@@ -558,8 +533,33 @@ public class TenantDocumentServiceImpl implements TenantDocumentService {
         response.setFileName(
                 document.getFileName());
 
-        response.setDocumentUrl(
-                document.getDocumentUrl());
+        /*
+         * Generate temporary presigned URL for
+         * S3 documents.
+         *
+         * Old local URLs are returned unchanged
+         * for backward compatibility.
+         */
+        String documentUrl =
+                document.getDocumentUrl();
+
+        if (documentUrl == null
+                || documentUrl.isBlank()) {
+
+            response.setDocumentUrl(null);
+
+        } else if (documentUrl.startsWith(
+                "/uploads/")) {
+
+            response.setDocumentUrl(
+                    documentUrl);
+
+        } else {
+
+            response.setDocumentUrl(
+                    s3Service.generatePresignedUrl(
+                            documentUrl));
+        }
 
         response.setVerificationStatus(
                 document.getVerificationStatus());

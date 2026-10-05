@@ -4,7 +4,6 @@ package com.rental.rental_management_backend.rental.entity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.rental.enums.RentalApplicationStatus;
 import com.rental.rental_management_backend.tenant.entity.Tenant;

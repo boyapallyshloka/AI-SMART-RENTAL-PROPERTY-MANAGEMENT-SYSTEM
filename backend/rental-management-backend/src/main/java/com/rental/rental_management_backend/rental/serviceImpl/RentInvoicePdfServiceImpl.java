@@ -1,9 +1,8 @@
+
 package com.rental.rental_management_backend.rental.serviceImpl;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -15,26 +14,29 @@ import org.springframework.stereotype.Service;
 
 import com.rental.rental_management_backend.rental.entity.RentInvoice;
 import com.rental.rental_management_backend.rental.service.RentInvoicePdfService;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 @Service
-public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
+public class RentInvoicePdfServiceImpl
+        implements RentInvoicePdfService {
 
-    private static final String UPLOAD_DIR =
-            "uploads/invoices/";
+    private final S3Service s3Service;
+
+    public RentInvoicePdfServiceImpl(
+            S3Service s3Service) {
+
+        this.s3Service = s3Service;
+    }
 
     @Override
-    public String generateInvoicePdf(RentInvoice invoice) {
+    public String generateInvoicePdf(
+            RentInvoice invoice) {
 
         try {
 
-            // Create invoice directory if it does not exist
-            Path uploadPath = Paths.get(UPLOAD_DIR);
-
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            // Generate unique PDF file name
+            /*
+             * Generate unique PDF file name.
+             */
             String fileName =
                     "invoice_"
                     + invoice.getInvoiceId()
@@ -42,21 +44,33 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
                     + UUID.randomUUID()
                     + ".pdf";
 
-            Path filePath = uploadPath.resolve(fileName);
+            /*
+             * Generate PDF in memory.
+             *
+             * No local uploads/invoices directory
+             * is created anymore.
+             */
+            byte[] pdfBytes;
 
-            // Create PDF document
-            try (PDDocument document = new PDDocument()) {
+            try (PDDocument document =
+                         new PDDocument()) {
 
-                PDPage page = new PDPage();
+                PDPage page =
+                        new PDPage();
 
                 document.addPage(page);
 
                 try (PDPageContentStream contentStream =
-                        new PDPageContentStream(document, page)) {
+                             new PDPageContentStream(
+                                     document,
+                                     page)) {
 
                     float y = 750;
 
-                    // Title
+                    // =====================================================
+                    // TITLE
+                    // =====================================================
+
                     contentStream.beginText();
 
                     contentStream.setFont(
@@ -66,15 +80,23 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
                             20
                     );
 
-                    contentStream.newLineAtOffset(200, y);
+                    contentStream.newLineAtOffset(
+                            200,
+                            y
+                    );
 
-                    contentStream.showText("RENT INVOICE");
+                    contentStream.showText(
+                            "RENT INVOICE"
+                    );
 
                     contentStream.endText();
 
                     y -= 50;
 
-                    // Invoice Number
+                    // =====================================================
+                    // INVOICE NUMBER
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Invoice Number: "
@@ -84,7 +106,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Billing Period
+                    // =====================================================
+                    // BILLING PERIOD
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Billing Period: "
@@ -96,7 +121,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Invoice Date
+                    // =====================================================
+                    // INVOICE DATE
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Invoice Date: "
@@ -106,7 +134,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Due Date
+                    // =====================================================
+                    // DUE DATE
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Due Date: "
@@ -116,7 +147,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 40;
 
-                    // Tenant
+                    // =====================================================
+                    // TENANT
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Tenant ID: "
@@ -126,7 +160,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Unit
+                    // =====================================================
+                    // UNIT
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Unit ID: "
@@ -136,7 +173,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 40;
 
-                    // Rent
+                    // =====================================================
+                    // RENT
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Rent Amount: INR "
@@ -146,7 +186,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Late Fee
+                    // =====================================================
+                    // LATE FEE
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Late Fee: INR "
@@ -156,7 +199,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Total
+                    // =====================================================
+                    // TOTAL
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Total Amount: INR "
@@ -166,7 +212,10 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
 
                     y -= 25;
 
-                    // Status
+                    // =====================================================
+                    // STATUS
+                    // =====================================================
+
                     writeLine(
                             contentStream,
                             "Status: "
@@ -175,11 +224,34 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
                     );
                 }
 
-                document.save(filePath.toFile());
+                /*
+                 * Write PDF into memory instead of local filesystem.
+                 */
+                try (ByteArrayOutputStream outputStream =
+                             new ByteArrayOutputStream()) {
+
+                    document.save(outputStream);
+
+                    pdfBytes =
+                            outputStream.toByteArray();
+                }
             }
 
-            // Path stored in database
-            return "/uploads/invoices/" + fileName;
+            // =========================================================
+            // UPLOAD PDF TO AWS S3
+            // =========================================================
+
+            /*
+             * S3 folder:
+             *
+             * invoices/{invoiceId}/
+             */
+            return s3Service.uploadBytes(
+                    pdfBytes,
+                    fileName,
+                    "application/pdf",
+                    "invoices/" + invoice.getInvoiceId()
+            );
 
         } catch (IOException e) {
 
@@ -187,8 +259,18 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
                     "Failed to generate invoice PDF",
                     e
             );
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to upload invoice PDF to S3",
+                    e
+            );
         }
     }
+
+    // =========================================================
+    // WRITE PDF LINE
+    // =========================================================
 
     private void writeLine(
             PDPageContentStream contentStream,
@@ -204,9 +286,14 @@ public class RentInvoicePdfServiceImpl implements RentInvoicePdfService {
                 12
         );
 
-        contentStream.newLineAtOffset(70, y);
+        contentStream.newLineAtOffset(
+                70,
+                y
+        );
 
-        contentStream.showText(text);
+        contentStream.showText(
+                text
+        );
 
         contentStream.endText();
     }

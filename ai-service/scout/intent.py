@@ -210,10 +210,8 @@ OPERATION_DEFINITIONS = {
         required_parameters=[],
         optional_parameters=[
             "property_id",
-            "property_age",
-            "maintenance_type",
         ],
-        description="Predict maintenance requirements.",
+        description="Predict maintenance requirements for a property.",
     ),
 
     # --------------------------------------------------------
@@ -409,6 +407,18 @@ KEYWORDS = {
         "maintenance needed",
         "maintenance needs",
         "predict repairs",
+        "predict maintenance needs",
+        "maintenance risk",
+        "maintenance prediction for",
+        "will this property need maintenance",
+        "will my property need maintenance",
+        "will property",
+        "maintenance required",
+        "maintenance forecast",
+        "expected maintenance",
+        "expected repairs",
+        "maintenance cost prediction",
+        "predict maintenance cost",
     ],
 
     # --------------------------------------------------------
@@ -687,10 +697,50 @@ def extract_occupancy_rate(text: str):
 
     return None
 
+def extract_property_id(text: str):
+    """
+    Extract property ID from the user's message.
+
+    Examples:
+        P00001
+        P12345
+        property P00001
+    """
+
+    property_match = re.search(
+        r"\bP\d+\b",
+        text.upper(),
+    )
+
+    if property_match:
+        return property_match.group(0)
+
+    return None
+
 
 # ============================================================
 # 9. PARAMETER EXTRACTION
 # ============================================================
+
+def extract_property_id(text: str):
+    """
+    Extract property ID from the user's message.
+
+    Examples:
+        P00001
+        P12345
+        property P00001
+    """
+
+    property_match = re.search(
+        r"\bP\d+\b",
+        text.upper(),
+    )
+
+    if property_match:
+        return property_match.group(0)
+
+    return None
 
 def extract_parameters(
     message: str,
@@ -816,32 +866,11 @@ def extract_parameters(
     # --------------------------------------------------------
 
     elif operation == ScoutOperation.PREDICTIVE_MAINTENANCE:
-
-        property_age = extract_property_age(text)
-
-        if property_age is not None:
-            parameters["property_age"] = property_age
-
-        maintenance_types = [
-            "plumbing",
-            "electrical",
-            "hvac",
-            "ac",
-            "air conditioning",
-            "painting",
-            "roof",
-            "roofing",
-            "appliance",
-        ]
-
-        for maintenance_type in maintenance_types:
-
-            if maintenance_type in text:
-
-                parameters["maintenance_type"] = maintenance_type
-
-                break
-
+        
+        property_id = extract_property_id(text)
+        
+        if property_id:
+            parameters["property_id"] = property_id
     # --------------------------------------------------------
     # M6 PROFITABILITY
     # --------------------------------------------------------

@@ -22,9 +22,8 @@ import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
-import com.rental.rental_management_backend.property.service.PropertyManagerService;
-import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
 import com.rental.rental_management_backend.property.service.PropertyDetailsService;
+import com.rental.rental_management_backend.property.service.PropertyManagerService;
 
 @Service
 @Transactional

@@ -1,25 +1,28 @@
 package com.rental.rental_management_backend.maintenance;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.rental.rental_management_backend.s3.service.S3Service;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
@@ -44,6 +47,9 @@ import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceRequestServiceScopingTest {
+	
+	@Mock
+	private S3Service s3Service;
 
     @Mock
     private MaintenanceRequestRepository maintenanceRequestRepository;
@@ -98,6 +104,7 @@ class MaintenanceRequestServiceScopingTest {
                 propertyRepository,
                 unitRepository,
                 maintenanceImageService,
+                s3Service,
                 userRepository,
                 maintenanceAiServiceClient,
                 m5AggregationService

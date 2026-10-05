@@ -14,6 +14,8 @@
         <version>3.5.5</version>
         <relativePath/>
     </parent>
+    
+    
 
     <!-- Project Information -->
     <groupId>com.rental</groupId>
@@ -29,6 +31,15 @@
     </properties>
 
     <dependencies>
+    
+        
+        <!-- Source: https://mvnrepository.com/artifact/software.amazon.awssdk/s3 -->
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>s3</artifactId>
+    <version>2.55.7</version>
+    <scope>compile</scope>
+</dependency>
 
         <!-- Spring Web -->
         <dependency>
@@ -112,6 +123,7 @@
             <scope>test</scope>
         </dependency>
 
+
 <dependency>
     <groupId>org.apache.pdfbox</groupId>
     <artifactId>pdfbox</artifactId>
@@ -125,7 +137,12 @@
 </dependency>
 
         
+
         <!-- Apache PDFBox for PDF generation -->
+
+
+        
+
 
 
 

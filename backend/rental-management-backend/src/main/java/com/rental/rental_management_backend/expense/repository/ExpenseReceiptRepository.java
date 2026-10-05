@@ -1,10 +1,10 @@
 package com.rental.rental_management_backend.expense.repository;
 
-import com.rental.rental_management_backend.expense.entity.ExpenseReceipt;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+import com.rental.rental_management_backend.expense.entity.ExpenseReceipt;
 
 public interface ExpenseReceiptRepository
         extends JpaRepository<ExpenseReceipt, Long> {

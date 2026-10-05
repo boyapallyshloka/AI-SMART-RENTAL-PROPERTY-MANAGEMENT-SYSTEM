@@ -207,6 +207,20 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/maintenance-assignments/**")
                         .authenticated()
+                        
+                        
+                     // -------------------------------------------------
+                     // EXPENSE MODULE
+                     // SUPER ADMIN, PROPERTY OWNER, PROPERTY MANAGER
+                     // Property-level access is checked in ExpenseServiceImpl
+                     // -------------------------------------------------
+
+                     .requestMatchers(
+                             "/api/expenses/**")
+                     .hasAnyRole(
+                             "SUPER_ADMIN",
+                             "PROPERTY_OWNER",
+                             "PROPERTY_MANAGER")
 
                         // -------------------------------------------------
                         // EVERYTHING ELSE

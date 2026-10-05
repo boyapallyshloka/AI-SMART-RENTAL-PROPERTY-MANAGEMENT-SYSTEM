@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.entity.TenantPreference;
 

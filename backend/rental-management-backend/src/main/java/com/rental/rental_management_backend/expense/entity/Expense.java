@@ -1,12 +1,26 @@
 package com.rental.rental_management_backend.expense.entity;
 
-import com.rental.rental_management_backend.property.entity.Property;
-import com.rental.rental_management_backend.expense.enums.ExpenseCategory;
-
-import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import com.rental.rental_management_backend.expense.enums.ExpenseCategory;
+import com.rental.rental_management_backend.property.entity.Property;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(

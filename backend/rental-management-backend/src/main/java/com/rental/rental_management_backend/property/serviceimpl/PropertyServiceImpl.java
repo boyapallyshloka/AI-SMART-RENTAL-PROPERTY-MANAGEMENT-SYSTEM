@@ -2,9 +2,6 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.List;
-import com.rental.rental_management_backend.property.enums.FurnishingStatus;
-import com.rental.rental_management_backend.property.enums.PropertyType;
-import com.rental.rental_management_backend.property.enums.PropertyStatus;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,11 +15,13 @@ import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.entity.Property;
+import com.rental.rental_management_backend.property.entity.PropertyManager;
+import com.rental.rental_management_backend.property.enums.FurnishingStatus;
 import com.rental.rental_management_backend.property.enums.PropertyStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
+import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyService;
-import com.rental.rental_management_backend.property.entity.PropertyManager;
-import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 
 @Service
 @Transactional

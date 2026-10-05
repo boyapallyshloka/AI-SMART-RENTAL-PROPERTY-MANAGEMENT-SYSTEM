@@ -1,9 +1,7 @@
 package com.rental.rental_management_backend.rental.serviceImpl;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -21,21 +19,25 @@ import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.repository.PropertyAddressRepository;
 import com.rental.rental_management_backend.rental.entity.RentalAgreement;
 import com.rental.rental_management_backend.rental.service.RentalAgreementPdfService;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 @Service
 public class RentalAgreementPdfServiceImpl
         implements RentalAgreementPdfService {
 
-    private static final String UPLOAD_DIRECTORY =
-            "uploads/rental-agreements";
-
     private final PropertyAddressRepository propertyAddressRepository;
 
+    private final S3Service s3Service;
+
     public RentalAgreementPdfServiceImpl(
-            PropertyAddressRepository propertyAddressRepository) {
+            PropertyAddressRepository propertyAddressRepository,
+            S3Service s3Service) {
 
         this.propertyAddressRepository =
                 propertyAddressRepository;
+
+        this.s3Service =
+                s3Service;
     }
 
     @Override
@@ -54,13 +56,6 @@ public class RentalAgreementPdfServiceImpl
 
         try {
 
-            Path uploadDirectory =
-                    Paths.get(UPLOAD_DIRECTORY)
-                            .toAbsolutePath()
-                            .normalize();
-
-            Files.createDirectories(uploadDirectory);
-
             String fileName =
                     "agreement_"
                             + agreement.getAgreementId()
@@ -68,23 +63,16 @@ public class RentalAgreementPdfServiceImpl
                             + UUID.randomUUID()
                             + ".pdf";
 
-            Path pdfPath =
-                    uploadDirectory
-                            .resolve(fileName)
-                            .normalize();
+            byte[] pdfBytes;
 
             /*
-             * Path traversal protection.
+             * Generate PDF in memory.
              */
-            if (!pdfPath.startsWith(uploadDirectory)) {
-                throw new IllegalArgumentException(
-                        "Invalid PDF file path");
-            }
-
             try (PDDocument document =
                          new PDDocument()) {
 
-                PDPage page = new PDPage();
+                PDPage page =
+                        new PDPage();
 
                 document.addPage(page);
 
@@ -108,9 +96,18 @@ public class RentalAgreementPdfServiceImpl
                     // =====================================================
 
                     contentStream.beginText();
-                    contentStream.setFont(titleFont, 18);
-                    contentStream.newLineAtOffset(200, y);
-                    contentStream.showText("RENTAL AGREEMENT");
+
+                    contentStream.setFont(
+                            titleFont,
+                            18);
+
+                    contentStream.newLineAtOffset(
+                            200,
+                            y);
+
+                    contentStream.showText(
+                            "RENTAL AGREEMENT");
+
                     contentStream.endText();
 
                     y -= 40;
@@ -211,7 +208,8 @@ public class RentalAgreementPdfServiceImpl
                             "PROPERTY DETAILS",
                             y);
 
-                    Unit unit = agreement.getUnit();
+                    Unit unit =
+                            agreement.getUnit();
 
                     if (unit != null) {
 
@@ -503,22 +501,51 @@ public class RentalAgreementPdfServiceImpl
                             y);
                 }
 
-                document.save(pdfPath.toFile());
+                /*
+                 * Save the generated PDF into memory
+                 * instead of the local filesystem.
+                 */
+                try (ByteArrayOutputStream outputStream =
+                             new ByteArrayOutputStream()) {
+
+                    document.save(outputStream);
+
+                    pdfBytes =
+                            outputStream.toByteArray();
+                }
             }
 
-            return "/uploads/rental-agreements/" + fileName;
+            /*
+             * Upload generated PDF to AWS S3.
+             *
+             * Example S3 key:
+             *
+             * rental-agreements/15/
+             * agreement_15_abc123.pdf
+             */
+            return s3Service.uploadBytes(
+                    pdfBytes,
+                    fileName,
+                    "application/pdf",
+                    "rental-agreements/"
+                            + agreement.getAgreementId());
 
         } catch (IOException e) {
 
             throw new RuntimeException(
                     "Failed to generate rental agreement PDF",
                     e);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to upload rental agreement PDF to S3",
+                    e);
         }
     }
 
     /**
-     * Fetches the property address using the exact
-     * PropertyAddressRepository method:
+     * Fetches the property address using:
      *
      * findByProperty(Property property)
      */
@@ -538,8 +565,8 @@ public class RentalAgreementPdfServiceImpl
     }
 
     /**
-     * Small internal record used to keep address retrieval
-     * simple and null-safe.
+     * Small internal record used to keep
+     * address retrieval simple and null-safe.
      */
     private record OptionalAddressResult(
             PropertyAddress address) {
@@ -575,4 +602,3 @@ public class RentalAgreementPdfServiceImpl
         return y - 18;
     }
 }
-

@@ -3,6 +3,10 @@ package com.rental.rental_management_backend.payment.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.rental.rental_management_backend.payment.enums.PaymentMethod;
+import com.rental.rental_management_backend.payment.enums.PaymentStatus;
+import com.rental.rental_management_backend.rental.entity.RentInvoice;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,10 +17,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-
-import com.rental.rental_management_backend.payment.enums.PaymentMethod;
-import com.rental.rental_management_backend.payment.enums.PaymentStatus;
-import com.rental.rental_management_backend.rental.entity.RentInvoice;
 
 @Entity
 @Table(name = "rent_payments")

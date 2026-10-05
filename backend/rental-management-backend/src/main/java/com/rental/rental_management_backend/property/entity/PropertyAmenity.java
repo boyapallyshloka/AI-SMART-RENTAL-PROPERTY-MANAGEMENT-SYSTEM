@@ -1,8 +1,6 @@
 package com.rental.rental_management_backend.property.entity;
 
 
-import com.rental.rental_management_backend.property.entity.Property;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
