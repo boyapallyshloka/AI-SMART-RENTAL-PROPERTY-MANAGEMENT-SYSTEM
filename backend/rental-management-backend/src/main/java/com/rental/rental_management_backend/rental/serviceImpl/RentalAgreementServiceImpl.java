@@ -1,11 +1,9 @@
-
 package com.rental.rental_management_backend.rental.serviceImpl;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +22,7 @@ import com.rental.rental_management_backend.rental.repository.RentalAgreementRep
 import com.rental.rental_management_backend.rental.repository.RentalApplicationRepository;
 import com.rental.rental_management_backend.rental.service.RentalAgreementPdfService;
 import com.rental.rental_management_backend.rental.service.RentalAgreementService;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -40,14 +39,14 @@ public class RentalAgreementServiceImpl
 
     private final RentalAgreementPdfService rentalAgreementPdfService;
 
-    private static final String AGREEMENT_UPLOAD_DIRECTORY =
-            "uploads/rental-agreements";
+    private final S3Service s3Service;
 
     public RentalAgreementServiceImpl(
             RentalAgreementRepository rentalAgreementRepository,
             RentalApplicationRepository rentalApplicationRepository,
             UserRepository userRepository,
-            RentalAgreementPdfService rentalAgreementPdfService) {
+            RentalAgreementPdfService rentalAgreementPdfService,
+            S3Service s3Service) {
 
         this.rentalAgreementRepository =
                 rentalAgreementRepository;
@@ -60,6 +59,9 @@ public class RentalAgreementServiceImpl
 
         this.rentalAgreementPdfService =
                 rentalAgreementPdfService;
+
+        this.s3Service =
+                s3Service;
     }
 
     // =========================================================
@@ -162,8 +164,7 @@ public class RentalAgreementServiceImpl
         }
 
         // Validate application dates and lease duration.
-        validateDates(
-                application);
+        validateDates(application);
 
         // Validate due day.
         if (request.getDueDay() != null
@@ -189,7 +190,6 @@ public class RentalAgreementServiceImpl
         RentalAgreement agreement =
                 new RentalAgreement();
 
-        // These are derived from the approved application.
         agreement.setRentalApplication(application);
 
         agreement.setTenant(
@@ -199,17 +199,6 @@ public class RentalAgreementServiceImpl
 
         // =====================================================
         // AGREEMENT DATES
-        // =====================================================
-
-        // Start date comes from the preferred move-in date
-        // stored in the Rental Application.
-        //
-        // End date is automatically calculated from the
-        // preferred lease duration.
-        //
-        // Example:
-        // 2026-10-01 + 12 months - 1 day
-        // = 2027-09-30
         // =====================================================
 
         LocalDate startDate =
@@ -249,7 +238,6 @@ public class RentalAgreementServiceImpl
         agreement.setNoticePeriodDays(
                 request.getNoticePeriodDays());
 
-        // Move-in date comes from RentalApplication.
         agreement.setMoveInDate(
                 application.getPreferredMoveInDate());
 
@@ -257,22 +245,13 @@ public class RentalAgreementServiceImpl
                 cleanString(
                         request.getTermsAndConditions()));
 
-        /*
-         * PDF is generated automatically by the backend.
-         */
         agreement.setAgreementDocument(null);
 
-        /*
-         * New agreement starts as DRAFT.
-         */
         agreement.setStatus(
                 AgreementStatus.DRAFT);
 
         // =====================================================
         // FIRST SAVE
-        // =====================================================
-
-        // Generates agreementId.
         // =====================================================
 
         RentalAgreement savedAgreement =
@@ -289,7 +268,7 @@ public class RentalAgreementServiceImpl
                                 savedAgreement);
 
         // =====================================================
-        // SAVE PDF PATH
+        // SAVE S3 OBJECT KEY
         // =====================================================
 
         savedAgreement.setAgreementDocument(
@@ -944,8 +923,6 @@ public class RentalAgreementServiceImpl
                     agreement.getRentalApplication()
                             .getApplicationId());
 
-            // Lease duration comes from the Rental Application.
-            // It is not stored separately in RentalAgreement.
             response.setLeaseDurationMonths(
                     agreement.getRentalApplication()
                             .getPreferredLeaseDurationMonths());
@@ -983,8 +960,41 @@ public class RentalAgreementServiceImpl
         response.setNoticePeriodDays(
                 agreement.getNoticePeriodDays());
 
-        response.setAgreementDocument(
-                agreement.getAgreementDocument());
+        /*
+         * Database stores the S3 object key.
+         *
+         * Example:
+         * rental-agreements/15/agreement_15_xxx.pdf
+         *
+         * API response returns a temporary presigned URL.
+         */
+        String documentKey =
+                agreement.getAgreementDocument();
+
+        if (documentKey != null
+                && !documentKey.isBlank()) {
+
+            if (documentKey.startsWith("/uploads/")) {
+
+                /*
+                 * Backward compatibility for old
+                 * locally stored agreement records.
+                 */
+                response.setAgreementDocument(
+                        documentKey);
+
+            } else {
+
+                response.setAgreementDocument(
+                        s3Service.generatePresignedUrl(
+                                documentKey));
+            }
+
+        } else {
+
+            response.setAgreementDocument(
+                    null);
+        }
 
         response.setMoveInDate(
                 agreement.getMoveInDate());
@@ -1056,50 +1066,28 @@ public class RentalAgreementServiceImpl
                     "You are not authorized to access this agreement document");
         }
 
-        String documentPath =
+        String documentKey =
                 agreement.getAgreementDocument();
 
-        if (documentPath == null
-                || documentPath.isBlank()) {
+        if (documentKey == null
+                || documentKey.isBlank()) {
 
             throw new EntityNotFoundException(
                     "Agreement document not found for agreement ID: "
                             + agreementId);
         }
 
-        String filename =
-                java.nio.file.Paths
-                        .get(documentPath)
-                        .getFileName()
-                        .toString();
-
-        java.nio.file.Path uploadDirectory =
-                java.nio.file.Paths
-                        .get(AGREEMENT_UPLOAD_DIRECTORY)
-                        .toAbsolutePath()
-                        .normalize();
-
-        java.nio.file.Path filePath =
-                uploadDirectory
-                        .resolve(filename)
-                        .normalize();
-
-        if (!filePath.startsWith(
-                uploadDirectory)) {
-
-            throw new IllegalStateException(
-                    "Invalid agreement document path");
-        }
-
-        if (!java.nio.file.Files.exists(filePath)
-                || !java.nio.file.Files.isRegularFile(filePath)) {
+        /*
+         * Old local documents are not downloaded
+         * through S3.
+         */
+        if (documentKey.startsWith("/uploads/")) {
 
             throw new EntityNotFoundException(
-                    "Agreement document file not found");
+                    "This agreement document is stored in the old local filesystem");
         }
 
-        return new FileSystemResource(
-                filePath);
+        return s3Service.downloadFile(
+                documentKey);
     }
 }
-

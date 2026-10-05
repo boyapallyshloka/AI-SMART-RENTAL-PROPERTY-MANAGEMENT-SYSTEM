@@ -1,15 +1,8 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +19,7 @@ import com.rental.rental_management_backend.property.entity.PropertyImage;
 import com.rental.rental_management_backend.property.repository.PropertyImageRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyImageService;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 @Service
 @Transactional
@@ -34,18 +28,18 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     private final PropertyImageRepository propertyImageRepository;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
-
-    @Value("${file.upload-dir:uploads/property-images}")
-    private String uploadDir;
+    private final S3Service s3Service;
 
     public PropertyImageServiceImpl(
             PropertyImageRepository propertyImageRepository,
             PropertyRepository propertyRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            S3Service s3Service) {
 
         this.propertyImageRepository = propertyImageRepository;
         this.propertyRepository = propertyRepository;
         this.userRepository = userRepository;
+        this.s3Service = s3Service;
     }
 
     // =========================================================
@@ -89,8 +83,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         image.setImageUrl(imageUrl);
         image.setImageType(imageType);
-        image.setIsPrimary(
-                Boolean.TRUE.equals(isPrimary));
+        image.setIsPrimary(Boolean.TRUE.equals(isPrimary));
         image.setProperty(property);
 
         PropertyImage savedImage =
@@ -125,7 +118,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     // =========================================================
 
     @Override
-    public PropertyImageResponse getImageById(Long imageId) {
+    public PropertyImageResponse getImageById(
+            Long imageId) {
 
         User authenticatedUser = getAuthenticatedUser();
 
@@ -174,8 +168,10 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
             validateFile(file);
 
+            // Delete old image from S3
             deletePhysicalFile(image.getImageUrl());
 
+            // Upload new image to S3
             String newImageUrl =
                     saveFile(
                             file,
@@ -234,8 +230,10 @@ public class PropertyImageServiceImpl implements PropertyImageService {
                 image.getProperty(),
                 authenticatedUser);
 
+        // Delete image from S3
         deletePhysicalFile(image.getImageUrl());
 
+        // Delete database record
         propertyImageRepository.delete(image);
     }
 
@@ -279,7 +277,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
          * PROPERTY_OWNER access
          */
         if (property.getOwner() != null
-                && property.getOwner().getId()
+                && property.getOwner()
+                        .getId()
                         .equals(authenticatedUser.getId())) {
 
             return;
@@ -293,7 +292,8 @@ public class PropertyImageServiceImpl implements PropertyImageService {
          */
         if (property.getPropertyManager() != null
                 && property.getPropertyManager().getUser() != null
-                && property.getPropertyManager().getUser()
+                && property.getPropertyManager()
+                        .getUser()
                         .getId()
                         .equals(authenticatedUser.getId())) {
 
@@ -305,7 +305,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
     }
 
     // =========================================================
-    // SAVE FILE
+    // SAVE FILE TO S3
     // =========================================================
 
     private String saveFile(
@@ -314,56 +314,30 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         try {
 
-            String originalFilename =
-                    file.getOriginalFilename();
-
-            String extension = "";
-
-            if (originalFilename != null
-                    && originalFilename.contains(".")) {
-
-                extension =
-                        originalFilename.substring(
-                                originalFilename.lastIndexOf("."));
-            }
-
-            String uniqueFilename =
-                    UUID.randomUUID() + extension;
-
-            Path propertyDirectory =
-                    Paths.get(uploadDir)
-                            .toAbsolutePath()
-                            .normalize()
-                            .resolve(String.valueOf(propertyId));
-
-            Files.createDirectories(propertyDirectory);
-
-            Path targetLocation =
-                    propertyDirectory.resolve(uniqueFilename);
-
-            Files.copy(
-                    file.getInputStream(),
-                    targetLocation,
-                    StandardCopyOption.REPLACE_EXISTING);
-
             /*
-             * This value is stored in the database.
+             * Upload property image to:
+             *
+             * property-images/{propertyId}/
+             *
+             * Example:
+             * property-images/5/uuid_image.jpg
+             *
+             * The returned value is the S3 object key.
              */
-            return "/uploads/property-images/"
-                    + propertyId
-                    + "/"
-                    + uniqueFilename;
+            return s3Service.uploadFile(
+                    file,
+                    "property-images/" + propertyId);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Failed to store image file",
+                    "Failed to upload image to S3",
                     e);
         }
     }
 
     // =========================================================
-    // DELETE PHYSICAL FILE
+    // DELETE FILE FROM S3
     // =========================================================
 
     private void deletePhysicalFile(
@@ -377,27 +351,18 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         try {
 
-            String prefix =
-                    "/uploads/property-images/";
+            /*
+             * imageUrl contains the S3 object key.
+             *
+             * Example:
+             * property-images/5/uuid_image.jpg
+             */
+            s3Service.deleteFile(imageUrl);
 
-            if (!imageUrl.startsWith(prefix)) {
-                return;
-            }
-
-            String relativePath =
-                    imageUrl.substring(1);
-
-            Path filePath =
-                    Paths.get(relativePath)
-                            .toAbsolutePath()
-                            .normalize();
-
-            Files.deleteIfExists(filePath);
-
-        } catch (IOException e) {
+        } catch (Exception e) {
 
             System.err.println(
-                    "Could not delete image file: "
+                    "Could not delete image from S3: "
                             + e.getMessage());
         }
     }
@@ -486,8 +451,35 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         response.setImageId(
                 image.getImageId());
 
-        response.setImageUrl(
-                image.getImageUrl());
+        /*
+         * Database stores the S3 object key.
+         *
+         * Example:
+         * property-images/5/uuid_image.jpg
+         *
+         * Response returns a temporary presigned URL.
+         */
+        String imageUrl = image.getImageUrl();
+
+        if (imageUrl == null
+                || imageUrl.isBlank()) {
+
+            response.setImageUrl(null);
+
+        } else if (imageUrl.startsWith("/uploads/")) {
+
+            /*
+             * Backward compatibility for old local
+             * image records that may still exist in DB.
+             */
+            response.setImageUrl(imageUrl);
+
+        } else {
+
+            response.setImageUrl(
+                    s3Service.generatePresignedUrl(
+                            imageUrl));
+        }
 
         response.setImageType(
                 image.getImageType());
