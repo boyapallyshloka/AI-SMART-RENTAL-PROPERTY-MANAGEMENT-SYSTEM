@@ -1,19 +1,11 @@
 import axiosClient from './axiosClient.js'
-import {
-  getMockBuildings,
-  getMockBuildingById,
-  getMockBuildingsByPropertyId,
-  getMockBuildingsForTenant,
-  getMyRentalProperty,
-  addMockBuilding,
-  updateMockBuilding,
-  deleteMockBuilding,
-} from '../utils/buildingUnitMockData.js'
+import { getManagerAssignedProperties } from './propertyApi.js'
+import { resolveTenantRentalContext } from '../utils/tenantRentalHelper.js'
 
 /**
  * Building API Service Layer (Spring Boot Integration)
  * Controller: BuildingController (/api/buildings)
- * Role: PROPERTY_OWNER
+ * Role: PROPERTY_OWNER, PROPERTY_MANAGER
  */
 
 export const ALLOWED_BUILDING_FIELDS = [
@@ -119,29 +111,61 @@ export const deleteBuilding = async (buildingId) => {
 }
 
 // ============================================================================
-// UI Compatibility Helpers (Preserved for Manager/Tenant Views)
+// UI Compatibility Helpers (Powered by Real Backend APIs)
 // ============================================================================
 
 export const getAllBuildings = async () => {
-  return getMockBuildings()
+  return []
 }
 
 export const getBuildingsForManager = async () => {
-  return getMockBuildings()
+  const propsRes = await getManagerAssignedProperties()
+  const propList = Array.isArray(propsRes?.data)
+    ? propsRes.data
+    : Array.isArray(propsRes)
+    ? propsRes
+    : []
+
+  const buildingArrays = await Promise.all(
+    propList.map(async (p) => {
+      try {
+        const bRes = await getBuildingsByProperty(p.propertyId || p.id)
+        const list = Array.isArray(bRes?.data)
+          ? bRes.data
+          : Array.isArray(bRes)
+          ? bRes
+          : []
+        return list.map((b) => ({
+          ...b,
+          propertyName: p.propertyName || p.name,
+          propertyId: p.propertyId || p.id,
+        }))
+      } catch (err) {
+        return []
+      }
+    })
+  )
+  return buildingArrays.flat()
 }
 
 export const getBuildingByIdForManager = async (buildingId) => {
-  return getMockBuildingById(buildingId)
+  return getBuildingById(buildingId)
 }
 
 export const getBuildingsForTenant = async (user) => {
-  return getMockBuildingsForTenant(user)
+  const context = await resolveTenantRentalContext()
+  return context?.buildings || []
 }
 
 export const getTenantRentalContext = async (user) => {
-  return getMyRentalProperty(user)
+  return resolveTenantRentalContext()
 }
 
 export const getBuildingByIdForTenant = async (buildingId) => {
-  return getMockBuildingById(buildingId)
+  const context = await resolveTenantRentalContext()
+  return (
+    (context?.buildings || []).find(
+      (b) => String(b.buildingId || b.id) === String(buildingId)
+    ) || null
+  )
 }

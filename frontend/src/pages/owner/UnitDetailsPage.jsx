@@ -20,12 +20,10 @@ import {
 } from 'lucide-react'
 import {
   getUnitById,
-  getUnitByIdForManager,
-  getUnitByIdForTenant,
   deleteUnit,
 } from '../../api/unitApi'
 import { formatCurrency } from '../../utils/currency'
-import { getTenantRentalContext } from '../../api/buildingApi'
+import { getTenantUnitDetails } from '../../utils/tenantRentalHelper'
 import { useAuth } from '../../context/AuthContext'
 import {
   ROLES,
@@ -47,9 +45,12 @@ export default function UnitDetailsPage() {
   const basePath = isTenant ? '/tenant' : '/owner'
 
   const [myRental, setMyRental] = useState(null)
-  const isCurrentRentedUnit = isTenant && String(unitId) === String(myRental?.currentUnitId)
-
   const [unit, setUnit] = useState(null)
+  const isCurrentRentedUnit =
+    isTenant &&
+    (String(unitId) === String(myRental?.currentUnitId) ||
+      String(unit?.unitId) === String(myRental?.currentUnitId))
+
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [toastMessage, setToastMessage] = useState('')
@@ -69,11 +70,9 @@ export default function UnitDetailsPage() {
     try {
       let u = null
       if (isTenant) {
-        u = await getUnitByIdForTenant(unitId)
-        const rental = await getTenantRentalContext(user)
-        setMyRental(rental)
-      } else if (isManager) {
-        u = await getUnitByIdForManager(unitId)
+        const tenantData = await getTenantUnitDetails(unitId)
+        u = tenantData.unit
+        setMyRental(tenantData.myRental)
       } else {
         const res = await getUnitById(unitId)
         const raw = res?.data ?? res ?? null
@@ -236,7 +235,7 @@ export default function UnitDetailsPage() {
             action={
               <Link to={`${basePath}/buildings`}>
                 <Button size="sm" variant="primary">
-                  View All Buildings
+                  {isTenant ? 'Back to My Rental Property' : 'View All Buildings'}
                 </Button>
               </Link>
             }
@@ -287,21 +286,32 @@ export default function UnitDetailsPage() {
 
         {/* Hierarchy Breadcrumbs */}
         <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
-          <Link
-            to="/owner/properties"
-            className="hover:text-[#315A7D] transition-colors"
-          >
-            Properties
-          </Link>
-          {targetPropertyId && (
+          {isTenant ? (
+            <Link
+              to="/tenant/buildings"
+              className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+            >
+              My Rental Property
+            </Link>
+          ) : (
             <>
-              <span>/</span>
               <Link
-                to={`/owner/properties/${targetPropertyId}`}
-                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                to="/owner/properties"
+                className="hover:text-[#315A7D] transition-colors"
               >
-                {targetPropertyName || `Property #${targetPropertyId}`}
+                Properties
               </Link>
+              {targetPropertyId && (
+                <>
+                  <span>/</span>
+                  <Link
+                    to={`/owner/properties/${targetPropertyId}`}
+                    className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                  >
+                    {targetPropertyName || `Property #${targetPropertyId}`}
+                  </Link>
+                </>
+              )}
             </>
           )}
           {targetBuildingId && (
@@ -378,7 +388,10 @@ export default function UnitDetailsPage() {
           <div className="p-4 rounded-lg bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-[#3F7D58] shrink-0" />
-              <span>This is your active leased residence &bull; Leased until {myRental?.leaseSummary?.leaseEndDate || 'July 31, 2027'}</span>
+              <span>
+                This is your active leased residence
+                {myRental?.leaseSummary?.endDate ? ` • Leased until ${myRental.leaseSummary.endDate}` : ''}
+              </span>
             </div>
             <span className="px-2.5 py-0.5 rounded bg-white text-[#2A583B] border border-[#C6DEC8] text-[11px] font-bold self-start sm:self-auto">
               Your Current Rental

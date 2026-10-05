@@ -1,62 +1,107 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { getPendingOwners } from '../../utils/adminMockData'
+import AdminApiUnavailableCard from '../../components/common/AdminApiUnavailableCard'
+import { getUsersByRoleAndStatus, updateUserStatus } from '../../api/userApi'
+import { Button, EmptyState, Loader, StatusBadge } from '../../components/ui'
 import {
-  Button,
-  StatusBadge,
-  EmptyState,
-  Loader,
-} from '../../components/ui'
-import {
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  Building2,
-  Calendar,
-  FileText,
   AlertCircle,
+  Building2,
+  CheckCircle2,
+  FileCheck2,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
 } from 'lucide-react'
 
+const unwrapList = (response) => {
+  const value = response?.data ?? response
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.content)) return value.content
+  if (Array.isArray(value?.users)) return value.users
+  return []
+}
+
+const OWNER_DOCUMENT_ENDPOINTS = [
+  {
+    method: 'GET',
+    path: '/api/owner-documents/owner/{ownerId}',
+    auth: 'ROLE_SUPER_ADMIN',
+    description:
+      'Retrieve all uploaded identity records, property ownership deeds, tax certificates, and title proofs for a specific property owner.',
+  },
+  {
+    method: 'POST',
+    path: '/api/owner-documents',
+    auth: 'ROLE_PROPERTY_OWNER',
+    description:
+      'Multipart endpoint allowing property owners to upload official documents (GOVERNMENT_ID, PROPERTY_DEED, TAX_PROOF, TITLE_CERTIFICATE).',
+    body: 'multipart/form-data: { file: File, documentType: string }',
+  },
+  {
+    method: 'GET',
+    path: '/api/owner-documents/{documentId}/download',
+    auth: 'ROLE_SUPER_ADMIN',
+    description:
+      'Securely download or preview an owner verification document artifact.',
+  },
+  {
+    method: 'PUT',
+    path: '/api/owner-documents/{documentId}/verify',
+    auth: 'ROLE_SUPER_ADMIN',
+    description:
+      'Record an administrative verification decision (VERIFIED, REJECTED, RESUBMISSION_REQUIRED) with reviewer notes.',
+    body: '{\n  "status": "VERIFIED",\n  "remarks": "Title deed verified against municipal registry."\n}',
+  },
+]
+
+const OWNER_DOCUMENT_REQUIREMENTS = [
+  'The current Spring Boot backend contains TenantDocumentController for resident KYC, but has no OwnerDocument entity, repository, or controller.',
+  'Create owner_documents table (id, owner_id, document_type, file_path, file_name, file_size, verification_status, reviewer_notes, created_at, updated_at).',
+  'Implement OwnerDocumentService with secure local or S3 document storage, MIME-type validation, and role-based access checks.',
+]
+
 export default function OwnerVerificationPage() {
-  const [pendingOwners, setPendingOwners] = useState([])
+  const [owners, setOwners] = useState([])
   const [loading, setLoading] = useState(true)
-  const [actionNotice, setActionNotice] = useState('')
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState(null)
+  const [notice, setNotice] = useState('')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPendingOwners(getPendingOwners())
+  const loadOwners = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await getUsersByRoleAndStatus('PROPERTY_OWNER', 'PENDING')
+      setOwners(unwrapList(response))
+    } catch (err) {
+      setOwners([])
+      setError(err?.message || 'Could not load pending owner accounts.')
+    } finally {
       setLoading(false)
-    }, 200)
-
-    return () => clearTimeout(timer)
+    }
   }, [])
 
-  const handleApprove = (ownerId, ownerName) => {
-    setPendingOwners((prev) =>
-      prev.map((owner) =>
-        owner.id === ownerId
-          ? { ...owner, verificationStatus: 'Approved', accountStatus: 'Active' }
-          : owner
-      )
-    )
-    setActionNotice(
-      `Owner verification for ${ownerName} approved successfully. Account status set to Active.`
-    )
-    setTimeout(() => setActionNotice(''), 4000)
-  }
+  useEffect(() => {
+    loadOwners()
+  }, [loadOwners])
 
-  const handleReject = (ownerId, ownerName) => {
-    setPendingOwners((prev) =>
-      prev.map((owner) =>
-        owner.id === ownerId
-          ? { ...owner, verificationStatus: 'Rejected', accountStatus: 'Rejected' }
-          : owner
+  const changeStatus = async (owner, status) => {
+    const id = owner?.id ?? owner?.userId
+    if (id == null || busyId != null) return
+    setBusyId(id)
+    setError('')
+    setNotice('')
+    try {
+      await updateUserStatus(id, status)
+      setNotice(
+        `Owner account ${status === 'ACTIVE' ? 'approved (activated)' : 'blocked'} successfully.`
       )
-    )
-    setActionNotice(
-      `Owner verification for ${ownerName} rejected. Notification sent to applicant.`
-    )
-    setTimeout(() => setActionNotice(''), 4000)
+      await loadOwners()
+    } catch (err) {
+      setError(err?.message || 'The owner status could not be updated.')
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -65,169 +110,178 @@ export default function OwnerVerificationPage() {
       activeItem="owner-verification"
       pageTitle="Owner Verification"
     >
-      <div className="space-y-6">
-        {/* Action Notice Banner */}
-        {actionNotice && (
-          <div className="p-3.5 rounded-md bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-medium flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#3F7D58] shrink-0" />
-              <span>{actionNotice}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setActionNotice('')}
-              className="text-[#2A583B] hover:text-[#243447] font-bold px-1"
-            >
-              &times;
-            </button>
+      <div className="space-y-8">
+        {/* Page Header */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#243447]">
+              Property Owner Verification & Approvals
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-[#5B6875]">
+              Review live pending owner registrations via real backend user status APIs, and inspect document verification API requirements.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={loadOwners}
+            isLoading={loading}
+            leftIcon={<RefreshCw className="h-4 w-4" />}
+          >
+            Refresh
+          </Button>
+        </div>
+
+        {/* Live Feedback Banners */}
+        {error && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-md border border-[#F4B4B4] bg-[#FDF2F2] p-3 text-xs sm:text-sm text-[#8A2E2C]"
+          >
+            <span className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </span>
+            <Button size="sm" variant="outline" onClick={loadOwners}>
+              Retry
+            </Button>
           </div>
         )}
 
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-                Pending Owner Verifications
-              </h1>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#FEF7EC] text-[#8A5B16] border border-[#F4E2B6] shadow-2xs">
-                Action Required
-              </span>
+        {notice && (
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-md border border-[#C6DEC8] bg-[#EDF7EE] p-3 text-xs sm:text-sm text-[#2A583B]"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {notice}
+          </div>
+        )}
+
+        {/* Section 1: Live Pending Owner Accounts (Backend Connected) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-[#243447]">
+                Pending Owner Account Registrations
+              </h2>
+              <p className="text-xs text-[#5B6875]">
+                Real database records from <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#D9E0E6]">GET /api/users/filter?role=PROPERTY_OWNER&amp;status=PENDING</code>
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-[#5B6875] mt-1 font-normal">
-              Verify property ownership titles, business registration certificates, and identity documents
-            </p>
+            {!loading && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
+                {owners.length} Pending Account{owners.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
-        </div>
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
-            <Loader text="Loading pending owner submissions..." size="md" center />
-          </div>
-        ) : pendingOwners.length === 0 ? (
-          /* Empty State */
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
-            <EmptyState
-              icon={<ShieldCheck className="w-8 h-8" />}
-              title="All owner verifications up to date"
-              message="There are no pending owner accounts awaiting document verification or identity approval."
-            />
-          </div>
-        ) : (
-          /* Verification Queue Table */
-          <div className="bg-white rounded-lg border border-[#D9E0E6] shadow-2xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-[#D9E0E6] flex items-center justify-between bg-white">
-              <span className="text-xs text-[#5B6875]">
-                Displaying{' '}
-                <strong className="text-[#243447]">
-                  {pendingOwners.length}
-                </strong>{' '}
-                property owner verification {pendingOwners.length === 1 ? 'request' : 'requests'}
-              </span>
-              <span className="text-xs font-semibold text-[#8A5B16] bg-[#FEF7EC] border border-[#F4E2B6] px-2 py-0.5 rounded">
-                Admin Review Queue
-              </span>
+          {loading ? (
+            <div className="flex justify-center rounded-lg border border-[#D9E0E6] bg-white p-12 shadow-2xs">
+              <Loader text="Loading pending owner accounts from backend..." size="md" center />
             </div>
+          ) : owners.length === 0 ? (
+            <div className="rounded-lg border border-[#D9E0E6] bg-white p-8 shadow-2xs">
+              <EmptyState
+                icon={<ShieldCheck className="h-8 w-8 text-[#3F7D58]" />}
+                title={error ? 'Owner accounts unavailable' : 'No pending owner accounts'}
+                message={
+                  error
+                    ? 'Unable to connect to the user service. Please retry.'
+                    : 'There are currently no property owner accounts awaiting status approval in the database.'
+                }
+              />
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[#D9E0E6] bg-white shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-[#F7F8FA] text-[11px] uppercase tracking-wider text-[#5B6875] border-b border-[#D9E0E6]">
+                    <tr>
+                      <th className="p-3.5">Owner Name</th>
+                      <th className="p-3.5">Email</th>
+                      <th className="p-3.5">Registered On</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Account Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#D9E0E6]">
+                    {owners.map((owner) => {
+                      const id = owner.id ?? owner.userId
+                      const name =
+                        [owner.firstName, owner.lastName].filter(Boolean).join(' ') ||
+                        owner.email ||
+                        `Owner #${id ?? '—'}`
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
-                    <th className="py-3 pl-6 pr-4">Owner / Company</th>
-                    <th className="py-3 px-4">Contact Email</th>
-                    <th className="py-3 px-4">Submitted Date</th>
-                    <th className="py-3 px-4">Document Status</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 pl-4 pr-6 text-right">Verification Decision</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#D9E0E6] text-sm bg-white">
-                  {pendingOwners.map((owner) => {
-                    const isDecided =
-                      owner.verificationStatus === 'Approved' ||
-                      owner.verificationStatus === 'Rejected'
-
-                    return (
-                      <tr
-                        key={owner.id}
-                        className="hover:bg-[#F7F8FA] transition-colors"
-                      >
-                        {/* Owner / Company Name */}
-                        <td className="py-4 pl-6 pr-4 font-semibold text-[#243447] min-w-[220px]">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-[#315A7D] shrink-0" />
-                            <span>{owner.name}</span>
-                          </div>
-                        </td>
-
-                        {/* Email */}
-                        <td className="py-4 px-4 whitespace-nowrap text-xs font-mono text-[#5B6875]">
-                          {owner.email}
-                        </td>
-
-                        {/* Submitted Date */}
-                        <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                            <span>{owner.submittedDate}</span>
-                          </div>
-                        </td>
-
-                        {/* Document Status */}
-                        <td className="py-4 px-4 min-w-[220px]">
-                          <div className="flex items-center gap-1.5 text-xs text-[#243447] font-medium">
-                            <FileText className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                            <span>{owner.documentStatus}</span>
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-4 px-4 whitespace-nowrap">
-                          <StatusBadge status={owner.verificationStatus} size="sm" />
-                        </td>
-
-                        {/* Approve and Reject Buttons */}
-                        <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap">
-                          {isDecided ? (
-                            <span
-                              className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
-                                owner.verificationStatus === 'Approved'
-                                  ? 'text-[#2A583B] bg-[#EDF7EE] border-[#C6DEC8]'
-                                  : 'text-[#8A2E2C] bg-[#FDF2F2] border-[#EFC8C7]'
-                              }`}
-                            >
-                              Decision Recorded
+                      return (
+                        <tr key={id ?? owner.email} className="hover:bg-[#F7F8FA]/60 transition-colors">
+                          <td className="p-3.5 font-medium text-[#243447]">
+                            <span className="inline-flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-[#315A7D] shrink-0" />
+                              {name}
                             </span>
-                          ) : (
-                            <div className="flex items-center justify-end gap-2.5">
+                          </td>
+                          <td className="p-3.5 text-[#5B6875]">{owner.email || '—'}</td>
+                          <td className="p-3.5 text-[#5B6875]">
+                            {owner.createdAt
+                              ? new Date(owner.createdAt).toLocaleDateString()
+                              : '—'}
+                          </td>
+                          <td className="p-3.5">
+                            <StatusBadge status={owner.status || 'PENDING'} size="sm" />
+                          </td>
+                          <td className="p-3.5">
+                            <div className="flex justify-end gap-2">
                               <Button
                                 size="sm"
                                 variant="primary"
-                                onClick={() => handleApprove(owner.id, owner.name)}
-                                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                                disabled={busyId != null}
+                                isLoading={busyId === id}
+                                onClick={() => changeStatus(owner, 'ACTIVE')}
+                                leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
                               >
-                                Approve
+                                Approve Account
                               </Button>
                               <Button
                                 size="sm"
                                 variant="danger"
-                                onClick={() => handleReject(owner.id, owner.name)}
-                                leftIcon={<XCircle className="w-3.5 h-3.5 text-[#B94A48]" />}
+                                disabled={busyId != null}
+                                onClick={() => changeStatus(owner, 'BLOCKED')}
+                                leftIcon={<XCircle className="h-3.5 w-3.5" />}
                               >
-                                Reject
+                                Block Account
                               </Button>
                             </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Section 2: Owner Document Verification (Unavailable State & Required Endpoints) */}
+        <div className="space-y-4 pt-4 border-t border-[#D9E0E6]">
+          <div>
+            <h2 className="text-base font-bold text-[#243447]">
+              Owner Document Review & KYC Verification
+            </h2>
+            <p className="text-xs text-[#5B6875]">
+              Inspection of government IDs, property ownership deeds, and tax registration documents.
+            </p>
           </div>
-        )}
+
+          <AdminApiUnavailableCard
+            title="Owner Document Verification API Unavailable"
+            subtitle="Owner Document Subsystem Not Implemented in Backend"
+            icon={<FileCheck2 className="h-5 w-5 text-[#8A5B16]" />}
+            description="While account status management is active above (using authenticated user endpoints), the backend does not possess an owner document storage and review subsystem. Unlike tenant documents, there are currently no endpoints for owners to submit deeds or for administrators to inspect and verify uploaded ownership proofs. No mock PDF previews or dummy verification checkboxes are displayed."
+            endpoints={OWNER_DOCUMENT_ENDPOINTS}
+            backendRequirements={OWNER_DOCUMENT_REQUIREMENTS}
+          />
+        </div>
       </div>
     </DashboardLayout>
   )

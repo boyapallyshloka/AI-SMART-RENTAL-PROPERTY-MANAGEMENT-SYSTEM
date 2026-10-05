@@ -1,17 +1,10 @@
 import axiosClient from './axiosClient.js'
-import {
-  getMockFloors,
-  getMockFloorById,
-  getMockFloorsByBuildingId,
-  addMockFloor,
-  updateMockFloor,
-  deleteMockFloor,
-} from '../utils/buildingUnitMockData.js'
+import { resolveTenantRentalContext } from '../utils/tenantRentalHelper.js'
 
 /**
  * Floor API Service Layer (Spring Boot Integration)
  * Controller: FloorController (/api/floors)
- * Role: PROPERTY_OWNER
+ * Role: PROPERTY_OWNER, PROPERTY_MANAGER
  */
 
 export const ALLOWED_FLOOR_FIELDS = [
@@ -132,25 +125,36 @@ export const deleteFloor = async (floorId) => {
 }
 
 // ============================================================================
-// UI Compatibility Helpers (Preserved for Manager/Tenant Views & Existing Pages)
+// UI Compatibility Helpers (Powered by Real Backend APIs)
 // ============================================================================
 
 export const getAllFloors = async () => {
-  return getMockFloors()
+  return []
 }
 
 export const getFloorsForManager = async (buildingId) => {
-  return getMockFloorsByBuildingId(buildingId)
+  return getFloorsByBuilding(buildingId)
 }
 
 export const getFloorByIdForManager = async (floorId) => {
-  return getMockFloorById(floorId)
+  return getFloorById(floorId)
 }
 
 export const getFloorsForTenant = async (buildingId) => {
-  return getMockFloorsByBuildingId(buildingId)
+  const context = await resolveTenantRentalContext()
+  const bld = (context?.buildings || []).find(
+    (b) => String(b.buildingId || b.id) === String(buildingId)
+  )
+  return bld?.floors || []
 }
 
 export const getFloorByIdForTenant = async (floorId) => {
-  return getMockFloorById(floorId)
+  const context = await resolveTenantRentalContext()
+  for (const b of context?.buildings || []) {
+    const f = (b.floors || []).find(
+      (fl) => String(fl.floorId || fl.id) === String(floorId)
+    )
+    if (f) return f
+  }
+  return null
 }

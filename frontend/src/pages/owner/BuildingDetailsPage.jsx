@@ -23,15 +23,10 @@ import {
 } from 'lucide-react'
 import {
   getBuildingById,
-  getBuildingByIdForManager,
-  getBuildingByIdForTenant,
   deleteBuilding,
-  getTenantRentalContext,
 } from '../../api/buildingApi'
 import {
   getFloorsByBuilding,
-  getFloorsForManager,
-  getFloorsForTenant,
   getFloorById,
   createFloor,
   updateFloor,
@@ -40,9 +35,8 @@ import {
 } from '../../api/floorApi'
 import {
   getUnitsByFloor,
-  getUnitsForManager,
-  getUnitsForTenant,
 } from '../../api/unitApi'
+import { getTenantBuildingDetails } from '../../utils/tenantRentalHelper'
 import {
   ROLES,
   isPropertyOwner,
@@ -91,18 +85,17 @@ export default function BuildingDetailsPage() {
 
   const loadData = async () => {
     setIsLoading(true)
+    setErrorMessage('')
     try {
       let b = null
       let flrs = []
 
       if (isTenant) {
-        b = await getBuildingByIdForTenant(buildingId)
-        if (b) flrs = await getFloorsForTenant(buildingId)
-        const rental = await getTenantRentalContext(user)
-        setMyRental(rental)
-      } else if (isManager) {
-        b = await getBuildingByIdForManager(buildingId)
-        if (b) flrs = await getFloorsForManager(buildingId)
+        const tenantData = await getTenantBuildingDetails(buildingId)
+        b = tenantData.building
+        flrs = tenantData.floors
+        setFloorUnitsMap(tenantData.floorUnitsMap || {})
+        setMyRental(tenantData.myRental)
       } else {
         const res = await getBuildingById(buildingId)
         b = res?.data || res || null
@@ -136,24 +129,26 @@ export default function BuildingDetailsPage() {
       setBuilding(b)
       setFloors(flrs || [])
 
-      if (flrs && flrs.length > 0) {
+      if (!isTenant && flrs && flrs.length > 0) {
         const unitsEntries = await Promise.all(
           flrs.map(async (f) => {
-            const uList = isTenant
-              ? await getUnitsForTenant(f.floorId)
-              : isManager
-              ? await getUnitsForManager(f.floorId)
-              : await getUnitsByFloor(f.floorId)
+            const uList = await getUnitsByFloor(f.floorId)
             const resolvedUnits = uList?.data ?? uList ?? []
             return [f.floorId, Array.isArray(resolvedUnits) ? resolvedUnits : []]
           })
         )
         setFloorUnitsMap(Object.fromEntries(unitsEntries))
-      } else {
+      } else if (!isTenant) {
         setFloorUnitsMap({})
       }
     } catch (err) {
       console.error('Error loading building details:', err)
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Failed to load building details. Please try again.'
+      setErrorMessage(errorMsg)
       setBuilding(null)
     } finally {
       setIsLoading(false)
@@ -359,6 +354,36 @@ export default function BuildingDetailsPage() {
     )
   }
 
+  if (errorMessage && !building) {
+    return (
+      <DashboardLayout
+        defaultRole={isTenant ? ROLES.TENANT : isManager ? ROLES.PROPERTY_MANAGER : ROLES.PROPERTY_OWNER}
+        activeItem={isOwner ? 'properties' : 'buildings'}
+        pageTitle="Error Loading Building"
+      >
+        <div className="space-y-6">
+          <Link to={isOwner ? '/owner/properties' : `${basePath}/buildings`}>
+            <Button size="sm" variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+              {isOwner ? 'Back to Properties' : isTenant ? 'Back to My Rental Property' : 'Back to Buildings'}
+            </Button>
+          </Link>
+          <div className="p-6 rounded-xl bg-white border border-[#D9E0E6] text-center space-y-4 shadow-xs max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-full bg-[#FDF2F2] border border-[#F8D7DA] flex items-center justify-center text-[#B94A48] mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#243447]">Failed to Load Building</h3>
+              <p className="text-xs text-[#5B6875] mt-1">{errorMessage}</p>
+            </div>
+            <Button size="sm" variant="primary" onClick={loadData}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   if (!building) {
     return (
       <DashboardLayout
@@ -369,7 +394,7 @@ export default function BuildingDetailsPage() {
         <div className="space-y-6">
           <Link to={isOwner ? '/owner/properties' : `${basePath}/buildings`}>
             <Button size="sm" variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-              {isOwner ? 'Back to Properties' : 'Back to Buildings'}
+              {isOwner ? 'Back to Properties' : isTenant ? 'Back to My Rental Property' : 'Back to Buildings'}
             </Button>
           </Link>
           <EmptyState
@@ -379,7 +404,7 @@ export default function BuildingDetailsPage() {
             action={
               <Link to={isOwner ? '/owner/properties' : `${basePath}/buildings`}>
                 <Button size="sm" variant="primary">
-                  {isOwner ? 'View Properties' : 'View All Buildings'}
+                  {isOwner ? 'View Properties' : isTenant ? 'View My Rental Property' : 'View All Buildings'}
                 </Button>
               </Link>
             }
@@ -437,21 +462,32 @@ export default function BuildingDetailsPage() {
 
         {/* Hierarchy Breadcrumbs */}
         <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
-          <Link
-            to="/owner/properties"
-            className="hover:text-[#315A7D] transition-colors"
-          >
-            Properties
-          </Link>
-          {(building.propertyId || building.property?.id) && (
+          {isTenant ? (
+            <Link
+              to="/tenant/buildings"
+              className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+            >
+              My Rental Property
+            </Link>
+          ) : (
             <>
-              <span>/</span>
               <Link
-                to={`/owner/properties/${building.propertyId || building.property?.id}`}
-                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                to="/owner/properties"
+                className="hover:text-[#315A7D] transition-colors"
               >
-                {building.propertyName || building.property?.name || `Property #${building.propertyId || building.property?.id}`}
+                Properties
               </Link>
+              {(building.propertyId || building.property?.id) && (
+                <>
+                  <span>/</span>
+                  <Link
+                    to={`/owner/properties/${building.propertyId || building.property?.id}`}
+                    className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                  >
+                    {building.propertyName || building.property?.name || `Property #${building.propertyId || building.property?.id}`}
+                  </Link>
+                </>
+              )}
             </>
           )}
           <span>/</span>
@@ -518,9 +554,7 @@ export default function BuildingDetailsPage() {
                 <Building className="w-3.5 h-3.5" />
                 <span>
                   {isTenant
-                    ? building.property?.id === myRental?.property?.id
-                      ? 'Your Community Complex'
-                      : 'Available Property Building'
+                    ? 'Your Community Complex'
                     : 'Building Overview'}
                 </span>
               </div>
@@ -539,12 +573,21 @@ export default function BuildingDetailsPage() {
                   {(building.propertyId || building.property?.id) && (
                     <>
                       <span>&bull;</span>
-                      <Link
-                        to={`/owner/properties/${building.propertyId || building.property?.id}`}
-                        className="text-[#315A7D] hover:underline font-semibold"
-                      >
-                        View Property Details
-                      </Link>
+                      {isTenant ? (
+                        <Link
+                          to="/tenant/buildings"
+                          className="text-[#315A7D] hover:underline font-semibold"
+                        >
+                          View Property Overview
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/owner/properties/${building.propertyId || building.property?.id}`}
+                          className="text-[#315A7D] hover:underline font-semibold"
+                        >
+                          View Property Details
+                        </Link>
+                      )}
                     </>
                   )}
                   {building.property?.address && (

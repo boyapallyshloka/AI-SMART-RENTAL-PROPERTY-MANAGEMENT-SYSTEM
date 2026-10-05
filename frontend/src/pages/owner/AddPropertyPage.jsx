@@ -3,6 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import OwnerPropertyForm from '../../components/properties/OwnerPropertyForm'
 import { createProperty, buildPropertyRequestPayload } from '../../api/propertyApi'
+import {
+  addAmenityToProperty,
+  createAmenity,
+  getAllAmenities,
+} from '../../api/amenityApi'
 import { ArrowLeft, Building2, AlertCircle } from 'lucide-react'
 
 export default function AddPropertyPage() {
@@ -15,14 +20,83 @@ export default function AddPropertyPage() {
     setIsLoading(true)
     setError(null)
     try {
+      const selectedAmenities = Array.isArray(data.amenities) ? data.amenities : []
       const payload = buildPropertyRequestPayload(data)
       const response = await createProperty(payload)
       const created = response?.data || response
       const createdId = created?.propertyId || created?.id
       if (createdId) {
+        const amenityFailures = []
+
+        if (selectedAmenities.length > 0) {
+          try {
+            const amenitiesResponse = await getAllAmenities()
+            const existingAmenities = Array.isArray(amenitiesResponse)
+              ? [...amenitiesResponse]
+              : Array.isArray(amenitiesResponse?.data)
+              ? [...amenitiesResponse.data]
+              : []
+
+            for (const amenityName of selectedAmenities) {
+              try {
+                let amenity = existingAmenities.find(
+                  (item) =>
+                    String(item?.amenityName || '').trim().toLowerCase() ===
+                    amenityName.trim().toLowerCase()
+                )
+
+                if (!amenity) {
+                  try {
+                    const createResponse = await createAmenity({ amenityName })
+                    amenity = createResponse?.data || createResponse
+                    if (amenity) existingAmenities.push(amenity)
+                  } catch (createErr) {
+                    // A matching amenity may have been created concurrently; recheck before failing.
+                    const refreshedResponse = await getAllAmenities()
+                    const refreshedAmenities = Array.isArray(refreshedResponse)
+                      ? refreshedResponse
+                      : refreshedResponse?.data || []
+                    amenity = refreshedAmenities.find(
+                      (item) =>
+                        String(item?.amenityName || '').trim().toLowerCase() ===
+                        amenityName.trim().toLowerCase()
+                    )
+                    if (!amenity) throw createErr
+                  }
+                }
+
+                const amenityId = amenity?.amenityId || amenity?.id
+                if (!amenityId) throw new Error(`No ID returned for ${amenityName}`)
+                await addAmenityToProperty(createdId, amenityId)
+              } catch (amenityErr) {
+                console.error(`Failed to attach ${amenityName} to new property:`, amenityErr)
+                amenityFailures.push(amenityName)
+              }
+            }
+          } catch (amenitiesLoadErr) {
+            console.error('Failed to load amenities for the new property:', amenitiesLoadErr)
+            amenityFailures.push(...selectedAmenities)
+          }
+        }
+
+        const uniqueFailures = [...new Set(amenityFailures)]
+        let toastMessage = ''
+        let toastType = 'success'
+
+        if (uniqueFailures.length > 0) {
+          toastType = 'warning'
+          toastMessage = `Property "${payload.propertyName || 'New Property'}" was created, but failed to attach ${uniqueFailures.length} amenity (${uniqueFailures.join(', ')}). These amenities were NOT saved to the property. You can retry attaching them from the Amenities section.`
+        } else {
+          toastMessage = selectedAmenities.length > 0
+            ? `Property "${payload.propertyName || 'New Property'}" created successfully with all ${selectedAmenities.length} selected amenities attached.`
+            : `Property "${payload.propertyName || 'New Property'}" created successfully.`
+        }
+
         navigate(`/owner/properties/${createdId}`, {
           state: {
-            toastMessage: `Property "${payload.propertyName || 'New Property'}" created successfully.`,
+            toastMessage,
+            toastType,
+            amenityFailures: uniqueFailures.length > 0 ? uniqueFailures : undefined,
           },
         })
       } else {

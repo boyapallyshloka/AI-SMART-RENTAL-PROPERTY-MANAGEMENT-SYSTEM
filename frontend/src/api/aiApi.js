@@ -79,3 +79,38 @@ export const getPropertyRecommendations = async (
   })
 }
 
+/**
+ * AI Rent Prediction Module (M1)
+ * Spring Boot Endpoint: POST /api/ai/rent-prediction/predict-unit
+ *
+ * Request body:
+ * {
+ *   floorId: number,
+ *   area: number,
+ *   bedrooms: number,
+ *   bathrooms: number
+ * }
+ *
+ * Note: Amenities are NOT sent from the frontend because Spring Boot automatically
+ * loads and enriches them from the saved property in the database.
+ * For the M1 model schema, area, bedrooms, and bathrooms must be strictly greater than 0.
+ *
+ * @param {Object} data
+ * @param {number} data.floorId - Associated floor ID (Long, positive)
+ * @param {number} data.area - Unit area in sqft (Double, strictly > 0)
+ * @param {number} data.bedrooms - Number of bedrooms (Integer, strictly > 0)
+ * @param {number} data.bathrooms - Number of bathrooms (Integer/Double, strictly > 0)
+ * @returns {Promise<Object>} { predictedRent: number }
+ */
+export const predictUnitRent = async ({ floorId, area, bedrooms, bathrooms }) => {
+  return await axiosClient.post('/ai/rent-prediction/predict-unit', {
+    floorId: Number(floorId),
+    area: Number(area),
+    bedrooms: Number(bedrooms),
+    bathrooms: Number(bathrooms),
+  })
+}
+
+export const predictRent = predictUnitRent
+
+

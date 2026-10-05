@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { Button, Input, Select, StatusBadge, EmptyState } from '../../components/ui'
+import { Button, Input, Select, StatusBadge, EmptyState, Loader } from '../../components/ui'
 import {
   Search,
   Building2,
@@ -14,8 +14,9 @@ import {
   Bed,
   Bath,
   CheckCircle2,
+  RotateCcw,
+  AlertCircle,
 } from 'lucide-react'
-import { useEffect } from 'react'
 import { getAvailableUnits, getAvailableProperties } from '../../api/unitApi'
 import { getTenantRentalContext } from '../../api/buildingApi'
 import { useAuth } from '../../context/AuthContext'
@@ -29,29 +30,35 @@ export default function FindPropertiesPage() {
   // Discovery dataset (Strictly VACANT units, excluding occupied units and tenant's current residence)
   const [availableUnits, setAvailableUnits] = useState([])
   const [availableProperties, setAvailableProperties] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const loadDiscoveryData = async () => {
+    setIsLoading(true)
+    setErrorMessage('')
+    try {
+      const [rental, units, props] = await Promise.all([
+        getTenantRentalContext(user),
+        getAvailableUnits(user),
+        getAvailableProperties(user),
+      ])
+      setMyRental(rental)
+      setAvailableUnits(units || [])
+      setAvailableProperties(props || [])
+    } catch (err) {
+      console.error('Error loading discovery properties:', err)
+      setErrorMessage(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load available properties. Please try again.'
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let isMounted = true
-    const loadDiscoveryData = async () => {
-      try {
-        const [rental, units, props] = await Promise.all([
-          getTenantRentalContext(user),
-          getAvailableUnits(user),
-          getAvailableProperties(user),
-        ])
-        if (isMounted) {
-          setMyRental(rental)
-          setAvailableUnits(units || [])
-          setAvailableProperties(props || [])
-        }
-      } catch (err) {
-        console.error('Error loading discovery properties:', err)
-      }
-    }
     loadDiscoveryData()
-    return () => {
-      isMounted = false
-    }
   }, [user])
 
   // Filter States
@@ -211,30 +218,52 @@ export default function FindPropertiesPage() {
           </div>
         </div>
 
-        {/* 2. Visual Separation: Current Rental Notice */}
-        <div className="p-4 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-[#EAF2F7] flex items-center justify-center text-[#315A7D] shrink-0">
-              <Building2 className="w-4 h-4" />
+        {/* Error Notification Banner */}
+        {errorMessage && (
+          <div className="p-4 rounded-lg bg-[#FDF2F2] border border-[#F4B4B4] text-[#8A2E2C] text-xs sm:text-sm flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-[#8A2E2C] shrink-0" />
+              <span>{errorMessage}</span>
             </div>
-            <div>
-              <p className="font-semibold text-[#243447]">
-                Currently Renting:{' '}
-                <span className="text-[#315A7D] font-bold">{myRental.property?.name}</span>
-                {' '}&bull; Unit {myRental.leaseSummary?.unitNumber}
-              </p>
-              <p className="text-[#5B6875] mt-0.5">
-                The listings below represent other vacant units and properties available for lease across our portfolio.
-              </p>
-            </div>
-          </div>
-
-          <Link to="/tenant/buildings" className="shrink-0">
-            <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-              View My Rental Property
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={loadDiscoveryData}
+              leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            >
+              Retry
             </Button>
-          </Link>
-        </div>
+          </div>
+        )}
+
+        {/* 2. Visual Separation: Current Rental Notice (if active lease exists) */}
+        {myRental?.property && (
+          <div className="p-4 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-[#EAF2F7] flex items-center justify-center text-[#315A7D] shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-semibold text-[#243447]">
+                  Currently Renting:{' '}
+                  <span className="text-[#315A7D] font-bold">
+                    {myRental.property.name || myRental.property.propertyName}
+                  </span>
+                  {myRental.leaseSummary?.unitNumber && ` • Unit ${myRental.leaseSummary.unitNumber}`}
+                </p>
+                <p className="text-[#5B6875] mt-0.5">
+                  The listings below represent other vacant units and properties available for lease across our portfolio.
+                </p>
+              </div>
+            </div>
+
+            <Link to="/tenant/buildings" className="shrink-0">
+              <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                View My Rental Property
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* 3. Search and Filtering Controls */}
         <div className="bg-white p-4 sm:p-5 rounded-lg border border-[#D9E0E6] shadow-2xs space-y-4">
@@ -359,7 +388,11 @@ export default function FindPropertiesPage() {
         </div>
 
         {/* 4. Results Display */}
-        {activeTab === 'units' ? (
+        {isLoading ? (
+          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
+            <Loader text="Loading available properties and vacant units..." size="md" center />
+          </div>
+        ) : activeTab === 'units' ? (
           /* Available Units Grid */
           filteredUnits.length === 0 ? (
             <EmptyState
@@ -380,7 +413,9 @@ export default function FindPropertiesPage() {
                 const floor = unit.floor
                 const building = floor?.building
                 const property = building?.property
-                const isCurrentComplex = property?.id === myRental.property?.id
+                const myPropId = myRental?.property?.propertyId ?? myRental?.property?.id
+                const thisPropId = property?.propertyId ?? property?.id
+                const isCurrentComplex = Boolean(myPropId && thisPropId && String(myPropId) === String(thisPropId))
 
                 return (
                   <div
@@ -506,7 +541,9 @@ export default function FindPropertiesPage() {
           ) : (
             <div className="space-y-5">
               {filteredProperties.map((p) => {
-                const isCurrentComplex = p.property.id === myRental.property?.id
+                const myPropId = myRental?.property?.propertyId ?? myRental?.property?.id
+                const thisPropId = p.property.propertyId ?? p.property.id
+                const isCurrentComplex = Boolean(myPropId && thisPropId && String(myPropId) === String(thisPropId))
 
                 return (
                   <div

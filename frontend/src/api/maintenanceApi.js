@@ -203,3 +203,11 @@ export const predictMaintenance = async (propertyId, unitId) => {
   const query = unitId ? `?unitId=${unitId}` : ''
   return axiosClient.get(`/maintenance/predict/${propertyId}${query}`)
 }
+
+/**
+ * DELETE /api/maintenance/{requestId}
+ * Delete ticket by ID (Property Owner / Manager / Super Admin)
+ */
+export const deleteMaintenanceRequest = async (requestId) => {
+  return axiosClient.delete(`/maintenance/${requestId}`)
+}

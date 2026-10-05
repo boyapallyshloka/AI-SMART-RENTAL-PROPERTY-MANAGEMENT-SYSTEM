@@ -14,7 +14,18 @@ import {
   Building2,
   Layers,
   FileText,
+  Sparkles,
 } from 'lucide-react'
+
+const AMENITY_OPTIONS = [
+  'Parking',
+  'Lift',
+  'Gym',
+  'Security',
+  'Power Backup',
+  'Air Conditioning',
+  'Wi-Fi',
+]
 
 const PROPERTY_TYPE_OPTIONS = [
   { label: 'Apartment', value: 'APARTMENT' },
@@ -71,9 +82,18 @@ export default function OwnerPropertyForm({
 
     let mappedParking = 'false'
     if (data?.parkingAvailable != null) {
-      mappedParking = data.parkingAvailable ? 'true' : 'false'
+      mappedParking =
+        data.parkingAvailable === true || data.parkingAvailable === 'true' ? 'true' : 'false'
     } else if (data?.parking != null) {
       mappedParking = mapParkingAvailableToBackend(data.parking) ? 'true' : 'false'
+    } else if (Array.isArray(data?.amenities)) {
+      const hasParking = data.amenities.some((a) => {
+        const name = typeof a === 'string' ? a : a?.amenityName
+        return String(name || '').trim().toLowerCase() === 'parking'
+      })
+      if (hasParking) {
+        mappedParking = 'true'
+      }
     }
 
     const rawYear = data?.yearBuilt != null ? data.yearBuilt : data?.year
@@ -105,12 +125,35 @@ export default function OwnerPropertyForm({
     }
   }
 
+  const getInitialAmenities = (data) => {
+    const list = Array.isArray(data?.amenities)
+      ? data.amenities
+          .map((amenity) =>
+            typeof amenity === 'string' ? amenity : amenity?.amenityName
+          )
+          .filter(Boolean)
+      : []
+
+    const hasParkingOption =
+      data?.parkingAvailable === true ||
+      data?.parkingAvailable === 'true' ||
+      data?.parking === true ||
+      data?.parking === 'true'
+
+    if (hasParkingOption && !list.some((name) => name.toLowerCase() === 'parking')) {
+      return [...list, 'Parking']
+    }
+    return list
+  }
+
   const [formData, setFormData] = useState(() => getInitialFormData(initialData))
   const [errors, setErrors] = useState({})
+  const [selectedAmenities, setSelectedAmenities] = useState(() => getInitialAmenities(initialData))
 
   useEffect(() => {
     if (initialData) {
       setFormData(getInitialFormData(initialData))
+      setSelectedAmenities(getInitialAmenities(initialData))
     }
   }, [initialData])
 
@@ -132,6 +175,17 @@ export default function OwnerPropertyForm({
       if (field === 'year') updated.yearBuilt = value
       return updated
     })
+
+    if (field === 'parkingAvailable' || field === 'parking') {
+      setSelectedAmenities((prev) => {
+        const hasParking = prev.some((name) => name.toLowerCase() === 'parking')
+        if (value === 'true' && !hasParking) return [...prev, 'Parking']
+        if (value !== 'true' && hasParking) {
+          return prev.filter((name) => name.toLowerCase() !== 'parking')
+        }
+        return prev
+      })
+    }
 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: '' }))
@@ -205,7 +259,11 @@ export default function OwnerPropertyForm({
       Object.entries(rawPayload).filter(([_, v]) => v !== undefined)
     )
 
-    onSubmit(payload)
+    onSubmit(
+      initialData
+        ? payload
+        : { ...payload, amenities: selectedAmenities }
+    )
   }
 
   return (
@@ -299,6 +357,54 @@ export default function OwnerPropertyForm({
           />
         </div>
       </div>
+
+      {/* Amenities are associated after the property is created. */}
+      {!initialData && (
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="border-b border-[#D9E0E6] pb-4">
+            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#315A7D]" />
+              Amenities &amp; Facilities
+            </h2>
+            <p className="text-xs text-[#5B6875] mt-0.5">
+              Select the facilities available at this property. You can change them later.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {AMENITY_OPTIONS.map((amenity) => {
+              const checked = selectedAmenities.some(
+                (name) => name.toLowerCase() === amenity.toLowerCase()
+              )
+              return (
+                <label
+                  key={amenity}
+                  className="flex items-center gap-3 rounded-xl border border-[#D9E0E6] p-3 text-sm text-[#243447] cursor-pointer hover:border-[#315A7D]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={isLoading}
+                    onChange={(event) => {
+                      if (amenity === 'Parking') {
+                        handleChange('parkingAvailable', event.target.checked ? 'true' : 'false')
+                        return
+                      }
+                      setSelectedAmenities((prev) =>
+                        event.target.checked
+                          ? [...prev.filter((name) => name.toLowerCase() !== amenity.toLowerCase()), amenity]
+                          : prev.filter((name) => name.toLowerCase() !== amenity.toLowerCase())
+                      )
+                    }}
+                    className="h-4 w-4 accent-[#315A7D]"
+                  />
+                  <span>{amenity}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 3. Description */}
       <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 sm:p-8 shadow-sm space-y-6">

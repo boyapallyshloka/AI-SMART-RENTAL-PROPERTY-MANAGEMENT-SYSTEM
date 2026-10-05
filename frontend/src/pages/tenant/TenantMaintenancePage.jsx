@@ -50,41 +50,27 @@ export default function TenantMaintenancePage() {
   )
   const [fetchError, setFetchError] = useState('')
 
-  const tenantEmail = (user?.email || 'tenant@homesphere.com').toLowerCase().trim()
-  const tenantName = (user?.name || 'Elena Rostova').toLowerCase().trim()
-
   const loadTenantRequests = async () => {
     setLoading(true)
     setFetchError('')
-    let loadedRequests = []
 
-    // 1. Try backend GET /api/maintenance
     try {
       const allBackendRequests = await getMaintenanceRequests()
       if (Array.isArray(allBackendRequests)) {
-        loadedRequests = allBackendRequests
+        setRequests(allBackendRequests)
+      } else {
+        setRequests([])
       }
     } catch (err) {
-      // If 403 Forbidden (backend role limitation for TENANT on getAll), fetch tracked ticket IDs
-      try {
-        const storedIds = JSON.parse(
-          localStorage.getItem('tenant_maintenance_ticket_ids') || '[]'
-        )
-
-        if (Array.isArray(storedIds) && storedIds.length > 0) {
-          const promises = storedIds.map((id) =>
-            getMaintenanceRequestById(id).catch(() => null)
-          )
-          const results = await Promise.all(promises)
-          loadedRequests = results.filter(Boolean)
-        }
-      } catch (innerErr) {
-        console.warn('Unable to load tenant-tracked ticket IDs:', innerErr)
-      }
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Unable to load maintenance requests from the server.'
+      setFetchError(msg)
+      setRequests([])
+    } finally {
+      setLoading(false)
     }
-
-    setRequests(loadedRequests)
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -161,6 +147,24 @@ export default function TenantMaintenancePage() {
             >
               &times;
             </button>
+          </div>
+        )}
+
+        {/* Error Notification Banner */}
+        {fetchError && (
+          <div className="p-4 rounded-lg bg-[#FDF2F2] border border-[#F4B4B4] text-[#8A2E2C] text-xs sm:text-sm flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-[#8A2E2C] shrink-0" />
+              <span>{fetchError}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={loadTenantRequests}
+              leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            >
+              Retry
+            </Button>
           </div>
         )}
 

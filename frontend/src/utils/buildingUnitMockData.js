@@ -865,12 +865,7 @@ function loadStorageList(key, fallback) {
     } catch (e) {
       console.error(`Error loading ${key} from storage:`, e)
     }
-    // Initialize storage with fallback on first access
-    try {
-      localStorage.setItem(key, JSON.stringify(fallback))
-    } catch (e) {
-      // Ignore storage quota errors in private browsing
-    }
+    // Return fallback without seeding localStorage
   }
   return [...fallback]
 }

@@ -6,8 +6,10 @@ import {
   INVOICE_STATUSES,
 } from '../../api/invoiceApi'
 import {
-  processPayment,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   getPaymentsByInvoice,
+  getReceiptsByInvoice,
   downloadInvoiceReceipt,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
@@ -22,6 +24,10 @@ import {
   EmptyState,
   Loader,
 } from '../../components/ui'
+import {
+  PrintableReceiptVoucher,
+  IsolatedPrintReceiptPortal,
+} from '../../components/common/PrintableReceiptVoucher'
 import {
   CreditCard,
   IndianRupee,
@@ -40,6 +46,9 @@ import {
   X,
   ShieldCheck,
   Check,
+  Printer,
+  Eye,
+  ArrowLeft,
 } from 'lucide-react'
 
 // Date formatter
@@ -83,6 +92,22 @@ const formatMonthYear = (month, year) => {
   return date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
+// Dynamically load Razorpay Checkout script if not already present
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      resolve(true)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.async = true
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+}
+
 // Standardized error extractor
 const extractErrorMessage = (err, fallback = 'An unexpected error occurred.') => {
   if (!err) return fallback
@@ -120,7 +145,6 @@ export default function TenantPaymentsPage() {
   // Payment Settlement Modal State
   const [activePaymentInvoice, setActivePaymentInvoice] = useState(null)
   const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS.UPI)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState(null)
 
@@ -130,11 +154,52 @@ export default function TenantPaymentsPage() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [historyError, setHistoryError] = useState(null)
 
+  // Receipt Records & Print Modal State
+  const [receiptModalInvoice, setReceiptModalInvoice] = useState(null)
+  const [invoiceReceipts, setInvoiceReceipts] = useState([])
+  const [loadingReceipts, setLoadingReceipts] = useState(false)
+  const [receiptsError, setReceiptsError] = useState(null)
+  const [selectedReceipt, setSelectedReceipt] = useState(null)
+
   const tenantDisplayName =
     user?.firstName
       ? `${user.firstName} ${user.lastName || ''}`.trim()
       : user?.name || 'Tenant'
   const tenantEmail = user?.email || ''
+
+  // Load receipt records for a specific invoice
+  const loadReceiptsForInvoice = useCallback(async (invoiceId) => {
+    if (!invoiceId) return []
+    setLoadingReceipts(true)
+    setReceiptsError(null)
+    try {
+      const res = await getReceiptsByInvoice(invoiceId)
+      const list = Array.isArray(res) ? res : res?.data || []
+      setInvoiceReceipts(list)
+      return list
+    } catch (err) {
+      console.error('Failed to load receipts for invoice:', err)
+      setReceiptsError(
+        extractErrorMessage(err, 'Failed to load official receipt records for this invoice.')
+      )
+      return []
+    } finally {
+      setLoadingReceipts(false)
+    }
+  }, [])
+
+  const handleOpenReceiptsModal = async (inv) => {
+    setReceiptModalInvoice(inv)
+    setSelectedReceipt(null)
+    await loadReceiptsForInvoice(inv.invoiceId)
+  }
+
+  const handleCloseReceiptsModal = () => {
+    setReceiptModalInvoice(null)
+    setInvoiceReceipts([])
+    setReceiptsError(null)
+    setSelectedReceipt(null)
+  }
 
   // Load real invoices belonging to authenticated tenant
   const loadTenantInvoices = useCallback(async () => {
@@ -227,7 +292,6 @@ export default function TenantPaymentsPage() {
     const due = inv.remainingAmount != null ? inv.remainingAmount : (inv.amount - inv.totalPaid)
     setActivePaymentInvoice(inv)
     setPaymentAmount(due > 0 ? String(due) : '0')
-    setPaymentMethod(PAYMENT_METHODS.UPI)
     setPaymentError(null)
   }
 
@@ -238,7 +302,7 @@ export default function TenantPaymentsPage() {
     setPaymentError(null)
   }
 
-  // Handle Real Payment Submission
+  // Handle Real Payment Submission via Razorpay Checkout
   const handleSubmitPayment = async (e) => {
     e.preventDefault()
 
@@ -251,6 +315,7 @@ export default function TenantPaymentsPage() {
         : activePaymentInvoice.amount - activePaymentInvoice.totalPaid
     )
 
+    // 1. Validate the entered amount against the invoice's remaining balance
     if (isNaN(enteredAmount) || enteredAmount <= 0) {
       setPaymentError('Please enter a valid payment amount greater than zero.')
       return
@@ -266,29 +331,133 @@ export default function TenantPaymentsPage() {
     setIsProcessingPayment(true)
     setPaymentError(null)
 
+    // 2. Load Razorpay Checkout if not already available
+    const isScriptLoaded = await loadRazorpayScript()
+    if (!isScriptLoaded) {
+      setPaymentError(
+        'Unable to load Razorpay payment gateway. Please check your network connection and try again.'
+      )
+      setIsProcessingPayment(false)
+      return
+    }
+
+    // Call createRazorpayOrder({ invoiceId, amount })
+    let orderData
     try {
-      // Execute the real backend payment flow (POST /api/payments/create -> POST /api/payments/confirm/{id})
-      const paymentResponse = await processPayment({
+      const orderRes = await createRazorpayOrder({
         invoiceId: activePaymentInvoice.invoiceId,
         amount: enteredAmount,
-        paymentMethod,
       })
-
-      const paymentId = paymentResponse?.paymentId || 'CONFIRMED'
-      const updatedDue = Math.max(0, maxDue - enteredAmount)
-
-      setActivePaymentInvoice(null)
-      setSuccessNotice(
-        `Payment of ₹${enteredAmount.toLocaleString('en-IN')} confirmed successfully (Txn #${paymentId}). Invoice status and remaining balance (₹${updatedDue.toLocaleString('en-IN')}) have been updated.`
+      orderData = orderRes?.data || orderRes
+    } catch (orderErr) {
+      console.error('Failed to create Razorpay order:', orderErr)
+      setPaymentError(
+        extractErrorMessage(
+          orderErr,
+          'Failed to initialize payment order with server. Please try again.'
+        )
       )
-
-      // Refresh real invoices from backend so all figures reflect backend state
-      await loadTenantInvoices()
-    } catch (err) {
-      console.error('Payment execution failed:', err)
-      setPaymentError(extractErrorMessage(err, 'Failed to process payment settlement. Please try again.'))
-    } finally {
       setIsProcessingPayment(false)
+      return
+    }
+
+    if (!orderData || !orderData.orderId || !orderData.keyId) {
+      setPaymentError('Invalid order details returned from the payment server.')
+      setIsProcessingPayment(false)
+      return
+    }
+
+    // Configure Checkout from backend order response
+    const options = {
+      key: orderData.keyId,
+      order_id: orderData.orderId,
+      currency: orderData.currency || 'INR',
+      amount: Math.round(Number(orderData.amount) * 100), // convert rupees to paise
+      name: 'HomeSphere',
+      description: `Payment for Invoice #${activePaymentInvoice.invoiceNumber || activePaymentInvoice.invoiceId}`,
+      prefill: {
+        name:
+          user?.name ||
+          (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''),
+        email: user?.email || '',
+      },
+      theme: {
+        color: '#315A7D',
+      },
+      // 3. In Checkout's success handler, send parameters to verifyRazorpayPayment
+      handler: async function (response) {
+        try {
+          const verifyRes = await verifyRazorpayPayment({
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature,
+          })
+
+          const verifiedPayment = verifyRes?.data || verifyRes
+          const paymentId = verifiedPayment?.paymentId || response.razorpay_payment_id
+          const updatedDue = Math.max(0, maxDue - enteredAmount)
+
+          // 4. Show success and refresh tenant invoices & receipts only after backend verification succeeds
+          const completedInvoice = activePaymentInvoice
+          setActivePaymentInvoice(null)
+          setSuccessNotice(
+            `Payment of ₹${enteredAmount.toLocaleString('en-IN')} verified successfully (Txn #${paymentId}). Invoice status and remaining balance (₹${updatedDue.toLocaleString('en-IN')}) have been updated.`
+          )
+          await loadTenantInvoices()
+
+          // Refresh receipt records for this invoice and display the newly generated receipt
+          if (completedInvoice?.invoiceId) {
+            setReceiptModalInvoice(completedInvoice)
+            const refreshedReceipts = await loadReceiptsForInvoice(completedInvoice.invoiceId)
+            if (refreshedReceipts && refreshedReceipts.length > 0) {
+              const matched =
+                refreshedReceipts.find(
+                  (r) =>
+                    String(r.paymentId) === String(paymentId) ||
+                    r.razorpayPaymentId === response.razorpay_payment_id
+                ) || refreshedReceipts[refreshedReceipts.length - 1]
+              setSelectedReceipt(matched)
+            }
+          }
+        } catch (verifyErr) {
+          console.error('Payment verification failed on server:', verifyErr)
+          // Verification failure must NEVER appear as a successful payment
+          setPaymentError(
+            extractErrorMessage(
+              verifyErr,
+              'Payment was authorized by gateway, but backend verification failed. Please contact management.'
+            )
+          )
+        } finally {
+          setIsProcessingPayment(false)
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          // Cancellation must NEVER appear as a successful payment
+          setIsProcessingPayment(false)
+          setPaymentError('Payment window was closed before completion.')
+        },
+      },
+    }
+
+    try {
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', function (failureResponse) {
+        console.error('Razorpay payment failed:', failureResponse)
+        // Checkout failure must NEVER appear as a successful payment
+        setIsProcessingPayment(false)
+        const reason =
+          failureResponse?.error?.description ||
+          failureResponse?.error?.reason ||
+          'Payment failed at the gateway.'
+        setPaymentError(`Payment failed: ${reason}`)
+      })
+      rzp.open()
+    } catch (openErr) {
+      console.error('Failed to open Razorpay Checkout:', openErr)
+      setIsProcessingPayment(false)
+      setPaymentError('Unable to open payment modal. Please try again.')
     }
   }
 
@@ -627,6 +796,16 @@ export default function TenantPaymentsPage() {
                           {/* Action Buttons */}
                           <td className="py-4 pl-4 pr-6 text-right whitespace-nowrap text-xs">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* View Official Payment Receipts */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenReceiptsModal(inv)}
+                                className="p-1.5 rounded-lg text-[#5B6875] hover:text-[#315A7D] hover:bg-[#EAF2F7] transition-colors border border-transparent hover:border-[#D9E0E6]"
+                                title="View payment receipts"
+                              >
+                                <Receipt className="w-4 h-4" />
+                              </button>
+
                               {/* View Transactions History */}
                               <button
                                 type="button"
@@ -787,45 +966,29 @@ export default function TenantPaymentsPage() {
                   </span>
                 </div>
 
-                {/* Payment Method Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-[#243447] block">
-                    Payment Method
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {[
-                      { key: PAYMENT_METHODS.UPI, label: 'UPI / QR', desc: 'Instant VPA settlement' },
-                      { key: PAYMENT_METHODS.CARD, label: 'Credit / Debit Card', desc: 'Visa, Mastercard, RuPay' },
-                      { key: PAYMENT_METHODS.NET_BANKING, label: 'Net Banking', desc: 'Major Indian banks' },
-                      { key: PAYMENT_METHODS.WALLET, label: 'Digital Wallet', desc: 'Prepaid balance' },
-                    ].map((m) => {
-                      const isSelected = paymentMethod === m.key
-                      return (
-                        <button
-                          key={m.key}
-                          type="button"
-                          disabled={isProcessingPayment}
-                          onClick={() => setPaymentMethod(m.key)}
-                          className={`p-3 rounded-xl border text-left transition-all ${
-                            isSelected
-                              ? 'border-[#315A7D] bg-[#EAF2F7] ring-1 ring-[#315A7D]'
-                              : 'border-[#D9E0E6] bg-white hover:bg-[#F7F8FA]'
-                          } disabled:opacity-50`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#243447]">
-                              {m.label}
-                            </span>
-                            {isSelected && (
-                              <CheckCircle2 className="w-4 h-4 text-[#315A7D]" />
-                            )}
-                          </div>
-                          <span className="text-[11px] text-[#5B6875] block mt-0.5">
-                            {m.desc}
-                          </span>
-                        </button>
-                      )
-                    })}
+                {/* Razorpay Gateway Information */}
+                <div className="p-4 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#243447] flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-[#315A7D]" />
+                      Payment Method
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#315A7D] bg-[#EAF2F7] px-2 py-0.5 rounded border border-[#D9E0E6]">
+                      Razorpay Secure
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#5B6875] leading-relaxed">
+                    Choose your preferred payment method—UPI, Google Pay, PhonePe, Credit/Debit Card, or Net Banking—directly inside the secure Razorpay Checkout window.
+                  </p>
+                  <div className="flex items-center gap-3 pt-1 text-[11px] text-[#5B6875]">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      Instant verification
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      256-bit encryption
+                    </span>
                   </div>
                 </div>
 
@@ -854,8 +1017,8 @@ export default function TenantPaymentsPage() {
                     }
                   >
                     {isProcessingPayment
-                      ? 'Confirming Settlement...'
-                      : `Confirm & Pay ₹${Number(paymentAmount || 0).toLocaleString('en-IN')}`}
+                      ? 'Processing with Razorpay...'
+                      : `Proceed to Pay ₹${Number(paymentAmount || 0).toLocaleString('en-IN')}`}
                   </Button>
                 </div>
               </form>
@@ -979,8 +1142,234 @@ export default function TenantPaymentsPage() {
               </div>
 
               {/* Footer */}
-              <div className="p-4 border-t border-[#D9E0E6] flex justify-end bg-[#F7F8FA]">
+              <div className="p-4 border-t border-[#D9E0E6] flex items-center justify-between bg-[#F7F8FA]">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const currentInv = historyInvoice
+                    handleCloseHistoryModal()
+                    handleOpenReceiptsModal(currentInv)
+                  }}
+                  leftIcon={<Receipt className="w-3.5 h-3.5 text-[#315A7D]" />}
+                >
+                  View Receipts
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleCloseHistoryModal}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* INVOICE PAYMENT RECEIPTS & PRINT VOUCHER MODAL             */}
+        {/* ========================================================= */}
+        {receiptModalInvoice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#D9E0E6] overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="p-5 border-b border-[#D9E0E6] flex items-center justify-between bg-[#F7F8FA] no-print">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-[#EAF2F7] text-[#315A7D]">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#243447]">
+                      {selectedReceipt ? 'Official Payment Receipt' : 'Invoice Payment Receipts'}
+                    </h2>
+                    <p className="text-xs text-[#5B6875]">
+                      Invoice {receiptModalInvoice.invoiceNumber || `#${receiptModalInvoice.invoiceId}`} &bull;{' '}
+                      {receiptModalInvoice.propertyName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseReceiptsModal}
+                  className="text-[#5B6875] hover:text-[#243447] p-1.5 rounded-lg hover:bg-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                {/* VIEW 1: SINGLE RECEIPT PRINTABLE VOUCHER */}
+                {selectedReceipt ? (
+                  <div className="space-y-4">
+                    {/* Navigation toolbar (hidden during print) */}
+                    <div className="flex items-center justify-between flex-wrap gap-2 no-print pb-2 border-b border-[#D9E0E6]">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedReceipt(null)}
+                        leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+                      >
+                        All Receipts for this Invoice
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={() => window.print()}
+                        leftIcon={<Printer className="w-4 h-4" />}
+                      >
+                        Print Receipt / Save PDF
+                      </Button>
+                    </div>
+
+                    {/* The On-Screen Receipt Document */}
+                    <PrintableReceiptVoucher
+                      receipt={selectedReceipt}
+                      invoice={receiptModalInvoice}
+                      tenantName={tenantDisplayName}
+                      tenantEmail={tenantEmail}
+                      propertyName={receiptModalInvoice.propertyName}
+                      unitNumber={receiptModalInvoice.unitNumber}
+                      formatDateTime={formatDateTime}
+                      formatMonthYear={formatMonthYear}
+                      showIds={false}
+                    />
+
+                    {/* Isolated Print-Only Portal */}
+                    <IsolatedPrintReceiptPortal
+                      receipt={selectedReceipt}
+                      invoice={receiptModalInvoice}
+                      tenantName={tenantDisplayName}
+                      tenantEmail={tenantEmail}
+                      propertyName={receiptModalInvoice.propertyName}
+                      unitNumber={receiptModalInvoice.unitNumber}
+                      formatDateTime={formatDateTime}
+                      formatMonthYear={formatMonthYear}
+                      showIds={false}
+                    />
+                  </div>
+                ) : (
+                  /* VIEW 2: LIST OF RECEIPTS FOR THIS INVOICE */
+                  <div className="space-y-4">
+                    {/* Financial Summary */}
+                    <div className="p-3.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] flex items-center justify-between text-xs">
+                      <span>
+                        Total Invoiced:{' '}
+                        <strong className="text-[#243447]">
+                          ₹{Number(receiptModalInvoice.amount || 0).toLocaleString('en-IN')}
+                        </strong>
+                      </span>
+                      <span>
+                        Total Paid:{' '}
+                        <strong className="text-[#2A583B]">
+                          ₹{Number(receiptModalInvoice.totalPaid || 0).toLocaleString('en-IN')}
+                        </strong>
+                      </span>
+                      <span>
+                        Remaining Due:{' '}
+                        <strong className="text-[#B94A48]">
+                          ₹{Number(receiptModalInvoice.remainingAmount || 0).toLocaleString('en-IN')}
+                        </strong>
+                      </span>
+                    </div>
+
+                    {/* Loading State */}
+                    {loadingReceipts ? (
+                      <div className="p-8 flex justify-center">
+                        <Loader text="Loading receipt records..." size="sm" center />
+                      </div>
+                    ) : receiptsError ? (
+                      /* Error State */
+                      <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>{receiptsError}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadReceiptsForInvoice(receiptModalInvoice.invoiceId)}
+                          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : invoiceReceipts.length === 0 ? (
+                      /* Empty State */
+                      <div className="p-8 text-center bg-[#F7F8FA] rounded-xl border border-dashed border-[#D9E0E6]">
+                        <Receipt className="w-8 h-8 text-[#5B6875] mx-auto mb-2 opacity-50" />
+                        <p className="text-xs font-semibold text-[#243447]">
+                          No Receipts Found
+                        </p>
+                        <p className="text-[11px] text-[#5B6875] mt-1 max-w-sm mx-auto">
+                          No payment receipts have been generated for this invoice yet. Receipts are automatically created upon successful payment verification.
+                        </p>
+                      </div>
+                    ) : (
+                      /* Populated Receipt Records Table */
+                      <div className="border border-[#D9E0E6] rounded-xl overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-[#F7F8FA] border-b border-[#D9E0E6] text-[11px] font-bold uppercase text-[#5B6875]">
+                                <th className="py-2.5 px-3">Receipt #</th>
+                                <th className="py-2.5 px-3">Invoice #</th>
+                                <th className="py-2.5 px-3">Date</th>
+                                <th className="py-2.5 px-3">Method</th>
+                                <th className="py-2.5 px-3">Amount Paid</th>
+                                <th className="py-2.5 px-3">Balance</th>
+                                <th className="py-2.5 px-3 text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#D9E0E6]">
+                              {invoiceReceipts.map((rcp) => (
+                                <tr key={rcp.receiptId} className="hover:bg-[#F7F8FA]">
+                                  <td className="py-3 px-3 font-mono font-semibold text-[#315A7D] whitespace-nowrap">
+                                    {rcp.receiptNumber || `REC-${rcp.receiptId}`}
+                                  </td>
+                                  <td className="py-3 px-3 font-mono text-[#243447] whitespace-nowrap">
+                                    {rcp.invoiceNumber || receiptModalInvoice.invoiceNumber || `#${rcp.invoiceId}`}
+                                  </td>
+                                  <td className="py-3 px-3 text-[#5B6875] whitespace-nowrap">
+                                    {formatDate(rcp.paymentDate || rcp.createdAt)}
+                                  </td>
+                                  <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
+                                    {rcp.paymentMethod || 'UPI'}
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-[#2A583B] whitespace-nowrap">
+                                    ₹{Number(rcp.amountPaid || 0).toLocaleString('en-IN')}
+                                  </td>
+                                  <td className="py-3 px-3 font-semibold text-[#B94A48] whitespace-nowrap">
+                                    ₹{Number(rcp.remainingAmount || 0).toLocaleString('en-IN')}
+                                  </td>
+                                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setSelectedReceipt(rcp)}
+                                      leftIcon={<Eye className="w-3.5 h-3.5" />}
+                                    >
+                                      View / Print
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-[#D9E0E6] flex items-center justify-between bg-[#F7F8FA] no-print">
+                <span className="text-[11px] text-[#5B6875]">
+                  {selectedReceipt
+                    ? 'Use the Print button above to save as PDF or print via browser.'
+                    : `${invoiceReceipts.length} receipt ${invoiceReceipts.length === 1 ? 'record' : 'records'} found`}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleCloseReceiptsModal}>
                   Close
                 </Button>
               </div>

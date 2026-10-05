@@ -56,41 +56,58 @@ export const createPayment = async ({ invoiceId, amount, paymentMethod }) => {
 }
 
 /**
- * TENANT ONLY: Confirm a pending payment
- * Endpoint: POST /api/payments/confirm/{paymentId}
+ * TENANT ONLY: Create Razorpay order for an invoice
+ * Endpoint: POST /api/payments/razorpay/order
  *
- * Automatically marks the payment SUCCESS and updates the invoice status to PAID or PARTIALLY_PAID.
+ * Payload:
+ * {
+ *   invoiceId: Long (numeric, required),
+ *   amount: BigDecimal (numeric, required in rupees)
+ * }
  *
- * @param {number|string} paymentId
- * @returns {Promise<Object>} PaymentResponse
+ * @param {Object} payload
+ * @param {number|string} payload.invoiceId
+ * @param {number|string} payload.amount
+ * @returns {Promise<Object>} RazorpayOrderResponseDTO { paymentId, invoiceId, orderId, amount, currency, keyId }
  */
-export const confirmPayment = async (paymentId) => {
-  return await axiosClient.post(`/payments/confirm/${paymentId}`)
+export const createRazorpayOrder = async ({ invoiceId, amount }) => {
+  const requestBody = {
+    invoiceId: Number(invoiceId),
+    amount: Number(amount),
+  }
+  return await axiosClient.post('/payments/razorpay/order', requestBody)
 }
 
 /**
- * TENANT ONLY: Complete payment flow (Create order -> Confirm payment)
- * Executes sequential creation and confirmation to complete the settlement.
+ * TENANT ONLY: Verify Razorpay payment signature & complete payment
+ * Endpoint: POST /api/payments/razorpay/verify
  *
- * @param {Object} params
- * @param {number|string} params.invoiceId
- * @param {number|string} params.amount
- * @param {string} params.paymentMethod
- * @returns {Promise<Object>} Final confirmed PaymentResponse
+ * Payload:
+ * {
+ *   razorpayPaymentId: String (required),
+ *   razorpayOrderId: String (required),
+ *   razorpaySignature: String (required)
+ * }
+ *
+ * @param {Object} payload
+ * @param {string} payload.razorpayPaymentId
+ * @param {string} payload.razorpayOrderId
+ * @param {string} payload.razorpaySignature
+ * @returns {Promise<Object>} PaymentResponse
  */
-export const processPayment = async ({ invoiceId, amount, paymentMethod }) => {
-  // 1. Create pending payment record
-  const createRes = await createPayment({ invoiceId, amount, paymentMethod })
-  const pendingPayment = createRes?.data || createRes
-
-  if (!pendingPayment || !pendingPayment.paymentId) {
-    throw new Error('Failed to create payment order with the server')
+export const verifyRazorpayPayment = async ({
+  razorpayPaymentId,
+  razorpayOrderId,
+  razorpaySignature,
+}) => {
+  const requestBody = {
+    razorpayPaymentId: String(razorpayPaymentId || '').trim(),
+    razorpayOrderId: String(razorpayOrderId || '').trim(),
+    razorpaySignature: String(razorpaySignature || '').trim(),
   }
-
-  // 2. Confirm the payment
-  const confirmRes = await confirmPayment(pendingPayment.paymentId)
-  return confirmRes?.data || confirmRes
+  return await axiosClient.post('/payments/razorpay/verify', requestBody)
 }
+
 
 /**
  * Retrieve a payment record by ID
@@ -127,6 +144,35 @@ export const getPaymentsByTenant = async (tenantId) => {
 export const getPaymentsByInvoice = async (invoiceId) => {
   return await axiosClient.get(`/payments/invoice/${invoiceId}`)
 }
+
+/**
+ * Retrieve receipt(s) by invoice ID
+ * Endpoint: GET /api/receipts/invoice/{invoiceId}
+ * Permitted roles: SUPER_ADMIN, PROPERTY_OWNER, PROPERTY_MANAGER, TENANT
+ *
+ * @param {number|string} invoiceId
+ * @returns {Promise<Array<Object>|Object>} Backend ReceiptResponse data unchanged
+ */
+export const getReceiptByInvoiceId = async (invoiceId) => {
+  return await axiosClient.get(`/receipts/invoice/${invoiceId}`)
+}
+
+export const getReceiptsByInvoice = getReceiptByInvoiceId
+export const getReceiptByInvoice = getReceiptByInvoiceId
+
+/**
+ * Retrieve receipt by payment ID
+ * Endpoint: GET /api/receipts/payment/{paymentId}
+ * Permitted roles: SUPER_ADMIN, PROPERTY_OWNER, PROPERTY_MANAGER, TENANT
+ *
+ * @param {number|string} paymentId
+ * @returns {Promise<Object>} Backend ReceiptResponse data unchanged
+ */
+export const getReceiptByPaymentId = async (paymentId) => {
+  return await axiosClient.get(`/receipts/payment/${paymentId}`)
+}
+
+export const getReceiptByPayment = getReceiptByPaymentId
 
 /**
  * Download official invoice / payment receipt PDF using authenticated request

@@ -1,30 +1,66 @@
 import axiosClient from './axiosClient'
 
 /**
- * Financial Reports & Analytics API Service (Spring Boot Integration)
- * Note: These are placeholder signatures for future backend integration.
+ * Platform Reports & Analytics API Service
+ *
+ * Current Backend Status:
+ * The Spring Boot backend currently supports raw transaction records via:
+ * - RentInvoiceController: GET /api/rent-invoices (getAllInvoices)
+ *
+ * However, aggregated analytical reporting endpoints (/api/reports/*)
+ * have not been implemented in Spring Boot.
+ *
+ * The signatures below document the exact endpoints and contracts required.
+ * To adhere to strict data integrity rules, no mock data or synthetic
+ * fallback metrics are returned.
  */
 
-// TODO: Replace with Spring Boot financial summary endpoint (e.g. GET /reports/summary)
+/**
+ * Expected Endpoint: GET /api/reports/summary
+ * Role: SUPER_ADMIN, PROPERTY_OWNER
+ */
 export const getFinancialSummary = async () => {
-  // return axiosClient.get('/reports/summary')
-  throw new Error('TODO: Connect to Spring Boot backend /reports/summary')
+  throw new Error(
+    'Backend endpoint GET /api/reports/summary is not implemented in Spring Boot.'
+  )
 }
 
-// TODO: Replace with Spring Boot monthly income trend endpoint (e.g. GET /reports/income-trend)
+/**
+ * Expected Endpoint: GET /api/reports/income-trend?months=6
+ * Role: SUPER_ADMIN, PROPERTY_OWNER
+ */
 export const getIncomeTrend = async (months = 6) => {
-  // return axiosClient.get('/reports/income-trend', { params: { months } })
-  throw new Error('TODO: Connect to Spring Boot backend /reports/income-trend')
+  throw new Error(
+    `Backend endpoint GET /api/reports/income-trend?months=${months} is not implemented in Spring Boot.`
+  )
 }
 
-// TODO: Replace with Spring Boot occupancy trend endpoint (e.g. GET /reports/occupancy-trend)
+/**
+ * Expected Endpoint: GET /api/reports/occupancy-trend?months=6
+ * Role: SUPER_ADMIN, PROPERTY_OWNER
+ */
 export const getOccupancyTrend = async (months = 6) => {
-  // return axiosClient.get('/reports/occupancy-trend', { params: { months } })
-  throw new Error('TODO: Connect to Spring Boot backend /reports/occupancy-trend')
+  throw new Error(
+    `Backend endpoint GET /api/reports/occupancy-trend?months=${months} is not implemented in Spring Boot.`
+  )
 }
 
-// TODO: Replace with Spring Boot property performance endpoint (e.g. GET /reports/property-performance)
+/**
+ * Expected Endpoint: GET /api/reports/property-performance
+ * Role: SUPER_ADMIN, PROPERTY_OWNER
+ */
 export const getPropertyPerformance = async () => {
-  // return axiosClient.get('/reports/property-performance')
-  throw new Error('TODO: Connect to Spring Boot backend /reports/property-performance')
+  throw new Error(
+    'Backend endpoint GET /api/reports/property-performance is not implemented in Spring Boot.'
+  )
+}
+
+/**
+ * Expected Endpoint: POST /api/reports/export
+ * Role: SUPER_ADMIN
+ */
+export const exportPlatformReport = async (exportConfig = {}) => {
+  throw new Error(
+    'Backend endpoint POST /api/reports/export is not implemented in Spring Boot.'
+  )
 }

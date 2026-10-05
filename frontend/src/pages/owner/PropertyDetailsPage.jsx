@@ -55,6 +55,7 @@ import {
   FileText,
   Wrench,
   AlertCircle,
+  AlertTriangle,
   Trash2,
   Plus,
   Image as ImageIcon,
@@ -107,6 +108,9 @@ export default function PropertyDetailsPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [toastMessage, setToastMessage] = useState(
     location.state?.toastMessage || ''
+  )
+  const [toastType, setToastType] = useState(
+    location.state?.toastType || 'success'
   )
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
@@ -162,8 +166,12 @@ export default function PropertyDetailsPage() {
   useEffect(() => {
     if (location.state?.toastMessage) {
       setToastMessage(location.state.toastMessage)
-      const timer = setTimeout(() => setToastMessage(''), 3000)
-      return () => clearTimeout(timer)
+      const type = location.state.toastType || 'success'
+      setToastType(type)
+      if (type !== 'warning') {
+        const timer = setTimeout(() => setToastMessage(''), 4000)
+        return () => clearTimeout(timer)
+      }
     }
   }, [location.state])
 
@@ -857,11 +865,28 @@ export default function PropertyDetailsPage() {
       <div className="space-y-8">
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="p-3.5 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-            <span>{toastMessage}</span>
+          <div
+            className={`p-3.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-between shadow-2xs animate-in fade-in slide-in-from-top-2 ${
+              toastType === 'warning'
+                ? 'bg-amber-50 border border-amber-300 text-amber-900'
+                : 'bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B]'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {toastType === 'warning' ? (
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-[#2A583B] shrink-0" />
+              )}
+              <span>{toastMessage}</span>
+            </div>
             <button
               onClick={() => setToastMessage('')}
-              className="text-[#2A583B] hover:text-[#1d3d29]"
+              className={`font-bold ml-4 cursor-pointer ${
+                toastType === 'warning'
+                  ? 'text-amber-800 hover:text-amber-950'
+                  : 'text-[#2A583B] hover:text-[#1d3d29]'
+              }`}
             >
               &times;
             </button>

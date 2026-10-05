@@ -15,16 +15,16 @@ import {
   Home,
   CheckCircle2,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import {
   getAllBuildings,
   getBuildingsForManager,
-  getBuildingsForTenant,
-  getTenantRentalContext,
   getBuildingsByProperty,
   deleteBuilding,
 } from '../../api/buildingApi'
-import { getMyProperties } from '../../api/propertyApi'
+import { getMyProperties, getManagerAssignedProperties } from '../../api/propertyApi'
+import { resolveTenantRentalContext } from '../../utils/tenantRentalHelper'
 import {
   ROLES,
   isPropertyOwner,
@@ -58,21 +58,71 @@ export default function BuildingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const loadBuildings = async () => {
+    setIsLoading(true)
+    setErrorMessage('')
+
     try {
       if (isTenant) {
-        const [tenantBuildings, rentalContext] = await Promise.all([
-          getBuildingsForTenant(user),
-          getTenantRentalContext(user),
-        ])
-        setBuildings(tenantBuildings || [])
-        setMyRental(rentalContext)
+        setMyRental(null)
+        setBuildings([])
+
+        const context = await resolveTenantRentalContext({ forceRefresh: true })
+        if (!context) {
+          setMyRental(null)
+          setBuildings([])
+          return
+        }
+
+        setMyRental(context.myRental)
+        setBuildings(context.buildings)
       } else if (isManager) {
-        // Manager data source is strictly mock-backed (read-only)
-        const managerBuildings = await getBuildingsForManager()
-        setBuildings(managerBuildings || [])
+        // Manager data source connects to real assigned properties:
+        try {
+          const propsRes = await getManagerAssignedProperties()
+          const propsList = Array.isArray(propsRes?.data)
+            ? propsRes.data
+            : Array.isArray(propsRes)
+            ? propsRes
+            : []
+          setOwnerProperties(propsList)
+
+          const targetProps =
+            propertyFilter && propertyFilter !== 'all'
+              ? propsList.filter((p) => String(p.propertyId || p.id) === String(propertyFilter))
+              : propsList
+
+          const buildingArrays = await Promise.all(
+            targetProps.map(async (p) => {
+              try {
+                const bRes = await getBuildingsByProperty(p.propertyId || p.id)
+                const list = Array.isArray(bRes?.data)
+                  ? bRes.data
+                  : Array.isArray(bRes)
+                  ? bRes
+                  : []
+                return list.map((b) => ({
+                  ...b,
+                  propertyName: p.propertyName || p.name,
+                  propertyId: p.propertyId || p.id,
+                }))
+              } catch (err) {
+                console.warn(`Failed loading buildings for manager property ${p.propertyId || p.id}:`, err)
+                return []
+              }
+            })
+          )
+          setBuildings(buildingArrays.flat())
+        } catch (managerErr) {
+          console.error('Failed loading manager properties and buildings:', managerErr)
+          setErrorMessage(
+            managerErr?.response?.data?.message ||
+              managerErr?.message ||
+              'Failed to load buildings for assigned properties.'
+          )
+          setBuildings([])
+        }
       } else {
         // Owner data source connects to real backend:
-        setIsLoading(true)
         try {
           const propsRes = await getMyProperties()
           const propsList = Array.isArray(propsRes?.data)
@@ -108,12 +158,24 @@ export default function BuildingsPage() {
             })
           )
           setBuildings(buildingArrays.flat())
-        } finally {
-          setIsLoading(false)
+        } catch (ownerErr) {
+          console.error('Failed loading owner properties and buildings:', ownerErr)
+          setErrorMessage(
+            ownerErr?.response?.data?.message ||
+              ownerErr?.message ||
+              'Failed to load buildings for your properties.'
+          )
         }
       }
     } catch (err) {
       console.error('Error loading buildings:', err)
+      setErrorMessage(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load rental property and buildings. Please try again.'
+      )
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -163,6 +225,18 @@ export default function BuildingsPage() {
       setIsDeleting(false)
     }
   }
+
+  // Format address for tenant rental card
+  const formattedAddress = myRental?.property
+    ? [
+        myRental.property.address,
+        myRental.property.city,
+        myRental.property.state,
+        myRental.property.postalCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : ''
 
   // Extract unique properties for filter
   const uniqueProperties = Array.from(
@@ -240,271 +314,410 @@ export default function BuildingsPage() {
           </div>
         )}
 
-        {/* Page Header: Custom Dedicated Banner for Tenant vs Standard Owner Header */}
+        {/* Page Content: Tenant View vs Owner/Manager View */}
         {isTenant ? (
-          <div className="space-y-4">
-            {/* Current Rental Summary Card */}
-            <div className="rounded-lg bg-white border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-4">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8] mb-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                    <span>Your Current Rental Property</span>
-                  </div>
-                  <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-                    {myRental?.property?.name || 'Sunset Palms Luxury Residences'}
-                  </h1>
-                  <div className="flex items-center gap-2 text-xs text-[#5B6875] mt-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-[#315A7D]" />
-                    <span>{myRental?.property?.address}, {myRental?.property?.city}</span>
-                    <span>&bull;</span>
-                    <span className="font-semibold text-[#243447]">Unit {myRental?.leaseSummary?.unitNumber || 'A-302'}</span>
-                    <span>&bull;</span>
-                    <span className="text-[#2A583B] font-semibold">{myRental?.leaseSummary?.status || 'Active Lease'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                  <Link to={`/tenant/units/${myRental?.currentUnitId || 'unit-302'}`}>
-                    <Button size="sm" variant="primary">
-                      View My Leased Unit
-                    </Button>
-                  </Link>
-                  <Link to="/tenant/find-properties">
-                    <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                      Find Other Properties
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Hierarchy Breadcrumb Indicator */}
-              <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
-                <span className="font-semibold text-[#243447]">Hierarchy:</span>
-                <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] font-medium text-[#315A7D]">
-                  My Rental Property
-                </span>
-                <span>&rarr;</span>
-                <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] font-medium text-[#243447]">
-                  Community Buildings ({buildings.length})
-                </span>
-                <span>&rarr;</span>
-                <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] text-[#5B6875]">
-                  Floors
-                </span>
-                <span>&rarr;</span>
-                <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] text-[#5B6875]">
-                  Units
-                </span>
-              </div>
+          isLoading ? (
+            <div className="py-16 flex justify-center bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs">
+              <Loader size="lg" text="Loading your rental property details..." center />
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-md bg-[#EAF2F7] flex items-center justify-center text-[#315A7D]">
-                  <Building className="w-4 h-4" />
-                </div>
-                <h1 className="font-serif text-2xl font-bold tracking-tight text-[#243447]">
-                  Buildings
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
-                Manage your residential complexes, multi-floor towers, and associated unit inventories.
-              </p>
-            </div>
-
-            {canManage && (
-              <Link to="/owner/buildings/new">
-                <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-                  Add Building
-                </Button>
-              </Link>
-            )}
-          </div>
-        )}
-
-        {/* Search & Filter Bar */}
-        <div className="bg-white p-4 rounded-lg border border-[#D9E0E6] shadow-2xs flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Input
-              placeholder={
-                isTenant
-                  ? 'Search buildings by name or description...'
-                  : 'Search buildings by name, property, or description...'
-              }
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
-            />
-          </div>
-
-          <div className="w-full sm:w-64">
-            <Select
-              value={propertyFilter}
-              onChange={(e) => setPropertyFilter(e.target.value)}
-              options={propertyFilterOptions}
-            />
-          </div>
-        </div>
-
-        {/* Buildings Grid */}
-        {isLoading ? (
-          <div className="py-16 flex justify-center">
-            <Loader size="lg" text="Loading buildings..." center />
-          </div>
-        ) : filteredBuildings.length === 0 ? (
-          <EmptyState
-            icon={<Building className="w-8 h-8 text-[#5B6875]" />}
-            title="No buildings found"
-            description={
-              searchQuery || propertyFilter !== 'all'
-                ? 'No buildings matched your active search query or property filter.'
-                : isTenant
-                ? 'No community buildings registered for your property.'
-                : 'No buildings registered in your portfolio yet.'
-            }
-            action={
-              searchQuery || propertyFilter !== 'all' ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery('')
-                    setPropertyFilter('all')
-                  }}
-                >
-                  Reset Filters
-                </Button>
-              ) : canManage ? (
-                <Link to="/owner/buildings/new">
-                  <Button size="sm" variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-                    Add First Building
-                  </Button>
-                </Link>
-              ) : null
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filteredBuildings.map((building) => {
-              return (
-                <div
-                  key={building.buildingId}
-                  className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs flex flex-col justify-between hover:border-[#315A7D]/40 transition-colors"
-                >
-                  <div className="space-y-3">
-                    {/* Top Meta: Building Title & Floors/Units Tag */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="font-semibold text-base text-[#243447] truncate">
-                          {building.buildingName}
-                        </h2>
-                        {(building.propertyName || building.property?.name) && (
-                          <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mt-0.5">
-                            <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
-                            <span className="truncate">{building.propertyName || building.property?.name}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
-                          {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
-                        </span>
-                        {isTenant && building.buildingId === myRental?.currentBuilding?.buildingId && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
-                            Your Residence Tower
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {building.description && (
-                      <p className="text-xs text-[#5B6875] leading-relaxed line-clamp-2">
-                        {building.description}
-                      </p>
-                    )}
-
-                    {/* Property Location Tag */}
-                    <div className="pt-2 border-t border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-[11px] truncate mr-2">
-                        <Home className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
-                        <span className="truncate">{building.propertyName || building.property?.name || 'Associated Property'}</span>
-                      </span>
-                      <span className="text-[11px] font-mono text-[#5B6875] shrink-0">
-                        ID: {building.buildingId}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions: View (All Roles), Edit & Delete (Owner Only) */}
-                  <div
-                    className={`pt-4 mt-4 border-t border-[#D9E0E6] flex items-center ${
-                      canManage ? 'justify-between' : 'justify-end'
-                    } gap-2 flex-wrap sm:flex-nowrap`}
+          ) : errorMessage ? (
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
+              <EmptyState
+                icon={<AlertCircle className="w-8 h-8 text-[#B94A48]" />}
+                title="Failed to Load Rental Property"
+                description={errorMessage}
+                action={
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={loadBuildings}
+                    leftIcon={<RefreshCw className="w-4 h-4" />}
                   >
-                    {canManage && (
-                      <div className="flex items-center gap-2">
-                        <Link to={`/owner/buildings/${building.buildingId}/edit`}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            leftIcon={<Pencil className="w-3.5 h-3.5" />}
-                          >
-                            Edit
-                          </Button>
-                        </Link>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          leftIcon={<Trash2 className="w-3.5 h-3.5 text-[#B94A48]" />}
-                          onClick={() =>
-                            setDeleteTarget({
-                              buildingId: building.buildingId,
-                              buildingName: building.buildingName,
-                              floorsCount,
-                              unitsCount,
-                            })
-                          }
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
+                    Retry
+                  </Button>
+                }
+              />
+            </div>
+          ) : !myRental ? (
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-8 shadow-2xs">
+              <EmptyState
+                icon={<Home className="w-8 h-8 text-[#5B6875]" />}
+                title="No Active Rental Property"
+                description="You do not currently have an active lease or approved rental agreement associated with your account. Once your rental agreement is active, your leased property and community buildings will appear here."
+                action={
+                  <Link to="/tenant/find-properties">
+                    <Button size="sm" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
+                      Browse Available Properties
+                    </Button>
+                  </Link>
+                }
+              />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Current Rental Summary Card */}
+              <div className="rounded-lg bg-white border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-4">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8] mb-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                      <span>Your Current Rental Property</span>
+                    </div>
+                    <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
+                      {myRental.property.name}
+                    </h1>
+                    <div className="flex items-center gap-2 text-xs text-[#5B6875] mt-1.5 flex-wrap">
+                      <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
+                      {formattedAddress && (
+                        <>
+                          <span>{formattedAddress}</span>
+                          <span>&bull;</span>
+                        </>
+                      )}
+                      {myRental.leaseSummary?.unitNumber && (
+                        <>
+                          <span className="font-semibold text-[#243447]">
+                            Unit {myRental.leaseSummary.unitNumber}
+                          </span>
+                          <span>&bull;</span>
+                        </>
+                      )}
+                      <span className="text-[#2A583B] font-semibold">
+                        {myRental.leaseSummary?.status || 'Active Lease'}
+                      </span>
+                    </div>
+                  </div>
 
-                    <Link to={`${basePath}/buildings/${building.buildingId}`}>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                      >
-                        View
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    {myRental.currentUnitId && (
+                      <Link to={`/tenant/units/${myRental.currentUnitId}`}>
+                        <Button size="sm" variant="primary">
+                          View My Leased Unit
+                        </Button>
+                      </Link>
+                    )}
+                    <Link to="/tenant/find-properties">
+                      <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                        Find Other Properties
                       </Button>
                     </Link>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
 
-        {/* Delete Confirmation Modal (Owner Only) */}
-        {canManage && (
-          <DeleteConfirmModal
-            isOpen={Boolean(deleteTarget)}
-            onClose={() => !isDeleting && setDeleteTarget(null)}
-            onConfirm={handleDeleteConfirm}
-            isLoading={isDeleting}
-            title="Delete Building"
-            itemName={deleteTarget?.buildingName}
-            consequenceMessage={
-              deleteTarget &&
-              `Deleting this building will also permanently remove all floors and units registered within it.`
-            }
-          />
+                {/* Hierarchy Breadcrumb Indicator */}
+                <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
+                  <span className="font-semibold text-[#243447]">Hierarchy:</span>
+                  <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] font-medium text-[#315A7D]">
+                    My Rental Property
+                  </span>
+                  <span>&rarr;</span>
+                  <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] font-medium text-[#243447]">
+                    Community Buildings ({buildings.length})
+                  </span>
+                  <span>&rarr;</span>
+                  <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] text-[#5B6875]">
+                    Floors
+                  </span>
+                  <span>&rarr;</span>
+                  <span className="px-2 py-0.5 rounded bg-[#F7F8FA] border border-[#D9E0E6] text-[#5B6875]">
+                    Units
+                  </span>
+                </div>
+              </div>
+
+              {/* Search Bar for Community Buildings */}
+              <div className="bg-white p-4 rounded-lg border border-[#D9E0E6] shadow-2xs">
+                <Input
+                  placeholder="Search community buildings by name or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
+                />
+              </div>
+
+              {/* Buildings Grid for Tenant */}
+              {filteredBuildings.length === 0 ? (
+                <EmptyState
+                  icon={<Building className="w-8 h-8 text-[#5B6875]" />}
+                  title="No community buildings found"
+                  description={
+                    searchQuery
+                      ? 'No community buildings matched your active search query.'
+                      : 'No community buildings are registered under your rental property.'
+                  }
+                  action={
+                    searchQuery ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSearchQuery('')}
+                      >
+                        Reset Search
+                      </Button>
+                    ) : null
+                  }
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {filteredBuildings.map((building) => (
+                    <div
+                      key={building.buildingId}
+                      className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs flex flex-col justify-between hover:border-[#315A7D]/40 transition-colors"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h2 className="font-semibold text-base text-[#243447] truncate">
+                              {building.buildingName}
+                            </h2>
+                            {building.propertyName && (
+                              <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mt-0.5">
+                                <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
+                                <span className="truncate">{building.propertyName}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
+                              {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
+                            </span>
+                            {building.buildingId === myRental?.currentBuilding?.buildingId && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                                Your Residence Tower
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {building.description && (
+                          <p className="text-xs text-[#5B6875] leading-relaxed line-clamp-2">
+                            {building.description}
+                          </p>
+                        )}
+
+                        <div className="pt-2 border-t border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
+                          <span className="flex items-center gap-1 text-[11px] truncate mr-2">
+                            <Home className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                            <span className="truncate">{building.propertyName || myRental.property.name}</span>
+                          </span>
+                          <span className="text-[11px] font-mono text-[#5B6875] shrink-0">
+                            ID: {building.buildingId}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-4 border-t border-[#D9E0E6] flex items-center justify-end">
+                        <Link to={`/tenant/buildings/${building.buildingId}`}>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                          >
+                            View
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          /* Owner / Manager View */
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9E0E6] pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-md bg-[#EAF2F7] flex items-center justify-center text-[#315A7D]">
+                    <Building className="w-4 h-4" />
+                  </div>
+                  <h1 className="font-serif text-2xl font-bold tracking-tight text-[#243447]">
+                    Buildings
+                  </h1>
+                </div>
+                <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
+                  Manage your residential complexes, multi-floor towers, and associated unit inventories.
+                </p>
+              </div>
+
+              {canManage && (
+                <Link to="/owner/buildings/new">
+                  <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                    Add Building
+                  </Button>
+                </Link>
+              )}
+            </div>
+
+            {/* Search & Filter Bar */}
+            <div className="bg-white p-4 rounded-lg border border-[#D9E0E6] shadow-2xs flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Input
+                  placeholder="Search buildings by name, property, or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
+                />
+              </div>
+
+              <div className="w-full sm:w-64">
+                <Select
+                  value={propertyFilter}
+                  onChange={(e) => setPropertyFilter(e.target.value)}
+                  options={propertyFilterOptions}
+                />
+              </div>
+            </div>
+
+            {/* Buildings Grid */}
+            {isLoading ? (
+              <div className="py-16 flex justify-center">
+                <Loader size="lg" text="Loading buildings..." center />
+              </div>
+            ) : filteredBuildings.length === 0 ? (
+              <EmptyState
+                icon={<Building className="w-8 h-8 text-[#5B6875]" />}
+                title="No buildings found"
+                description={
+                  searchQuery || propertyFilter !== 'all'
+                    ? 'No buildings matched your active search query or property filter.'
+                    : 'No buildings registered in your portfolio yet.'
+                }
+                action={
+                  searchQuery || propertyFilter !== 'all' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setPropertyFilter('all')
+                      }}
+                    >
+                      Reset Filters
+                    </Button>
+                  ) : canManage ? (
+                    <Link to="/owner/buildings/new">
+                      <Button size="sm" variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                        Add First Building
+                      </Button>
+                    </Link>
+                  ) : null
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {filteredBuildings.map((building) => (
+                  <div
+                    key={building.buildingId}
+                    className="bg-white rounded-lg border border-[#D9E0E6] p-5 shadow-2xs flex flex-col justify-between hover:border-[#315A7D]/40 transition-colors"
+                  >
+                    <div className="space-y-3">
+                      {/* Top Meta: Building Title & Floors/Units Tag */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="font-semibold text-base text-[#243447] truncate">
+                            {building.buildingName}
+                          </h2>
+                          {(building.propertyName || building.property?.name) && (
+                            <div className="flex items-center gap-1.5 text-xs text-[#5B6875] mt-0.5">
+                              <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
+                              <span className="truncate">{building.propertyName || building.property?.name}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
+                            {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      {building.description && (
+                        <p className="text-xs text-[#5B6875] leading-relaxed line-clamp-2">
+                          {building.description}
+                        </p>
+                      )}
+
+                      {/* Property Location Tag */}
+                      <div className="pt-2 border-t border-[#D9E0E6] text-xs text-[#5B6875] flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-[11px] truncate mr-2">
+                          <Home className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
+                          <span className="truncate">{building.propertyName || building.property?.name || 'Associated Property'}</span>
+                        </span>
+                        <span className="text-[11px] font-mono text-[#5B6875] shrink-0">
+                          ID: {building.buildingId}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions: View (All Roles), Edit & Delete (Owner Only) */}
+                    <div
+                      className={`pt-4 mt-4 border-t border-[#D9E0E6] flex items-center ${
+                        canManage ? 'justify-between' : 'justify-end'
+                      } gap-2 flex-wrap sm:flex-nowrap`}
+                    >
+                      {canManage && (
+                        <div className="flex items-center gap-2">
+                          <Link to={`/owner/buildings/${building.buildingId}/edit`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              leftIcon={<Pencil className="w-3.5 h-3.5" />}
+                            >
+                              Edit
+                            </Button>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Trash2 className="w-3.5 h-3.5 text-[#B94A48]" />}
+                            onClick={() =>
+                              setDeleteTarget({
+                                buildingId: building.buildingId,
+                                buildingName: building.buildingName,
+                              })
+                            }
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+
+                      <Link to={`${basePath}/buildings/${building.buildingId}`}>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                        >
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Delete Confirmation Modal (Owner Only) */}
+            {canManage && (
+              <DeleteConfirmModal
+                isOpen={Boolean(deleteTarget)}
+                onClose={() => !isDeleting && setDeleteTarget(null)}
+                onConfirm={handleDeleteConfirm}
+                isLoading={isDeleting}
+                title="Delete Building"
+                itemName={deleteTarget?.buildingName}
+                consequenceMessage={
+                  deleteTarget &&
+                  `Deleting this building will also permanently remove all floors and units registered within it.`
+                }
+              />
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>

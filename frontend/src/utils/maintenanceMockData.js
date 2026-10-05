@@ -179,13 +179,10 @@ export function getStoredMaintenanceRequests() {
     console.error('Failed to read maintenance requests from localStorage', e)
   }
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_MAINTENANCE_REQUESTS))
-  } catch (e) {}
-  return MOCK_MAINTENANCE_REQUESTS
+  return []
 }
 
-// Sync in-memory list on module initialization
+// In-memory list - do not seed localStorage
 try {
   const stored = getStoredMaintenanceRequests()
   if (Array.isArray(stored)) {

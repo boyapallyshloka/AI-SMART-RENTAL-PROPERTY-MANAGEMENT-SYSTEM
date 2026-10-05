@@ -23,24 +23,18 @@ import {
 } from 'lucide-react'
 import {
   getBuildingById,
-  getBuildingByIdForManager,
-  getBuildingByIdForTenant,
-  getTenantRentalContext,
 } from '../../api/buildingApi'
 import {
   getFloorById,
-  getFloorByIdForManager,
-  getFloorByIdForTenant,
   updateFloor,
   deleteFloor,
   formatFloorRequest,
 } from '../../api/floorApi'
 import {
   getUnitsByFloor,
-  getUnitsForManager,
-  getUnitsForTenant,
   deleteUnit,
 } from '../../api/unitApi'
+import { getTenantFloorDetails } from '../../utils/tenantRentalHelper'
 import { formatCurrency } from '../../utils/currency'
 import {
   ROLES,
@@ -100,21 +94,13 @@ export default function FloorDetailsPage() {
       let unitList = []
 
       if (isTenant) {
-        flr = await getFloorByIdForTenant(floorId)
-        if (flr) {
-          bld = flr.building || (await getBuildingByIdForTenant(buildingId))
-          unitList = await getUnitsForTenant(floorId)
-        }
-        const rental = await getTenantRentalContext(user)
-        setMyRental(rental)
-      } else if (isManager) {
-        flr = await getFloorByIdForManager(floorId)
-        if (flr) {
-          bld = flr.building || (await getBuildingByIdForManager(buildingId))
-          unitList = await getUnitsForManager(floorId)
-        }
+        const tenantData = await getTenantFloorDetails(buildingId, floorId)
+        flr = tenantData.floor
+        bld = tenantData.building
+        unitList = tenantData.units
+        setMyRental(tenantData.myRental)
       } else {
-        // Real Owner Floor Read Flow
+        // Real Backend Floor Read Flow (Owner & Manager)
         const res = await getFloorById(floorId)
         const rawFlr = res?.data || res || null
         if (rawFlr) {
@@ -396,7 +382,7 @@ export default function FloorDetailsPage() {
             action={
               <Link to={`${basePath}/buildings`}>
                 <Button size="sm" variant="primary">
-                  Back to Buildings
+                  {isTenant ? 'Back to My Rental Property' : 'Back to Buildings'}
                 </Button>
               </Link>
             }
@@ -452,21 +438,32 @@ export default function FloorDetailsPage() {
 
         {/* Hierarchy Breadcrumbs */}
         <div className="flex items-center gap-2 text-xs text-[#5B6875] flex-wrap">
-          <Link
-            to="/owner/properties"
-            className="hover:text-[#315A7D] transition-colors"
-          >
-            Properties
-          </Link>
-          {(floor.propertyId || building?.propertyId || building?.property?.id) && (
+          {isTenant ? (
+            <Link
+              to="/tenant/buildings"
+              className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+            >
+              My Rental Property
+            </Link>
+          ) : (
             <>
-              <span>/</span>
               <Link
-                to={`/owner/properties/${floor.propertyId || building?.propertyId || building?.property?.id}`}
-                className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                to="/owner/properties"
+                className="hover:text-[#315A7D] transition-colors"
               >
-                {propertyName || `Property #${floor.propertyId || building?.propertyId || building?.property?.id}`}
+                Properties
               </Link>
+              {(floor.propertyId || building?.propertyId || building?.property?.id) && (
+                <>
+                  <span>/</span>
+                  <Link
+                    to={`/owner/properties/${floor.propertyId || building?.propertyId || building?.property?.id}`}
+                    className="hover:text-[#315A7D] transition-colors font-medium text-[#5B6875]"
+                  >
+                    {propertyName || `Property #${floor.propertyId || building?.propertyId || building?.property?.id}`}
+                  </Link>
+                </>
+              )}
             </>
           )}
           <span>/</span>

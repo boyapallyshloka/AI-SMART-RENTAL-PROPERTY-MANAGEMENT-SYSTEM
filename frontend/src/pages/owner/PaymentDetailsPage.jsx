@@ -8,6 +8,7 @@ import {
 } from '../../api/invoiceApi'
 import {
   getPaymentsByInvoice,
+  getReceiptsByInvoice,
   downloadInvoiceReceipt,
 } from '../../api/paymentApi'
 import { getAgreements } from '../../api/agreementApi'
@@ -18,6 +19,10 @@ import {
   EmptyState,
   Loader,
 } from '../../components/ui'
+import {
+  PrintableReceiptVoucher,
+  IsolatedPrintReceiptPortal,
+} from '../../components/common/PrintableReceiptVoucher'
 import {
   ArrowLeft,
   User,
@@ -34,6 +39,11 @@ import {
   FileText,
   Receipt,
   History,
+  Printer,
+  Eye,
+  ShieldCheck,
+  Check,
+  X,
 } from 'lucide-react'
 
 // Date formatter
@@ -122,15 +132,24 @@ export default function PaymentDetailsPage() {
   const [noticeMessage, setNoticeMessage] = useState('')
   const [isDownloading, setIsDownloading] = useState(false)
 
+  // Receipt Records & Print Modal State
+  const [receipts, setReceipts] = useState([])
+  const [loadingReceipts, setLoadingReceipts] = useState(false)
+  const [receiptsError, setReceiptsError] = useState(null)
+  const [selectedReceipt, setSelectedReceipt] = useState(null)
+
   const loadInvoiceData = useCallback(async () => {
     setLoading(true)
+    setLoadingReceipts(true)
     setError(null)
+    setReceiptsError(null)
 
     try {
-      // 1. Fetch real invoice, payment transactions, agreements, and applications
-      const [invoiceRes, txnsRes, agreementsRes, appsRes] = await Promise.allSettled([
+      // 1. Fetch real invoice, payment transactions, receipts, agreements, and applications
+      const [invoiceRes, txnsRes, receiptsRes, agreementsRes, appsRes] = await Promise.allSettled([
         getInvoiceById(id),
         getPaymentsByInvoice(id),
+        getReceiptsByInvoice(id),
         getAgreements(),
         user?.role === 'SUPER_ADMIN'
           ? getAllApplications()
@@ -156,6 +175,23 @@ export default function PaymentDetailsPage() {
         setTransactions(rawTxns)
       } else {
         setTransactions([])
+      }
+
+      // Process Receipts (backend filters access by role/property)
+      if (receiptsRes.status === 'fulfilled') {
+        const rawReceipts = Array.isArray(receiptsRes.value)
+          ? receiptsRes.value
+          : receiptsRes.value?.data || []
+        setReceipts(rawReceipts)
+        setReceiptsError(null)
+      } else {
+        setReceipts([])
+        setReceiptsError(
+          extractErrorMessage(
+            receiptsRes.reason,
+            'Failed to load official receipt records for this invoice.'
+          )
+        )
       }
 
       const rawAgreements =
@@ -215,8 +251,29 @@ export default function PaymentDetailsPage() {
       setError(extractErrorMessage(err, 'Failed to load invoice details from the server.'))
     } finally {
       setLoading(false)
+      setLoadingReceipts(false)
     }
   }, [id, user?.role])
+
+  // Dedicated receipt refresh callback
+  const loadReceipts = useCallback(async () => {
+    if (!id) return
+    setLoadingReceipts(true)
+    setReceiptsError(null)
+    try {
+      const res = await getReceiptsByInvoice(id)
+      const list = Array.isArray(res) ? res : res?.data || []
+      setReceipts(list)
+    } catch (err) {
+      console.error('Failed to load receipts for invoice:', err)
+      setReceipts([])
+      setReceiptsError(
+        extractErrorMessage(err, 'Failed to load official receipt records for this invoice.')
+      )
+    } finally {
+      setLoadingReceipts(false)
+    }
+  }, [id])
 
   useEffect(() => {
     loadInvoiceData()
@@ -634,7 +691,233 @@ export default function PaymentDetailsPage() {
                 </div>
               )}
             </div>
+            {/* Official Payment Receipts Card */}
+            <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-[#315A7D]" />
+                  <h2 className="text-base font-semibold text-[#243447]">
+                    Official Payment Receipts
+                  </h2>
+                  <span className="text-xs font-semibold text-[#315A7D] bg-[#EAF2F7] px-2 py-0.5 rounded border border-[#D9E0E6]">
+                    {receipts.length} {receipts.length === 1 ? 'receipt record' : 'receipt records'}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadReceipts}
+                  disabled={loadingReceipts}
+                  leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loadingReceipts ? 'animate-spin text-[#315A7D]' : ''}`} />}
+                >
+                  Refresh Receipts
+                </Button>
+              </div>
+
+              {/* Loading State */}
+              {loadingReceipts ? (
+                <div className="p-8 flex justify-center">
+                  <Loader text="Loading receipt records..." size="sm" center />
+                </div>
+              ) : receiptsError ? (
+                /* Error State */
+                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{receiptsError}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadReceipts}
+                    leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : receipts.length === 0 ? (
+                /* Empty State */
+                <div className="p-8 text-center bg-[#F7F8FA] rounded-xl border border-dashed border-[#D9E0E6]">
+                  <Receipt className="w-8 h-8 text-[#5B6875] mx-auto mb-2 opacity-50" />
+                  <p className="text-xs font-semibold text-[#243447]">
+                    No Payment Receipts Found
+                  </p>
+                  <p className="text-[11px] text-[#5B6875] mt-1 max-w-sm mx-auto">
+                    No official payment receipts have been generated for this invoice yet. Receipts are generated automatically upon successful payment settlement.
+                  </p>
+                </div>
+              ) : (
+                /* Populated Receipts Table */
+                <div className="overflow-x-auto border border-[#D9E0E6] rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#F7F8FA] border-b border-[#D9E0E6] text-[11px] font-bold uppercase text-[#5B6875]">
+                        <th className="py-3 px-3">Receipt #</th>
+                        <th className="py-3 px-3">Invoice #</th>
+                        <th className="py-3 px-3">Tenant ID</th>
+                        <th className="py-3 px-3">Unit ID</th>
+                        <th className="py-3 px-3">Payment Date</th>
+                        <th className="py-3 px-3">Method</th>
+                        <th className="py-3 px-3">Amount Paid</th>
+                        <th className="py-3 px-3">Remaining Balance</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#D9E0E6]">
+                      {receipts.map((rcp) => (
+                        <tr key={rcp.receiptId} className="hover:bg-[#F7F8FA]">
+                          {/* Receipt Number */}
+                          <td className="py-3 px-3 font-mono font-semibold text-[#315A7D] whitespace-nowrap">
+                            {rcp.receiptNumber || `REC-${rcp.receiptId}`}
+                          </td>
+
+                          {/* Invoice Number */}
+                          <td className="py-3 px-3 font-mono text-[#243447] whitespace-nowrap">
+                            {rcp.invoiceNumber || invoice.invoiceNumber || `#${rcp.invoiceId}`}
+                          </td>
+
+                          {/* Tenant ID */}
+                          <td className="py-3 px-3 font-mono text-[#5B6875] whitespace-nowrap">
+                            #{rcp.tenantId || invoice.tenantId || '—'}
+                          </td>
+
+                          {/* Unit ID */}
+                          <td className="py-3 px-3 font-mono text-[#5B6875] whitespace-nowrap">
+                            #{rcp.unitId || invoice.unitId || '—'}
+                          </td>
+
+                          {/* Payment Date */}
+                          <td className="py-3 px-3 text-[#5B6875] whitespace-nowrap">
+                            {formatDateTime(rcp.paymentDate || rcp.createdAt)}
+                          </td>
+
+                          {/* Method */}
+                          <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
+                            {rcp.paymentMethod || 'UPI'}
+                          </td>
+
+                          {/* Amount Paid */}
+                          <td className="py-3 px-3 font-bold text-[#2A583B] whitespace-nowrap">
+                            ₹{Number(rcp.amountPaid || 0).toLocaleString('en-IN')}
+                          </td>
+
+                          {/* Remaining Balance */}
+                          <td className="py-3 px-3 font-semibold text-[#B94A48] whitespace-nowrap">
+                            ₹{Number(rcp.remainingAmount || 0).toLocaleString('en-IN')}
+                          </td>
+
+                          {/* View & Print Action */}
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedReceipt(rcp)}
+                              leftIcon={<Eye className="w-3.5 h-3.5" />}
+                            >
+                              View / Print
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </>
+        )}
+
+        {/* ========================================================= */}
+        {/* PRINTABLE RECEIPT VOUCHER MODAL                           */}
+        {/* ========================================================= */}
+        {selectedReceipt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#D9E0E6] overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="p-5 border-b border-[#D9E0E6] flex items-center justify-between bg-[#F7F8FA] no-print">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-[#EAF2F7] text-[#315A7D]">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#243447]">
+                      Official Payment Receipt
+                    </h2>
+                    <p className="text-xs text-[#5B6875]">
+                      Receipt {selectedReceipt.receiptNumber || `REC-${selectedReceipt.receiptId}`} &bull; Invoice {selectedReceipt.invoiceNumber || invoice?.invoiceNumber || `#${selectedReceipt.invoiceId}`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReceipt(null)}
+                  className="text-[#5B6875] hover:text-[#243447] p-1.5 rounded-lg hover:bg-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                {/* Print Toolbar */}
+                <div className="flex items-center justify-end no-print pb-2 border-b border-[#D9E0E6]">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => window.print()}
+                    leftIcon={<Printer className="w-4 h-4" />}
+                  >
+                    Print Receipt / Save PDF
+                  </Button>
+                </div>
+
+                {/* The On-Screen Receipt Document */}
+                <PrintableReceiptVoucher
+                  receipt={selectedReceipt}
+                  invoice={invoice}
+                  tenantName={invoice?.tenantName}
+                  tenantEmail={invoice?.tenantEmail}
+                  tenantId={selectedReceipt.tenantId || invoice?.tenantId}
+                  unitId={selectedReceipt.unitId || invoice?.unitId}
+                  propertyName={invoice?.propertyName}
+                  unitNumber={invoice?.unitNumber}
+                  billingMonth={invoice?.billingMonth}
+                  billingYear={invoice?.billingYear}
+                  formatDateTime={formatDateTime}
+                  formatMonthYear={formatMonthYear}
+                  showIds={true}
+                />
+
+                {/* Isolated Print-Only Portal */}
+                <IsolatedPrintReceiptPortal
+                  receipt={selectedReceipt}
+                  invoice={invoice}
+                  tenantName={invoice?.tenantName}
+                  tenantEmail={invoice?.tenantEmail}
+                  tenantId={selectedReceipt.tenantId || invoice?.tenantId}
+                  unitId={selectedReceipt.unitId || invoice?.unitId}
+                  propertyName={invoice?.propertyName}
+                  unitNumber={invoice?.unitNumber}
+                  billingMonth={invoice?.billingMonth}
+                  billingYear={invoice?.billingYear}
+                  formatDateTime={formatDateTime}
+                  formatMonthYear={formatMonthYear}
+                  showIds={true}
+                />
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-[#D9E0E6] flex items-center justify-between bg-[#F7F8FA] no-print">
+                <span className="text-[11px] text-[#5B6875]">
+                  Use the Print button above to print or save this receipt as a PDF.
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setSelectedReceipt(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

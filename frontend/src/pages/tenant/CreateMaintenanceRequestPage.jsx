@@ -14,8 +14,8 @@ import {
   getPublicProperties,
   getPublicPropertyDetails,
 } from '../../api/propertyApi'
+import { getMyAgreements } from '../../api/agreementApi'
 import { getMyApplications } from '../../api/applicationApi'
-import { getStoredAgreements } from '../../utils/agreementMockData'
 import {
   Button,
   Input,
@@ -43,8 +43,8 @@ export default function CreateMaintenanceRequestPage() {
   const fileInputRef = useRef(null)
 
   // Pre-fill tenant details from user profile
-  const tenantName = user?.name || 'Elena Rostova'
-  const tenantEmail = user?.email || 'tenant@homesphere.com'
+  const tenantName = user?.name || user?.username || 'Tenant'
+  const tenantEmail = user?.email || ''
 
   // Property and Unit selection
   const [properties, setProperties] = useState([])
@@ -60,7 +60,9 @@ export default function CreateMaintenanceRequestPage() {
   const [category, setCategory] = useState('PLUMBING')
   const [priority, setPriority] = useState('MEDIUM')
   const [description, setDescription] = useState('')
-  const [preferredVisitDate, setPreferredVisitDate] = useState('2026-09-30')
+  const [preferredVisitDate, setPreferredVisitDate] = useState(
+    () => new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  )
 
   // Real Image Upload
   const [imageFile, setImageFile] = useState(null)
@@ -75,21 +77,74 @@ export default function CreateMaintenanceRequestPage() {
   useEffect(() => {
     let isMounted = true
     const loadProperties = async () => {
-      let tenantAppMatch = null
+      let tenantMatch = null
 
-      // Check tenant applications for pre-filling their rented property and unit
+      // Check tenant agreements & applications for pre-filling their rented property and unit
       try {
-        const myApps = await getMyApplications()
-        const appList = Array.isArray(myApps?.data)
-          ? myApps.data
-          : Array.isArray(myApps)
-            ? myApps
+        const [agreementsRes, appsRes] = await Promise.allSettled([
+          getMyAgreements(),
+          getMyApplications(),
+        ])
+
+        const rawAgreements =
+          agreementsRes.status === 'fulfilled'
+            ? Array.isArray(agreementsRes.value)
+              ? agreementsRes.value
+              : agreementsRes.value?.data || []
             : []
-        tenantAppMatch =
-          appList.find((a) => (a.status || '').toUpperCase() === 'APPROVED') ||
-          appList[0]
+
+        const rawApps =
+          appsRes.status === 'fulfilled'
+            ? Array.isArray(appsRes.value)
+              ? appsRes.value
+              : appsRes.value?.data || []
+            : []
+
+        const appMap = new Map()
+        rawApps.forEach((a) => {
+          if (a && a.applicationId) {
+            appMap.set(Number(a.applicationId), a)
+          }
+        })
+
+        // Prefer active agreement
+        const activeAgr =
+          rawAgreements.find(
+            (a) => String(a.status).toUpperCase() === 'ACTIVE'
+          ) || rawAgreements[0]
+
+        if (activeAgr) {
+          const matchedApp = activeAgr.applicationId
+            ? appMap.get(Number(activeAgr.applicationId))
+            : null
+
+          tenantMatch = {
+            propertyId: matchedApp?.propertyId || activeAgr.propertyId,
+            propertyName: matchedApp?.propertyName,
+            unitId: activeAgr.unitId || matchedApp?.unitId,
+            unitNumber: matchedApp?.unitNumber
+              ? String(matchedApp.unitNumber)
+              : activeAgr.unitId
+              ? String(activeAgr.unitId)
+              : undefined,
+          }
+        } else {
+          // If no agreements, check approved/first application
+          const approvedApp =
+            rawApps.find((a) => (a.status || '').toUpperCase() === 'APPROVED') ||
+            rawApps[0]
+
+          if (approvedApp) {
+            tenantMatch = {
+              propertyId: approvedApp.propertyId,
+              propertyName: approvedApp.propertyName,
+              unitId: approvedApp.unitId,
+              unitNumber: approvedApp.unitNumber ? String(approvedApp.unitNumber) : undefined,
+            }
+          }
+        }
       } catch (err) {
-        // Silently fallback if applications call fails
+        // Silently fallback if agreement/app call fails
       }
 
       try {
@@ -98,41 +153,21 @@ export default function CreateMaintenanceRequestPage() {
         if (isMounted && propList.length > 0) {
           setProperties(propList)
 
-          if (tenantAppMatch?.propertyId) {
-            const matchedId = String(tenantAppMatch.propertyId)
+          if (tenantMatch?.propertyId) {
+            const matchedId = String(tenantMatch.propertyId)
             setPropertyId(matchedId)
-            setPropertyName(tenantAppMatch.propertyName || 'Selected Property')
-            if (tenantAppMatch.unitId) {
-              setUnitId(String(tenantAppMatch.unitId))
+            setPropertyName(tenantMatch.propertyName || 'Selected Property')
+            if (tenantMatch.unitId) {
+              setUnitId(String(tenantMatch.unitId))
             }
-            if (tenantAppMatch.unitNumber) {
-              setUnitNumber(String(tenantAppMatch.unitNumber))
+            if (tenantMatch.unitNumber) {
+              setUnitNumber(String(tenantMatch.unitNumber))
             }
           } else {
-            // Check active agreements for property / unit hints as fallback
-            let agreementFound = false
-            try {
-              const agreements = getStoredAgreements()
-              const myAgr = agreements.find(
-                (a) =>
-                  (a.tenantEmail || '').toLowerCase().trim() === tenantEmail.toLowerCase().trim() ||
-                  (a.tenantName || '').toLowerCase().trim() === tenantName.toLowerCase().trim()
-              )
-              if (myAgr?.propertyId) {
-                setPropertyId(String(myAgr.propertyId))
-                if (myAgr.propertyName) setPropertyName(myAgr.propertyName)
-                if (myAgr.unitId) setUnitId(String(myAgr.unitId))
-                if (myAgr.unit) setUnitNumber(myAgr.unit)
-                agreementFound = true
-              }
-            } catch (e) { }
-
-            if (!agreementFound) {
-              const firstProp = propList[0]
-              const firstId = String(firstProp.propertyId || firstProp.id)
-              setPropertyId(firstId)
-              setPropertyName(firstProp.propertyName || firstProp.name || 'Selected Property')
-            }
+            const firstProp = propList[0]
+            const firstId = String(firstProp.propertyId || firstProp.id)
+            setPropertyId(firstId)
+            setPropertyName(firstProp.propertyName || firstProp.name || 'Selected Property')
           }
         }
       } catch (err) {
@@ -352,22 +387,6 @@ export default function CreateMaintenanceRequestPage() {
 
       const createdResponse = await createMaintenanceRequest(formData)
       const newTicketId = createdResponse?.requestId || createdResponse?.id
-
-      // Persist the created ticket ID in localStorage so the tenant can track it
-      if (newTicketId) {
-        try {
-          const storedIds = JSON.parse(
-            localStorage.getItem('tenant_maintenance_ticket_ids') || '[]'
-          )
-          if (!storedIds.includes(newTicketId)) {
-            storedIds.unshift(newTicketId)
-            localStorage.setItem(
-              'tenant_maintenance_ticket_ids',
-              JSON.stringify(storedIds)
-            )
-          }
-        } catch (e) { }
-      }
 
       // Redirect to tenant maintenance portal with confirmation banner
       navigate('/tenant/maintenance', {

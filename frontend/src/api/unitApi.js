@@ -1,20 +1,12 @@
 import axiosClient from './axiosClient.js'
-import {
-  getMockUnits,
-  getMockUnitById,
-  getMockUnitsByFloorId,
-  getMockUnitsByBuildingId,
-  addMockUnit,
-  updateMockUnit,
-  deleteMockUnit,
-  getAvailableUnits as mockGetAvailableUnits,
-  getAvailableProperties as mockGetAvailableProperties,
-} from '../utils/buildingUnitMockData.js'
+import { getFloorsByBuilding } from './floorApi.js'
+import { getPublicProperties, getPublicPropertyDetails } from './propertyApi.js'
+import { resolveTenantRentalContext } from '../utils/tenantRentalHelper.js'
 
 /**
  * Unit API Service Layer (Spring Boot Integration)
  * Controller: UnitController (/api/units)
- * Role: PROPERTY_OWNER
+ * Role: PROPERTY_OWNER, PROPERTY_MANAGER
  */
 
 export const ALLOWED_UNIT_FIELDS = [
@@ -230,37 +222,149 @@ export const deleteUnit = async (unitId) => {
 }
 
 // ============================================================================
-// UI Compatibility Helpers (Preserved for Discovery/Manager/Tenant Views)
+// UI Compatibility Helpers (Powered by Real Backend APIs)
 // ============================================================================
 
 export const getUnitsByBuilding = async (buildingId) => {
-  return getMockUnitsByBuildingId(buildingId)
+  const fRes = await getFloorsByBuilding(buildingId)
+  const flrs = Array.isArray(fRes?.data) ? fRes.data : Array.isArray(fRes) ? fRes : []
+  const unitArrays = await Promise.all(
+    flrs.map(async (f) => {
+      try {
+        const uRes = await getUnitsByFloor(f.floorId || f.id)
+        return Array.isArray(uRes?.data) ? uRes.data : Array.isArray(uRes) ? uRes : []
+      } catch (e) {
+        return []
+      }
+    })
+  )
+  return unitArrays.flat()
 }
 
 export const getAllUnits = async () => {
-  return getMockUnits()
+  return []
 }
 
 export const getUnitsForManager = async (floorId) => {
-  return getMockUnitsByFloorId(floorId)
+  return getUnitsByFloor(floorId)
 }
 
 export const getUnitByIdForManager = async (unitId) => {
-  return getMockUnitById(unitId)
+  return getUnitById(unitId)
 }
 
 export const getUnitsForTenant = async (floorId) => {
-  return getMockUnitsByFloorId(floorId)
+  const context = await resolveTenantRentalContext()
+  for (const b of context?.buildings || []) {
+    for (const f of b.floors || []) {
+      if (String(f.floorId || f.id) === String(floorId)) {
+        return f.units || []
+      }
+    }
+  }
+  return []
 }
 
 export const getUnitByIdForTenant = async (unitId) => {
-  return getMockUnitById(unitId)
+  const context = await resolveTenantRentalContext()
+  for (const b of context?.buildings || []) {
+    for (const f of b.floors || []) {
+      for (const u of f.units || []) {
+        if (String(u.unitId || u.id) === String(unitId)) {
+          return u
+        }
+      }
+    }
+  }
+  return null
 }
 
 export const getAvailableUnits = async (user) => {
-  return mockGetAvailableUnits(user)
+  try {
+    const props = await getPublicProperties()
+    const propList = Array.isArray(props) ? props : []
+    const unitLists = await Promise.all(
+      propList.map(async (p) => {
+        try {
+          const details = await getPublicPropertyDetails(p.propertyId || p.id)
+          const data = details?.data || details
+          const units = []
+          if (Array.isArray(data?.buildings)) {
+            for (const b of data.buildings) {
+              if (Array.isArray(b?.floors)) {
+                for (const f of b.floors) {
+                  if (Array.isArray(f?.units)) {
+                    for (const u of f.units) {
+                      if (String(u.status || '').toUpperCase() === 'VACANT') {
+                        units.push({
+                          ...u,
+                          unitId: u.unitId ?? u.id,
+                          id: u.unitId ?? u.id,
+                          unitNumber: u.unitNumber ?? u.number,
+                          unitType: u.unitType ?? u.type ?? 'APARTMENT',
+                          monthlyRent: Number(u.monthlyRent ?? u.rent ?? 0),
+                          securityDeposit: Number(u.securityDeposit ?? u.deposit ?? 0),
+                          area: Number(u.area ?? 0),
+                          bedrooms: Number(u.bedrooms ?? 0),
+                          bathrooms: Number(u.bathrooms ?? 0),
+                          status: 'VACANT',
+                          floor: {
+                            floorId: f.floorId ?? f.id,
+                            id: f.floorId ?? f.id,
+                            floorName: f.floorName ?? f.name,
+                            floorNumber: f.floorNumber ?? f.number,
+                            building: {
+                              buildingId: b.buildingId ?? b.id,
+                              id: b.buildingId ?? b.id,
+                              buildingName: b.buildingName ?? b.name,
+                              property: {
+                                propertyId: p.propertyId || p.id,
+                                id: p.propertyId || p.id,
+                                name: p.propertyName || p.name,
+                                propertyName: p.propertyName || p.name,
+                                address: p.address,
+                                city: p.city,
+                              },
+                            },
+                          },
+                        })
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return units
+        } catch (e) {
+          return []
+        }
+      })
+    )
+    return unitLists.flat()
+  } catch (err) {
+    console.error('Error fetching available units:', err)
+    return []
+  }
 }
 
 export const getAvailableProperties = async (user) => {
-  return mockGetAvailableProperties(user)
+  try {
+    const props = await getPublicProperties()
+    const propList = Array.isArray(props) ? props : []
+    return propList.map((p) => ({
+      property: {
+        id: p.propertyId || p.id,
+        propertyId: p.propertyId || p.id,
+        name: p.propertyName || p.name,
+        propertyName: p.propertyName || p.name,
+        address: p.address,
+        city: p.city,
+        type: p.propertyType || p.type,
+      },
+    }))
+  } catch (err) {
+    console.error('Error fetching available properties:', err)
+    return []
+  }
 }
