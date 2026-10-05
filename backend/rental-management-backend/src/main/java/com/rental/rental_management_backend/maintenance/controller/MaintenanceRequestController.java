@@ -21,57 +21,26 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.rental.rental_management_backend.exception.ResourceNotFoundException;
-import com.rental.rental_management_backend.maintenance.dto.M5PredictionRequest;
 import com.rental.rental_management_backend.maintenance.dto.M5PredictionResponse;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestRequest;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestResponse;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceStatusUpdateRequest;
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceCategory;
 import com.rental.rental_management_backend.maintenance.enums.MaintenancePriority;
-import com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus;
-import com.rental.rental_management_backend.maintenance.service.M5AggregationService;
-import com.rental.rental_management_backend.maintenance.service.MaintenanceAiServiceClient;
 import com.rental.rental_management_backend.maintenance.service.MaintenanceRequestService;
-import com.rental.rental_management_backend.property.entity.Property;
-import com.rental.rental_management_backend.property.entity.Unit;
-import com.rental.rental_management_backend.property.repository.PropertyRepository;
-import com.rental.rental_management_backend.property.repository.UnitRepository;
-
 
 @RestController
 @RequestMapping("/api/maintenance")
 public class MaintenanceRequestController {
 
-
     private final MaintenanceRequestService maintenanceRequestService;
 
-
     @Autowired
-    private PropertyRepository propertyRepository;
-
-
-    @Autowired
-    private UnitRepository unitRepository;
-
-
-    @Autowired
-    private M5AggregationService m5AggregationService;
-
-
-    @Autowired
-    private MaintenanceAiServiceClient aiServiceClient;
-
-
-
     public MaintenanceRequestController(
             MaintenanceRequestService maintenanceRequestService) {
 
-        this.maintenanceRequestService =
-                maintenanceRequestService;
+        this.maintenanceRequestService = maintenanceRequestService;
     }
-
-
 
     // =========================================================
     // M5 AI MAINTENANCE PREDICTION
@@ -86,54 +55,39 @@ public class MaintenanceRequestController {
 
             @PathVariable Long propertyId,
 
-            @RequestParam(required = false) Long unitId) {
+            @RequestParam Long unitId) {
 
-
-        Property property =
-                propertyRepository.findById(propertyId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Property not found with ID: "
-                                + propertyId));
-
-
-        Unit unit = null;
-
-
-        if (unitId != null) {
-
-            unit =
-                unitRepository.findById(unitId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Unit not found with ID: "
-                                + unitId));
-        }
-
-
-
-        M5PredictionRequest payload =
-                m5AggregationService.aggregate(
-                        property,
-                        unit);
-
-
+        /*
+         * IMPORTANT:
+         * Do not directly call M5AggregationService or
+         * MaintenanceAiServiceClient from the controller.
+         *
+         * The service layer already performs:
+         *
+         * 1. Logged-in user identification
+         * 2. Role checking
+         * 3. Property ownership validation
+         * 4. Property manager validation
+         * 5. M5 feature aggregation
+         * 6. AI prediction
+         *
+         * Therefore, the controller delegates the complete
+         * operation to MaintenanceRequestService.
+         */
 
         M5PredictionResponse response =
-                aiServiceClient.predictMaintenance(payload);
-
-
+                maintenanceRequestService.predictMaintenance(
+                        propertyId,
+                        unitId
+                );
 
         return ResponseEntity.ok(response);
     }
-
-
 
     // =========================================================
     // CREATE MAINTENANCE REQUEST
     // Tenant Only
     // =========================================================
-
 
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("hasRole('TENANT')")
@@ -149,16 +103,13 @@ public class MaintenanceRequestController {
 
             @RequestParam MaintenancePriority priority,
 
-            @RequestParam(value="image", required=false)
+            @RequestParam(value = "image", required = false)
             MultipartFile image)
 
             throws IOException {
 
-
-
         MaintenanceRequestRequest request =
                 new MaintenanceRequestRequest();
-
 
         request.setPropertyId(propertyId);
 
@@ -170,26 +121,20 @@ public class MaintenanceRequestController {
 
         request.setPriority(priority);
 
-
-
         MaintenanceRequestResponse response =
                 maintenanceRequestService.createRequest(
                         request,
-                        image);
-
-
+                        image
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
-
-
     // =========================================================
     // GET ALL REQUESTS
     // =========================================================
-
 
     @GetMapping
     @PreAuthorize(
@@ -198,19 +143,14 @@ public class MaintenanceRequestController {
     public ResponseEntity<List<MaintenanceRequestResponse>>
             getAllRequests() {
 
-
         return ResponseEntity.ok(
                 maintenanceRequestService.getAllRequests()
         );
     }
 
-
-
-
     // =========================================================
     // GET REQUEST BY ID
     // =========================================================
-
 
     @GetMapping("/{requestId}")
     @PreAuthorize(
@@ -220,23 +160,19 @@ public class MaintenanceRequestController {
             getRequestById(
                     @PathVariable Long requestId) {
 
-
         return ResponseEntity.ok(
                 maintenanceRequestService.getRequestById(requestId)
         );
     }
 
-
-
-
     // =========================================================
     // UPDATE REQUEST
     // =========================================================
 
-
     @PutMapping(
-            value="/{requestId}",
-            consumes="multipart/form-data")
+            value = "/{requestId}",
+            consumes = "multipart/form-data"
+    )
     @PreAuthorize(
             "hasAnyRole('PROPERTY_MANAGER','PROPERTY_OWNER','SUPER_ADMIN')"
     )
@@ -257,25 +193,22 @@ public class MaintenanceRequestController {
 
             @RequestParam MaintenancePriority priority,
 
-            @RequestParam(required=false)
-            MaintenanceStatus status,
+            @RequestParam(required = false)
+            com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus status,
 
-            @RequestParam(required=false)
+            @RequestParam(required = false)
             LocalDateTime completedDate,
 
-            @RequestParam(required=false)
+            @RequestParam(required = false)
             BigDecimal cost,
 
-            @RequestParam(value="image",required=false)
+            @RequestParam(value = "image", required = false)
             MultipartFile image)
 
             throws IOException {
 
-
-
         MaintenanceRequestRequest request =
                 new MaintenanceRequestRequest();
-
 
         request.setTenantId(tenantId);
 
@@ -295,23 +228,18 @@ public class MaintenanceRequestController {
 
         request.setCost(cost);
 
-
-
         return ResponseEntity.ok(
                 maintenanceRequestService.updateRequest(
                         requestId,
                         request,
-                        image)
+                        image
+                )
         );
     }
-
-
-
 
     // =========================================================
     // UPDATE STATUS
     // =========================================================
-
 
     @PatchMapping("/{ticketId}/status")
     @PreAuthorize(
@@ -324,22 +252,17 @@ public class MaintenanceRequestController {
 
             @RequestBody MaintenanceStatusUpdateRequest request) {
 
-
-
         return ResponseEntity.ok(
                 maintenanceRequestService.updateStatus(
                         ticketId,
-                        request)
+                        request
+                )
         );
     }
-
-
-
 
     // =========================================================
     // DELETE REQUEST
     // =========================================================
-
 
     @DeleteMapping("/{requestId}")
     @PreAuthorize(
@@ -349,11 +272,8 @@ public class MaintenanceRequestController {
 
             @PathVariable Long requestId) {
 
-
         maintenanceRequestService.deleteRequest(requestId);
-
 
         return ResponseEntity.noContent().build();
     }
-
 }
