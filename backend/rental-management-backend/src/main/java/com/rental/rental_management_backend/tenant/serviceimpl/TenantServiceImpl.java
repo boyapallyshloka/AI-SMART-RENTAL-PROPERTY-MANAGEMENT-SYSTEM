@@ -81,12 +81,37 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TenantResponse getMyTenantProfile(String email) {
 
         User user = getAuthenticatedTenant(email);
 
         Tenant tenant = tenantRepository.findByUser(user)
-                .orElseGet(() -> createEmptyTenantProfile(user));
+                .orElse(null);
+
+        if (tenant == null) {
+            TenantResponse response = new TenantResponse();
+
+            response.setUserId(user.getId());
+            response.setFirstName(user.getFirstName());
+            response.setLastName(user.getLastName());
+            response.setEmail(user.getEmail());
+            response.setPhone(user.getPhone());
+
+            if (user.getGender() != null) {
+                response.setGender(user.getGender().name());
+            }
+
+            if (user.getRole() != null) {
+                response.setRole(user.getRole().name());
+            }
+
+            if (user.getStatus() != null) {
+                response.setStatus(user.getStatus().name());
+            }
+
+            return response;
+        }
 
         return mapToResponse(tenant);
     }
