@@ -9,6 +9,7 @@ import {
   removePropertyManager,
   CANONICAL_PROPERTY_STATUSES,
   mapBackendPropertyToUi,
+  resolveImageUrl,
 } from '../../api/propertyApi'
 import {
   getAddress,
@@ -35,11 +36,14 @@ import { getBuildingsByProperty, deleteBuilding } from '../../api/buildingApi'
 import { formatCurrency } from '../../utils/currency'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import AssignPropertyManagerModal from '../../components/properties/AssignPropertyManagerModal'
+import PropertyMapLocationPicker from '../../components/properties/PropertyMapLocationPicker'
+import { getPincodeDetails } from '../../api/locationApi'
 import { StatusBadge, Button, EmptyState, Loader, Input, Select } from '../../components/ui'
 import {
   ArrowLeft,
   Edit,
   MapPin,
+  ExternalLink,
   Bed,
   Bath,
   Maximize2,
@@ -89,15 +93,6 @@ const formatAreaType = (type) => {
   }
 }
 
-const resolveImageUrl = (url) => {
-  if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  const backendBase = import.meta?.env?.VITE_API_BASE_URL
-    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
-    : 'http://localhost:8080'
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
-}
-
 export default function PropertyDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -133,6 +128,10 @@ export default function PropertyDetailsPage() {
     longitude: '',
   })
   const [addressFieldErrors, setAddressFieldErrors] = useState({})
+  const [isLookingUpPincode, setIsLookingUpPincode] = useState(false)
+  const [pincodeLookupMessage, setPincodeLookupMessage] = useState(null)
+  const [mapLookupMessage, setMapLookupMessage] = useState(null)
+  const [areaSuggestions, setAreaSuggestions] = useState([])
   const [propertyImages, setPropertyImages] = useState([])
   const [isLoadingImages, setIsLoadingImages] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
@@ -324,10 +323,6 @@ export default function PropertyDetailsPage() {
     return loadProperty()
   }
 
-  const loadImages = async () => {
-    return loadProperty()
-  }
-
   const loadAmenities = async () => {
     return loadProperty()
   }
@@ -462,6 +457,9 @@ export default function PropertyDetailsPage() {
     })
     setAddressFieldErrors({})
     setAddressError(null)
+    setPincodeLookupMessage(null)
+    setMapLookupMessage(null)
+    setAreaSuggestions([])
     setIsEditingAddress(true)
   }
 
@@ -481,7 +479,178 @@ export default function PropertyDetailsPage() {
     })
     setAddressFieldErrors({})
     setAddressError(null)
+    setPincodeLookupMessage(null)
+    setMapLookupMessage(null)
+    setAreaSuggestions([])
     setIsEditingAddress(true)
+  }
+
+  const handleLocationChangeFromMap = ({ latitude, longitude }) => {
+    // Preserve coordinates immediately on pin selection/movement
+    setAddressForm((prev) => ({
+      ...prev,
+      latitude: String(latitude),
+      longitude: String(longitude),
+    }))
+    setAddressFieldErrors((prev) => {
+      const copy = { ...prev }
+      delete copy.latitude
+      delete copy.longitude
+      return copy
+    })
+    setMapLookupMessage(null)
+  }
+
+  const handleAddressResolvedFromMap = (geoData) => {
+    if (!geoData) return
+    setMapLookupMessage(null)
+    setAddressForm((prev) => ({
+      ...prev,
+      addressLine1: geoData.addressLine1 || prev.addressLine1,
+      area: geoData.area || geoData.district || prev.area,
+      city: geoData.city || geoData.district || prev.city,
+      state: geoData.state || prev.state,
+      country: geoData.country || prev.country || 'India',
+      pincode:
+        geoData.pincode && /^[0-9]{6}$/.test(geoData.pincode)
+          ? geoData.pincode
+          : prev.pincode,
+    }))
+
+    // Clear validation errors on any fields populated by reverse-geocoding
+    setAddressFieldErrors((prev) => {
+      const updated = { ...prev }
+      if (geoData.addressLine1) delete updated.addressLine1
+      if (geoData.area || geoData.district) delete updated.area
+      if (geoData.city || geoData.district) delete updated.city
+      if (geoData.state) delete updated.state
+      if (geoData.country) delete updated.country
+      if (geoData.pincode && /^[0-9]{6}$/.test(geoData.pincode)) delete updated.pincode
+      return updated
+    })
+
+    // If pincode was resolved, fetch pincode area suggestions as well
+    if (geoData.pincode && /^[0-9]{6}$/.test(geoData.pincode)) {
+      getPincodeDetails(geoData.pincode)
+        .then((pinData) => {
+          if (Array.isArray(pinData?.areas) && pinData.areas.length > 0) {
+            setAreaSuggestions(pinData.areas)
+          }
+        })
+        .catch(() => {})
+    }
+  }
+
+  const handleMapLookupError = (err, info) => {
+    // Preserves selected map pin and coordinates, showing clear inline message
+    const is404 =
+      err?.status === 404 ||
+      err?.response?.status === 404 ||
+      err?.isNotFound ||
+      err?.originalError?.response?.status === 404 ||
+      info?.isNotFound
+
+    const msg = is404
+      ? 'Address lookup is unavailable for this location. Your selected coordinates are preserved; you can enter address fields manually.'
+      : err?.response?.data?.message ||
+        err?.message ||
+        info?.message ||
+        'Address lookup is unavailable for this location. You can enter address fields manually.'
+
+    setMapLookupMessage({
+      type: 'warning',
+      text: msg,
+    })
+  }
+
+  const handlePincodeChange = async (e) => {
+    const rawVal = e.target.value
+    // Indian postal pincodes are numeric 6 digits
+    const cleaned = rawVal.replace(/\D/g, '').slice(0, 6)
+
+    setAddressForm((prev) => ({
+      ...prev,
+      pincode: cleaned,
+    }))
+
+    // Clear previous pincode validation error as owner types
+    setAddressFieldErrors((prev) => {
+      const copy = { ...prev }
+      delete copy.pincode
+      return copy
+    })
+
+    if (cleaned.length === 6) {
+      setIsLookingUpPincode(true)
+      setPincodeLookupMessage(null)
+      try {
+        const pinData = await getPincodeDetails(cleaned)
+        if (pinData) {
+          setAddressForm((prev) => ({
+            ...prev,
+            state: pinData.state || prev.state,
+            city: pinData.city || pinData.district || prev.city,
+            country: pinData.country || prev.country || 'India',
+          }))
+
+          setAddressFieldErrors((prev) => {
+            const updated = { ...prev }
+            if (pinData.state) delete updated.state
+            if (pinData.city || pinData.district) delete updated.city
+            if (pinData.country) delete updated.country
+            return updated
+          })
+
+          if (Array.isArray(pinData.areas) && pinData.areas.length > 0) {
+            setAreaSuggestions(pinData.areas)
+          } else {
+            setAreaSuggestions([])
+          }
+
+          const locText = [pinData.city || pinData.district, pinData.state]
+            .filter(Boolean)
+            .join(', ')
+          setPincodeLookupMessage({
+            type: 'success',
+            text: locText ? `Pincode resolved: ${locText}` : 'Pincode resolved',
+          })
+        }
+      } catch (pinErr) {
+        console.warn('Pincode lookup error:', pinErr)
+        setAreaSuggestions([])
+        const is404 =
+          pinErr?.status === 404 ||
+          pinErr?.response?.status === 404 ||
+          pinErr?.isNotFound ||
+          pinErr?.originalError?.response?.status === 404
+        const msg = is404
+          ? 'Address lookup is unavailable for this pincode. You can enter address fields manually.'
+          : pinErr?.response?.data?.message ||
+            pinErr?.message ||
+            'Address lookup is unavailable for this pincode. You can enter address fields manually.'
+        setPincodeLookupMessage({
+          type: 'error',
+          text: msg,
+        })
+      } finally {
+        setIsLookingUpPincode(false)
+      }
+    } else {
+      setPincodeLookupMessage(null)
+      setAreaSuggestions([])
+    }
+  }
+
+  const handleSelectArea = (areaName) => {
+    setAddressForm((prev) => ({
+      ...prev,
+      area: areaName,
+    }))
+    setAddressFieldErrors((prev) => {
+      const copy = { ...prev }
+      delete copy.area
+      return copy
+    })
   }
 
   const validateAddressForm = () => {
@@ -505,6 +674,18 @@ export default function PropertyDetailsPage() {
       errs.pincode = 'Pincode is required'
     } else if (!/^[0-9]{6}$/.test(addressForm.pincode.trim())) {
       errs.pincode = 'Pincode must contain exactly 6 digits'
+    }
+    if (addressForm.latitude && String(addressForm.latitude).trim() !== '') {
+      const lat = Number(addressForm.latitude)
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        errs.latitude = 'Latitude must be between -90 and 90'
+      }
+    }
+    if (addressForm.longitude && String(addressForm.longitude).trim() !== '') {
+      const lng = Number(addressForm.longitude)
+      if (isNaN(lng) || lng < -180 || lng > 180) {
+        errs.longitude = 'Longitude must be between -180 and 180'
+      }
     }
     setAddressFieldErrors(errs)
     return Object.keys(errs).length === 0
@@ -570,6 +751,29 @@ export default function PropertyDetailsPage() {
     }
   }
 
+  const loadImages = async (propertyId) => {
+    const targetId = propertyId || id
+    if (!targetId) return
+    setIsLoadingImages(true)
+    try {
+      const res = await getImagesByProperty(targetId)
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : []
+      setPropertyImages(list)
+      if (list.length > 0 && selectedImageIndex >= list.length) {
+        setSelectedImageIndex(0)
+      }
+    } catch (err) {
+      console.warn('Failed to reload property images, falling back to full loadProperty:', err)
+      await loadProperty()
+    } finally {
+      setIsLoadingImages(false)
+    }
+  }
+
   const handleUploadPhoto = async (e) => {
     const file = e.target.files?.[0]
     if (!file || !id || isUploadingImage) return
@@ -610,15 +814,7 @@ export default function PropertyDetailsPage() {
     setIsDeletingImageId(imageId)
     try {
       await deleteImage(imageId)
-      setPropertyImages((prev) => {
-        const next = prev.filter((img) => img.imageId !== imageId)
-        if (selectedImageIndex >= next.length && next.length > 0) {
-          setSelectedImageIndex(next.length - 1)
-        } else if (next.length === 0) {
-          setSelectedImageIndex(0)
-        }
-        return next
-      })
+      await loadImages(id)
       setToastMessage('Property photo deleted successfully.')
       setTimeout(() => setToastMessage(''), 3000)
     } catch (err) {
@@ -1330,6 +1526,33 @@ export default function PropertyDetailsPage() {
                 </div>
               ) : isEditingAddress ? (
                 <form onSubmit={handleSaveAddress} className="space-y-4 pt-1">
+                  {/* Interactive Map Location Picker */}
+                  <div className="pb-1 space-y-2">
+                    <PropertyMapLocationPicker
+                      latitude={addressForm.latitude}
+                      longitude={addressForm.longitude}
+                      onLocationChange={handleLocationChangeFromMap}
+                      onAddressResolved={handleAddressResolvedFromMap}
+                      onLookupError={handleMapLookupError}
+                    />
+                    {mapLookupMessage && (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>{mapLookupMessage.text}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMapLookupMessage(null)}
+                          className="text-amber-700 hover:text-amber-900 font-bold ml-1 text-sm leading-none shrink-0"
+                          aria-label="Dismiss message"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
                       <Input
@@ -1361,19 +1584,21 @@ export default function PropertyDetailsPage() {
                       />
                     </div>
 
-                    <Input
-                      label="Area"
-                      placeholder="e.g. Madhapur"
-                      value={addressForm.area}
-                      onChange={(e) =>
-                        setAddressForm((prev) => ({
-                          ...prev,
-                          area: e.target.value,
-                        }))
-                      }
-                      error={addressFieldErrors.area}
-                      required
-                    />
+                    <div className="space-y-1.5">
+                      <Input
+                        label="Area"
+                        placeholder="e.g. Madhapur"
+                        value={addressForm.area}
+                        onChange={(e) =>
+                          setAddressForm((prev) => ({
+                            ...prev,
+                            area: e.target.value,
+                          }))
+                        }
+                        error={addressFieldErrors.area}
+                        required
+                      />
+                    </div>
 
                     <Select
                       label="Area Type (Optional)"
@@ -1435,23 +1660,71 @@ export default function PropertyDetailsPage() {
                       required
                     />
 
-                    <Input
-                      label="Pincode (6 Digits)"
-                      placeholder="e.g. 500081"
-                      value={addressForm.pincode}
-                      onChange={(e) =>
-                        setAddressForm((prev) => ({
-                          ...prev,
-                          pincode: e.target.value,
-                        }))
-                      }
-                      error={addressFieldErrors.pincode}
-                      required
-                    />
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <Input
+                          label="Pincode (6 Digits)"
+                          placeholder="e.g. 500081"
+                          value={addressForm.pincode}
+                          onChange={handlePincodeChange}
+                          error={addressFieldErrors.pincode}
+                          required
+                        />
+                        {isLookingUpPincode && (
+                          <div className="absolute right-3 top-8 flex items-center gap-1.5 text-xs text-[#315A7D] bg-white/90 px-1 py-0.5 rounded pointer-events-none">
+                            <Loader size="xs" />
+                            <span>Verifying...</span>
+                          </div>
+                        )}
+                      </div>
+                      {pincodeLookupMessage && (
+                        <p
+                          className={`text-[11px] font-medium flex items-center gap-1 mt-1 ${
+                            pincodeLookupMessage.type === 'error'
+                              ? 'text-amber-600'
+                              : 'text-[#3F7D58]'
+                          }`}
+                        >
+                          {pincodeLookupMessage.type === 'error' ? (
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          )}
+                          <span>{pincodeLookupMessage.text}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {areaSuggestions.length > 0 && (
+                      <div className="sm:col-span-2 p-3 rounded-xl bg-[#F0F5FA] border border-[#D9E0E6] text-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-[#315A7D]">
+                            Suggested Localities (India Post for {addressForm.pincode})
+                          </span>
+                          <span className="text-[10px] text-[#5B6875]">Click to auto-fill Area</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-0.5">
+                          {areaSuggestions.map((sugg, idx) => (
+                            <button
+                              key={`${sugg}-${idx}`}
+                              type="button"
+                              onClick={() => handleSelectArea(sugg)}
+                              className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors border ${
+                                addressForm.area.toLowerCase() === sugg.toLowerCase()
+                                  ? 'bg-[#315A7D] text-white border-[#315A7D] shadow-2xs'
+                                  : 'bg-white text-[#243447] border-[#D9E0E6] hover:bg-slate-50'
+                              }`}
+                            >
+                              {sugg}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                       <Input
-                        label="Latitude (Optional)"
+                        label="Latitude (Auto-filled from map)"
                         placeholder="e.g. 17.4483"
                         value={addressForm.latitude}
                         onChange={(e) =>
@@ -1460,9 +1733,10 @@ export default function PropertyDetailsPage() {
                             latitude: e.target.value,
                           }))
                         }
+                        error={addressFieldErrors.latitude}
                       />
                       <Input
-                        label="Longitude (Optional)"
+                        label="Longitude (Auto-filled from map)"
                         placeholder="e.g. 78.3915"
                         value={addressForm.longitude}
                         onChange={(e) =>
@@ -1471,6 +1745,7 @@ export default function PropertyDetailsPage() {
                             longitude: e.target.value,
                           }))
                         }
+                        error={addressFieldErrors.longitude}
                       />
                     </div>
                   </div>
@@ -1485,6 +1760,9 @@ export default function PropertyDetailsPage() {
                         setIsEditingAddress(false)
                         setAddressFieldErrors({})
                         setAddressError(null)
+                        setPincodeLookupMessage(null)
+                        setMapLookupMessage(null)
+                        setAreaSuggestions([])
                       }}
                     >
                       Cancel
@@ -1555,11 +1833,24 @@ export default function PropertyDetailsPage() {
                   </div>
 
                   {(addressData.latitude != null || addressData.longitude != null) && (
-                    <div className="flex items-center gap-2 text-xs text-[#5B6875] px-1 pt-1">
-                      <span className="font-medium text-[#243447]">GPS Coordinates:</span>
-                      <span>
-                        Latitude: {addressData.latitude ?? '—'}, Longitude: {addressData.longitude ?? '—'}
-                      </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#5B6875] px-1 pt-1 border-t border-[#D9E0E6]/50">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[#243447]">GPS Coordinates:</span>
+                        <span className="font-mono text-[11px] bg-[#F7F8FA] px-2 py-0.5 rounded border border-[#D9E0E6]">
+                          {addressData.latitude ?? '—'}, {addressData.longitude ?? '—'}
+                        </span>
+                      </div>
+                      {addressData.latitude && addressData.longitude && (
+                        <a
+                          href={`https://www.openstreetmap.org/?mlat=${addressData.latitude}&mlon=${addressData.longitude}#map=16/${addressData.latitude}/${addressData.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#315A7D] hover:underline font-medium inline-flex items-center gap-1 text-xs"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>View on OpenStreetMap</span>
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>

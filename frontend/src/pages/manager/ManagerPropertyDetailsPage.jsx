@@ -6,11 +6,16 @@ import {
   getManagerAssignedPropertyById,
   getManagerAssignedPropertyDetails,
   updateManagerAssignedProperty,
+  resolveImageUrl,
 } from '../../api/propertyApi'
 import {
+  getImagesByProperty,
+  uploadImage,
+  updateImage,
+  deleteImage,
+} from '../../api/propertyImageApi'
+import {
   getAddress,
-  createAddress,
-  updateAddress,
 } from '../../api/propertyAddressApi'
 import {
   getBuildingsByProperty,
@@ -51,6 +56,10 @@ import {
   Info,
   ShieldCheck,
   Building,
+  Image as ImageIcon,
+  Upload,
+  Star,
+  Lock,
 } from 'lucide-react'
 
 // Formatters
@@ -128,6 +137,15 @@ export default function ManagerPropertyDetailsPage() {
   const [deletingBuilding, setDeletingBuilding] = useState(null)
   const [isDeletingBuilding, setIsDeletingBuilding] = useState(false)
 
+  // Property Photos & Media State
+  const [images, setImages] = useState([])
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [isLoadingImages, setIsLoadingImages] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+  const [isUpdatingImageId, setIsUpdatingImageId] = useState(null)
+  const [isDeletingImageId, setIsDeletingImageId] = useState(null)
+
   // Load Property Details & Hierarchy
   const loadData = useCallback(async () => {
     if (!propertyId) return
@@ -154,6 +172,12 @@ export default function ManagerPropertyDetailsPage() {
       try {
         const detailsRes = await getManagerAssignedPropertyDetails(propertyId)
         const details = detailsRes?.data || detailsRes
+        if (Array.isArray(details?.images)) {
+          setImages(details.images)
+          if (details.images.length > 0 && selectedImageIndex >= details.images.length) {
+            setSelectedImageIndex(0)
+          }
+        }
         if (details?.address) {
           setAddress(details.address)
           setAddressForm({
@@ -222,6 +246,95 @@ export default function ManagerPropertyDetailsPage() {
     setTimeout(() => setToastMessage(''), 4000)
   }
 
+  // Load fresh property images
+  const loadImages = async () => {
+    if (!propertyId) return
+    setIsLoadingImages(true)
+    try {
+      const res = await getImagesByProperty(propertyId)
+      const data = Array.isArray(res) ? res : res?.data || []
+      setImages(data)
+      if (data.length > 0 && selectedImageIndex >= data.length) {
+        setSelectedImageIndex(0)
+      }
+    } catch {
+      try {
+        const detailsRes = await getManagerAssignedPropertyDetails(propertyId)
+        const details = detailsRes?.data || detailsRes
+        if (Array.isArray(details?.images)) {
+          setImages(details.images)
+        }
+      } catch (err) {
+        console.warn('Could not reload images:', err)
+      }
+    } finally {
+      setIsLoadingImages(false)
+    }
+  }
+
+  const handleUploadPhoto = async (e) => {
+    const file = e.target?.files?.[0]
+    if (!file || !propertyId || isUploadingImage) return
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPEG, PNG, WEBP, etc.)')
+      return
+    }
+    setIsUploadingImage(true)
+    setUploadError(null)
+    try {
+      await uploadImage(propertyId, {
+        file,
+        imageType: images.length === 0 ? 'PRIMARY' : 'GALLERY',
+        isPrimary: images.length === 0,
+      })
+      await loadImages()
+      showToast('Property photo uploaded successfully.')
+    } catch (err) {
+      console.error('Failed to upload photo:', err)
+      const msg = err?.response?.data?.message || err?.message || 'Failed to upload photo.'
+      setUploadError(msg)
+      alert(`Error: ${msg}`)
+    } finally {
+      setIsUploadingImage(false)
+      if (e.target) e.target.value = ''
+    }
+  }
+
+  const handleDeletePhoto = async (imageId) => {
+    if (!imageId || isDeletingImageId) return
+    const confirmed = window.confirm('Are you sure you want to delete this property photo? This action cannot be undone.')
+    if (!confirmed) return
+    setIsDeletingImageId(imageId)
+    try {
+      await deleteImage(imageId)
+      await loadImages()
+      showToast('Property photo deleted successfully.')
+    } catch (err) {
+      console.error('Failed to delete photo:', err)
+      alert(err?.response?.data?.message || 'Failed to delete photo.')
+    } finally {
+      setIsDeletingImageId(null)
+    }
+  }
+
+  const handleSetPrimary = async (img) => {
+    if (!img?.imageId || isUpdatingImageId || img.isPrimary) return
+    setIsUpdatingImageId(img.imageId)
+    try {
+      await updateImage(img.imageId, {
+        isPrimary: true,
+        imageType: img.imageType || 'GALLERY',
+      })
+      await loadImages()
+      showToast('Primary photo updated successfully.')
+    } catch (err) {
+      console.error('Failed to set primary photo:', err)
+      alert(err?.response?.data?.message || 'Failed to update photo.')
+    } finally {
+      setIsUpdatingImageId(null)
+    }
+  }
+
   // Handle Edit Property Submit
   const handleSaveProperty = async (e) => {
     e?.preventDefault()
@@ -267,50 +380,12 @@ export default function ManagerPropertyDetailsPage() {
     }
   }
 
-  // Handle Edit Address Submit
-  const handleSaveAddress = async (e) => {
+  // Handle Edit Address Submit (Read-only for managers; address modifications require Property Owner role)
+  const handleSaveAddress = (e) => {
     e?.preventDefault()
-    if (!propertyId || isSubmittingAddress) return
-
-    setIsSubmittingAddress(true)
-    setAddressUpdateError(null)
-
-    const payload = {
-      addressLine1: addressForm.addressLine1.trim(),
-      addressLine2: addressForm.addressLine2.trim() || undefined,
-      area: addressForm.area.trim() || undefined,
-      city: addressForm.city.trim(),
-      state: addressForm.state.trim(),
-      country: addressForm.country.trim() || 'India',
-      pincode: addressForm.pincode.trim(),
-    }
-
-    try {
-      if (address?.addressId) {
-        await updateAddress(propertyId, payload)
-      } else {
-        await createAddress(propertyId, payload)
-      }
-      showToast('Property address updated successfully.')
-      setIsEditAddressOpen(false)
-      await loadData()
-    } catch (err) {
-      console.error('Failed to save address:', err)
-      const status = err?.response?.status || err?.status
-      if (status === 403) {
-        setAddressUpdateError(
-          'Backend Permission Notice: Address endpoints (/api/owner/properties/{id}/address) currently require the Property Owner role. The manager address form is fully implemented and validated.'
-        )
-      } else {
-        setAddressUpdateError(
-          err?.response?.data?.message ||
-            err?.message ||
-            'Failed to save property address.'
-        )
-      }
-    } finally {
-      setIsSubmittingAddress(false)
-    }
+    setAddressUpdateError(
+      'Notice: Property address updates require the Property Owner role. Managers cannot update address details with current permissions.'
+    )
   }
 
   // Building Management Handlers
@@ -603,6 +678,177 @@ export default function ManagerPropertyDetailsPage() {
           </div>
         </div>
 
+        {/* Section: Property Photos & Media Gallery */}
+        <div className="bg-white rounded-2xl border border-[#D9E0E6] p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D9E0E6] pb-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-[#315A7D]" />
+              <h3 className="text-base font-bold text-[#243447]">
+                Property Photos & Media
+              </h3>
+              {images.length > 0 && (
+                <span className="text-xs text-[#5B6875] font-medium">
+                  ({images.length} {images.length === 1 ? 'photo' : 'photos'})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] cursor-pointer transition-colors shadow-2xs ${
+                  isUploadingImage ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                {isUploadingImage ? (
+                  <Loader size="xs" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                )}
+                <span>{isUploadingImage ? 'Uploading...' : 'Upload Photo'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingImage}
+                  onChange={handleUploadPhoto}
+                />
+              </label>
+            </div>
+          </div>
+
+          {uploadError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center justify-between">
+              <span>{uploadError}</span>
+              <button
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-red-600 hover:text-red-800 font-bold"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+
+          {isLoadingImages ? (
+            <div className="py-12 flex flex-col items-center justify-center">
+              <Loader size="md" text="Loading property photos..." center />
+            </div>
+          ) : images.length > 0 ? (
+            <div className="space-y-3">
+              {(() => {
+                const currentImg = images[selectedImageIndex] || images[0]
+                return (
+                  <div className="relative rounded-2xl overflow-hidden aspect-video md:aspect-[21/9] max-h-[420px] bg-slate-900 border border-[#D9E0E6]">
+                    <img
+                      src={resolveImageUrl(currentImg?.imageUrl)}
+                      alt={property.propertyName || 'Property photo'}
+                      className="w-full h-full object-cover transition-all duration-300"
+                    />
+
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 flex items-center gap-2">
+                      {currentImg?.isPrimary && (
+                        <span className="px-2.5 py-1 rounded-full bg-[#3F7D58] text-white text-xs font-semibold flex items-center gap-1 shadow-sm backdrop-blur-md">
+                          <Star className="w-3 h-3 fill-current" />
+                          Primary Photo
+                        </span>
+                      )}
+                      {currentImg?.imageType && (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-900/70 text-white text-xs backdrop-blur-md font-medium">
+                          {currentImg.imageType}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-slate-900/70 text-white text-xs backdrop-blur-md font-mono">
+                      Photo {selectedImageIndex + 1} of {images.length}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                      {!currentImg?.isPrimary && (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="bg-white/90 hover:bg-white text-[#243447] border-white/40 backdrop-blur-md shadow-sm"
+                          disabled={isUpdatingImageId === currentImg?.imageId}
+                          onClick={() => handleSetPrimary(currentImg)}
+                          leftIcon={
+                            isUpdatingImageId === currentImg?.imageId ? (
+                              <Loader size="xs" />
+                            ) : (
+                              <Star className="w-3 h-3 text-[#B7791F]" />
+                            )
+                          }
+                        >
+                          Make Primary
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="bg-white/90 hover:bg-red-50 text-red-600 border-white/40 backdrop-blur-md shadow-sm"
+                        disabled={isDeletingImageId === currentImg?.imageId}
+                        onClick={() => handleDeletePhoto(currentImg?.imageId)}
+                        leftIcon={
+                          isDeletingImageId === currentImg?.imageId ? (
+                            <Loader size="xs" />
+                          ) : (
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          )
+                        }
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Thumbnails */}
+              {images.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
+                  {images.map((img, idx) => (
+                    <button
+                      key={img.imageId || idx}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(idx)}
+                      className={`relative w-20 h-14 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${
+                        selectedImageIndex === idx
+                          ? 'border-[#315A7D] ring-2 ring-[#315A7D]/30'
+                          : 'border-transparent opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={resolveImageUrl(img.imageUrl)}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      {img.isPrimary && (
+                        <span className="absolute top-1 left-1 w-2.5 h-2.5 rounded-full bg-[#3F7D58]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-8 rounded-xl border border-dashed border-[#D9E0E6] bg-[#F7F8FA] text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[#EAF2F7] flex items-center justify-center mx-auto text-[#315A7D]">
+                <ImageIcon className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-[#243447]">
+                  No Property Photos Uploaded
+                </p>
+                <p className="text-xs text-[#5B6875] max-w-md mx-auto">
+                  Upload photos to showcase this property to prospective tenants during browsing.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Section 4: Property Address Section */}
         <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
@@ -620,17 +866,38 @@ export default function ManagerPropertyDetailsPage() {
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setAddressUpdateError(null)
-                setIsEditAddressOpen(true)
-              }}
-              leftIcon={<Pencil className="w-3.5 h-3.5 text-[#315A7D]" />}
-            >
-              {address ? 'Edit Address' : 'Add Address'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-[#F0F4F8] text-[#5B6875] border border-[#D9E0E6]">
+                <Lock className="w-3.5 h-3.5 text-[#5B6875]" />
+                Read-Only
+              </span>
+              {address && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAddressUpdateError(null)
+                    setIsEditAddressOpen(true)
+                  }}
+                  leftIcon={<MapPin className="w-3.5 h-3.5 text-[#315A7D]" />}
+                >
+                  View Details
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Manager Permission Note */}
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F0F4F8] border border-[#D9E0E6] text-xs">
+            <Info className="w-4 h-4 text-[#315A7D] shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-semibold text-[#243447]">
+                Address Management Restricted
+              </p>
+              <p className="text-[#5B6875]">
+                Property address updates require the Property Owner role. Managers have read-only permissions to view address information and cannot modify it with current permissions.
+              </p>
+            </div>
           </div>
 
           {address ? (
@@ -681,18 +948,16 @@ export default function ManagerPropertyDetailsPage() {
               </div>
             </div>
           ) : (
-            <div className="py-6 text-center space-y-2">
-              <p className="text-xs text-[#5B6875]">
-                No postal address is registered for this property listing yet.
+            <div className="py-8 text-center space-y-2 bg-[#F7F8FA] rounded-xl border border-dashed border-[#D9E0E6] p-6">
+              <div className="w-10 h-10 rounded-full bg-[#EAF2F7] flex items-center justify-center mx-auto text-[#315A7D]">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-semibold text-[#243447]">
+                No Postal Address Registered
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditAddressOpen(true)}
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-              >
-                Register Address
-              </Button>
+              <p className="text-xs text-[#5B6875] max-w-sm mx-auto">
+                No postal address is registered for this property yet. Address registration is restricted to the Property Owner role.
+              </p>
             </div>
           )}
         </div>
@@ -989,7 +1254,7 @@ export default function ManagerPropertyDetailsPage() {
         </div>
       )}
 
-      {/* Edit Address Modal */}
+      {/* Property Address Modal (Read-Only) */}
       {isEditAddressOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs"
@@ -1001,7 +1266,7 @@ export default function ManagerPropertyDetailsPage() {
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#315A7D]" />
                 <h3 className="text-base font-bold text-[#243447]">
-                  {address ? 'Edit Property Address' : 'Register Property Address'}
+                  Property Address Details (Read-Only)
                 </h3>
               </div>
               <button
@@ -1013,26 +1278,25 @@ export default function ManagerPropertyDetailsPage() {
               </button>
             </div>
 
-            {addressUpdateError && (
-              <div className="p-3.5 rounded-xl bg-[#FEF7EC] border border-[#F4E2B6] text-[#8A5B16] text-xs font-medium space-y-1">
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#B7791F]" />
-                  <span>{addressUpdateError}</span>
-                </div>
+            {/* Note banner that managers cannot update it with current permissions */}
+            <div className="p-3.5 rounded-xl bg-[#FEF7EC] border border-[#F4E2B6] text-[#8A5B16] text-xs font-medium space-y-1">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#B7791F]" />
+                <span>
+                  Notice: Managers cannot update property address details with current permissions. Updating or registering an address requires the Property Owner role.
+                </span>
               </div>
-            )}
+            </div>
 
             <form onSubmit={handleSaveAddress} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-[#243447] mb-1">
-                  Address Line 1 *
+                  Address Line 1
                 </label>
                 <Input
                   value={addressForm.addressLine1}
-                  onChange={(e) =>
-                    setAddressForm((prev) => ({ ...prev, addressLine1: e.target.value }))
-                  }
-                  required
+                  disabled
+                  readOnly
                   placeholder="Street address, building number..."
                 />
               </div>
@@ -1043,9 +1307,8 @@ export default function ManagerPropertyDetailsPage() {
                 </label>
                 <Input
                   value={addressForm.addressLine2}
-                  onChange={(e) =>
-                    setAddressForm((prev) => ({ ...prev, addressLine2: e.target.value }))
-                  }
+                  disabled
+                  readOnly
                   placeholder="Apartment, suite, unit, floor..."
                 />
               </div>
@@ -1057,24 +1320,21 @@ export default function ManagerPropertyDetailsPage() {
                   </label>
                   <Input
                     value={addressForm.area}
-                    onChange={(e) =>
-                      setAddressForm((prev) => ({ ...prev, area: e.target.value }))
-                    }
-                    placeholder="e.g. Whitefield"
+                    disabled
+                    readOnly
+                    placeholder="Locality / Area"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-[#243447] mb-1">
-                    City *
+                    City
                   </label>
                   <Input
                     value={addressForm.city}
-                    onChange={(e) =>
-                      setAddressForm((prev) => ({ ...prev, city: e.target.value }))
-                    }
-                    required
-                    placeholder="e.g. Bangalore"
+                    disabled
+                    readOnly
+                    placeholder="City"
                   />
                 </div>
               </div>
@@ -1082,29 +1342,25 @@ export default function ManagerPropertyDetailsPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-[#243447] mb-1">
-                    State *
+                    State
                   </label>
                   <Input
                     value={addressForm.state}
-                    onChange={(e) =>
-                      setAddressForm((prev) => ({ ...prev, state: e.target.value }))
-                    }
-                    required
-                    placeholder="e.g. Karnataka"
+                    disabled
+                    readOnly
+                    placeholder="State"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-[#243447] mb-1">
-                    Pincode *
+                    Pincode
                   </label>
                   <Input
                     value={addressForm.pincode}
-                    onChange={(e) =>
-                      setAddressForm((prev) => ({ ...prev, pincode: e.target.value }))
-                    }
-                    required
-                    placeholder="e.g. 560066"
+                    disabled
+                    readOnly
+                    placeholder="Pincode"
                   />
                 </div>
 
@@ -1114,10 +1370,9 @@ export default function ManagerPropertyDetailsPage() {
                   </label>
                   <Input
                     value={addressForm.country}
-                    onChange={(e) =>
-                      setAddressForm((prev) => ({ ...prev, country: e.target.value }))
-                    }
-                    placeholder="India"
+                    disabled
+                    readOnly
+                    placeholder="Country"
                   />
                 </div>
               </div>
@@ -1128,18 +1383,20 @@ export default function ManagerPropertyDetailsPage() {
                   variant="secondary"
                   size="sm"
                   onClick={() => setIsEditAddressOpen(false)}
-                  disabled={isSubmittingAddress}
                 >
-                  Cancel
+                  Close
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
                   variant="primary"
                   size="sm"
-                  disabled={isSubmittingAddress}
-                  leftIcon={isSubmittingAddress ? <Loader size="xs" /> : <Save className="w-3.5 h-3.5" />}
+                  disabled
+                  aria-disabled="true"
+                  title="Managers cannot update property address with current permissions"
+                  className="opacity-50 cursor-not-allowed"
+                  leftIcon={<Lock className="w-3.5 h-3.5" />}
                 >
-                  {isSubmittingAddress ? 'Saving...' : 'Save Address'}
+                  Save Address
                 </Button>
               </div>
             </form>

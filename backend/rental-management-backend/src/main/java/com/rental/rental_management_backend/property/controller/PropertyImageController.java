@@ -78,6 +78,21 @@ public class PropertyImageController {
     }
 
     // =========================================================
+    // GET PUBLIC PROPERTY IMAGES (TENANTS & PUBLIC BROWSING)
+    // =========================================================
+
+    @GetMapping("/public/{propertyId}")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<List<PropertyImageResponse>>
+            getPublicImagesByProperty(
+                    @PathVariable Long propertyId) {
+
+        return ResponseEntity.ok(
+                propertyImageService
+                        .getPublicImagesByProperty(propertyId));
+    }
+
+    // =========================================================
     // GET IMAGE BY ID
     // =========================================================
 

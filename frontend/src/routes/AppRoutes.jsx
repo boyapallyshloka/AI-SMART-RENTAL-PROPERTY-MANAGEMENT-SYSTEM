@@ -30,6 +30,7 @@ import ReportsPage from '../pages/owner/ReportsPage'
 import AIInsightsPage from '../pages/owner/AIInsightsPage'
 import AgreementsPage from '../pages/owner/AgreementsPage'
 import CreateAgreementPage from '../pages/owner/CreateAgreementPage'
+import OwnerProfilePage from '../pages/owner/OwnerProfilePage'
 
 // Tenant Dashboard Pages
 import TenantDashboardPage from '../pages/tenant/TenantDashboardPage'
@@ -52,6 +53,7 @@ import ManagerBuildingDetailsPage from '../pages/manager/ManagerBuildingDetailsP
 import ManagerApplicationsPage from '../pages/manager/ManagerApplicationsPage'
 import ManagerApplicationDetailsPage from '../pages/manager/ManagerApplicationDetailsPage'
 import ManagerMaintenancePage from '../pages/manager/ManagerMaintenancePage'
+import ManagerProfilePage from '../pages/manager/ManagerProfilePage'
 
 // Admin Dashboard Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
@@ -257,6 +259,7 @@ export default function AppRoutes() {
                 <Route path="ai-insights" element={<AIInsightsPage />} />
                 <Route path="agreements" element={<AgreementsPage />} />
                 <Route path="agreements/new" element={<CreateAgreementPage />} />
+                <Route path="profile" element={<OwnerProfilePage />} />
                 <Route path="*" element={<Navigate to="/owner/dashboard" replace />} />
               </Routes>
             </RoleRoute>
@@ -335,6 +338,7 @@ export default function AppRoutes() {
                 <Route path="agreements/new" element={<CreateAgreementPage />} />
                 <Route path="payments" element={<PaymentsPage />} />
                 <Route path="payments/:id" element={<PaymentDetailsPage />} />
+                <Route path="profile" element={<ManagerProfilePage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>

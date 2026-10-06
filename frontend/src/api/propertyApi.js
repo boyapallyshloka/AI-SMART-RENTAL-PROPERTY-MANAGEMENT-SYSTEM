@@ -273,15 +273,22 @@ export const updatePropertyStatus = async (id, status) => {
 }
 
 /**
- * Resolves relative image URLs (e.g. /uploads/property-images/...) to full backend URLs
+ * Resolves property image URLs:
+ * - Returns presigned HTTPS URLs (e.g. AWS S3 private bucket objects) directly as-is
+ * - Resolves legacy relative image URLs (e.g. /uploads/property-images/...) to full backend URLs
+ * - Never constructs public S3 URLs or exposes AWS credentials on frontend
  */
 export const resolveImageUrl = (url) => {
-  if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  if (!url || typeof url !== 'string') return ''
+  const trimmed = url.trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
   const backendBase = import.meta?.env?.VITE_API_BASE_URL
     ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
     : 'http://localhost:8080'
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`
+  return `${backendBase}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`
 }
 
 /**

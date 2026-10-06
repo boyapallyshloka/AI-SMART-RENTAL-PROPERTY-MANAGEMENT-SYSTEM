@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { User, Settings, LogOut, ChevronDown, Shield } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { ROLES, normalizeRole, getRoleLabel } from '../../utils/roles'
+import { ROLES, normalizeRole, getRoleLabel, isPropertyManager, isPropertyOwner } from '../../utils/roles'
 import ProfileModal from './ProfileModal'
 
 /**
@@ -14,6 +15,7 @@ import ProfileModal from './ProfileModal'
  * @param {() => void} [props.onLogout]
  */
 export default function UserMenu({ role, onLogout }) {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [modalTab, setModalTab] = useState('profile')
@@ -116,8 +118,14 @@ export default function UserMenu({ role, onLogout }) {
                 type="button"
                 onClick={() => {
                   setIsOpen(false)
-                  setModalTab('profile')
-                  setIsProfileOpen(true)
+                  if (isPropertyManager(effectiveRole)) {
+                    navigate('/manager/profile')
+                  } else if (isPropertyOwner(effectiveRole)) {
+                    navigate('/owner/profile')
+                  } else {
+                    setModalTab('profile')
+                    setIsProfileOpen(true)
+                  }
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-[#EAF2F7] transition-colors text-left"
               >

@@ -466,6 +466,10 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
             response.setImageUrl(null);
 
+        } else if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+
+            response.setImageUrl(imageUrl);
+
         } else if (imageUrl.startsWith("/uploads/")) {
 
             /*
@@ -476,9 +480,13 @@ public class PropertyImageServiceImpl implements PropertyImageService {
 
         } else {
 
-            response.setImageUrl(
-                    s3Service.generatePresignedUrl(
-                            imageUrl));
+            try {
+                response.setImageUrl(
+                        s3Service.generatePresignedUrl(
+                                imageUrl));
+            } catch (Exception ex) {
+                response.setImageUrl(imageUrl);
+            }
         }
 
         response.setImageType(

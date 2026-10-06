@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { X, User, Shield, AlertCircle, RefreshCw, KeyRound } from 'lucide-react'
+import { X, User, Shield, AlertCircle, RefreshCw, KeyRound, MapPin } from 'lucide-react'
 import { Button, StatusBadge, Loader } from '../ui'
 import { getMyProfile, mapBackendUserToUi } from '../../api/userApi'
-import { getRoleLabel } from '../../utils/roles'
+import { getRoleLabel, isPropertyOwner, isPropertyManager } from '../../utils/roles'
 import { useAuth } from '../../context/AuthContext'
 import ChangePasswordForm from './ChangePasswordForm'
+import { getMyOwnerProfile } from '../../api/ownerProfileApi'
+import { getMyManagerProfile } from '../../api/managerProfileApi'
+import OwnerProfileAddressForm from '../properties/OwnerProfileAddressForm'
+import ManagerProfileAddressForm from '../properties/ManagerProfileAddressForm'
 
 /**
  * ProfileModal Component
@@ -13,11 +17,15 @@ import ChangePasswordForm from './ChangePasswordForm'
  * @param {Object} props
  * @param {boolean} props.isOpen
  * @param {() => void} props.onClose
- * @param {'profile' | 'security'} [props.initialTab='profile']
+ * @param {'profile' | 'security' | 'address'} [props.initialTab='profile']
  */
 export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }) {
   const auth = useAuth()
   const [profile, setProfile] = useState(null)
+  const [ownerProfile, setOwnerProfile] = useState(null)
+  const [managerProfile, setManagerProfile] = useState(null)
+  const [loadingOwnerProfile, setLoadingOwnerProfile] = useState(false)
+  const [loadingManagerProfile, setLoadingManagerProfile] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -46,10 +54,44 @@ export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }
     }
   }
 
+  const effectiveRole = profile?.role || auth?.user?.role
+  const isOwner = isPropertyOwner(effectiveRole)
+  const isManager = isPropertyManager(effectiveRole)
+
+  const fetchOwnerAddress = async () => {
+    setLoadingOwnerProfile(true)
+    try {
+      const data = await getMyOwnerProfile()
+      setOwnerProfile(data)
+    } catch (err) {
+      console.warn('Failed to fetch owner profile in modal:', err)
+    } finally {
+      setLoadingOwnerProfile(false)
+    }
+  }
+
+  const fetchManagerAddress = async () => {
+    setLoadingManagerProfile(true)
+    try {
+      const data = await getMyManagerProfile()
+      setManagerProfile(data)
+    } catch (err) {
+      console.warn('Failed to fetch manager profile in modal:', err)
+    } finally {
+      setLoadingManagerProfile(false)
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab)
       fetchProfile()
+      const role = auth?.user?.role || profile?.role
+      if (isPropertyOwner(role)) {
+        fetchOwnerAddress()
+      } else if (isPropertyManager(role)) {
+        fetchManagerAddress()
+      }
     } else {
       setError(null)
     }
@@ -122,6 +164,34 @@ export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }
             <User className="w-3.5 h-3.5" />
             <span>Profile Overview</span>
           </button>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('address')}
+              className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
+                activeTab === 'address'
+                  ? 'border-[#315A7D] text-[#315A7D] bg-[#F7F8FA]'
+                  : 'border-transparent text-[#5B6875] hover:text-[#243447]'
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Owner Address</span>
+            </button>
+          )}
+          {isManager && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('address')}
+              className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
+                activeTab === 'address'
+                  ? 'border-[#315A7D] text-[#315A7D] bg-[#F7F8FA]'
+                  : 'border-transparent text-[#5B6875] hover:text-[#243447]'
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Operational Address</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab('security')}
@@ -221,6 +291,76 @@ export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }
                     No profile information available.
                   </div>
                 )}
+
+                {/* Owner Registered Address Overview */}
+                {isOwner && (
+                  <div className="p-3.5 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <MapPin className="w-4 h-4 text-[#315A7D] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-[#243447] block">
+                          Official Owner Postal Address
+                        </span>
+                        <span className="text-[11px] text-[#5B6875]">
+                          {ownerProfile?.addressLine1
+                            ? [
+                                ownerProfile.addressLine1,
+                                ownerProfile.area,
+                                ownerProfile.city,
+                                ownerProfile.state,
+                                ownerProfile.pincode,
+                              ]
+                                .filter(Boolean)
+                                .join(', ')
+                            : 'No official address registered yet'}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setActiveTab('address')}
+                    >
+                      {ownerProfile?.addressLine1 ? 'Edit Address' : 'Set Address'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Manager Operational Address Overview */}
+                {isManager && (
+                  <div className="p-3.5 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <MapPin className="w-4 h-4 text-[#315A7D] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-[#243447] block">
+                          Official Manager Operational Address
+                        </span>
+                        <span className="text-[11px] text-[#5B6875]">
+                          {managerProfile?.addressLine1
+                            ? [
+                                managerProfile.addressLine1,
+                                managerProfile.area,
+                                managerProfile.city,
+                                managerProfile.state,
+                                managerProfile.pincode,
+                              ]
+                                .filter(Boolean)
+                                .join(', ')
+                            : 'No operational address registered yet'}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setActiveTab('address')}
+                    >
+                      {managerProfile?.addressLine1 ? 'Edit Address' : 'Set Address'}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -237,6 +377,39 @@ export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }
             </div>
 
             <ChangePasswordForm />
+          </div>
+        )}
+
+        {/* Tab 3: Address Form (Owner or Manager) */}
+        {activeTab === 'address' && (
+          <div className="space-y-4 pt-1">
+            {isOwner && (
+              loadingOwnerProfile ? (
+                <div className="py-10 flex justify-center">
+                  <Loader size="md" text="Loading owner address..." center />
+                </div>
+              ) : (
+                <OwnerProfileAddressForm
+                  initialData={ownerProfile}
+                  onSaved={(updated) => setOwnerProfile(updated)}
+                  isStandaloneCard={false}
+                />
+              )
+            )}
+
+            {isManager && (
+              loadingManagerProfile ? (
+                <div className="py-10 flex justify-center">
+                  <Loader size="md" text="Loading manager address..." center />
+                </div>
+              ) : (
+                <ManagerProfileAddressForm
+                  initialData={managerProfile}
+                  onSaved={(updated) => setManagerProfile(updated)}
+                  isStandaloneCard={false}
+                />
+              )
+            )}
           </div>
         )}
 

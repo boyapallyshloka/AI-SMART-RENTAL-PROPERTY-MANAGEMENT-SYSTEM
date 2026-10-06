@@ -8,6 +8,9 @@ export * as amenityApi from './amenityApi.js'
 export * as buildingApi from './buildingApi.js'
 export * as floorApi from './floorApi.js'
 export * as unitApi from './unitApi.js'
+export * as locationApi from './locationApi.js'
+export * as managerProfileApi from './managerProfileApi.js'
+export * as ownerProfileApi from './ownerProfileApi.js'
 
 // Disconnected future modules (mock-backed only; backend endpoints not yet available)
 export * as applicationApi from './applicationApi.js'

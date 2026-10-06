@@ -43,6 +43,8 @@ import com.rental.rental_management_backend.property.service.PropertyDetailsServ
 import com.rental.rental_management_backend.property.service.PropertyImageService;
 import com.rental.rental_management_backend.property.service.PropertyService;
 import com.rental.rental_management_backend.property.service.UnitService;
+import com.rental.rental_management_backend.s3.service.S3Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PropertyDetailsServiceImpl implements PropertyDetailsService {
@@ -75,6 +77,73 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
     private final PropertyImageRepository propertyImageRepository;
 
+    private final S3Service s3Service;
+
+    @Autowired
+    public PropertyDetailsServiceImpl(
+
+            PropertyService propertyService,
+
+            PropertyAddressService propertyAddressService,
+
+            BuildingService buildingService,
+
+            FloorService floorService,
+
+            UnitService unitService,
+
+            AmenityService amenityService,
+
+            PropertyImageService propertyImageService,
+
+            PropertyRepository propertyRepository,
+
+            PropertyAddressRepository propertyAddressRepository,
+
+            BuildingRepository buildingRepository,
+
+            FloorRepository floorRepository,
+
+            UnitRepository unitRepository,
+
+            PropertyAmenityRepository propertyAmenityRepository,
+
+            PropertyImageRepository propertyImageRepository,
+
+            @Autowired(required = false) S3Service s3Service) {
+
+        this.propertyService = propertyService;
+
+        this.propertyAddressService = propertyAddressService;
+
+        this.buildingService = buildingService;
+
+        this.floorService = floorService;
+
+        this.unitService = unitService;
+
+        this.amenityService = amenityService;
+
+        this.propertyImageService = propertyImageService;
+
+        this.propertyRepository = propertyRepository;
+
+        this.propertyAddressRepository = propertyAddressRepository;
+
+        this.buildingRepository = buildingRepository;
+
+        this.floorRepository = floorRepository;
+
+        this.unitRepository = unitRepository;
+
+        this.propertyAmenityRepository = propertyAmenityRepository;
+
+        this.propertyImageRepository = propertyImageRepository;
+
+        this.s3Service = s3Service;
+
+    }
+
     public PropertyDetailsServiceImpl(
 
             PropertyService propertyService,
@@ -105,34 +174,22 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
             PropertyImageRepository propertyImageRepository) {
 
-        this.propertyService = propertyService;
-
-        this.propertyAddressService = propertyAddressService;
-
-        this.buildingService = buildingService;
-
-        this.floorService = floorService;
-
-        this.unitService = unitService;
-
-        this.amenityService = amenityService;
-
-        this.propertyImageService = propertyImageService;
-
-        this.propertyRepository = propertyRepository;
-
-        this.propertyAddressRepository = propertyAddressRepository;
-
-        this.buildingRepository = buildingRepository;
-
-        this.floorRepository = floorRepository;
-
-        this.unitRepository = unitRepository;
-
-        this.propertyAmenityRepository = propertyAmenityRepository;
-
-        this.propertyImageRepository = propertyImageRepository;
-
+        this(
+                propertyService,
+                propertyAddressService,
+                buildingService,
+                floorService,
+                unitService,
+                amenityService,
+                propertyImageService,
+                propertyRepository,
+                propertyAddressRepository,
+                buildingRepository,
+                floorRepository,
+                unitRepository,
+                propertyAmenityRepository,
+                propertyImageRepository,
+                null);
     }
 
     @Override
@@ -927,8 +984,22 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         response.setImageId(
                 image.getImageId());
 
-        response.setImageUrl(
-                image.getImageUrl());
+        String rawUrl = image.getImageUrl();
+        if (rawUrl == null || rawUrl.isBlank()) {
+            response.setImageUrl(null);
+        } else if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            response.setImageUrl(rawUrl);
+        } else if (rawUrl.startsWith("/uploads/")) {
+            response.setImageUrl(rawUrl);
+        } else if (s3Service != null) {
+            try {
+                response.setImageUrl(s3Service.generatePresignedUrl(rawUrl));
+            } catch (Exception ex) {
+                response.setImageUrl(rawUrl);
+            }
+        } else {
+            response.setImageUrl(rawUrl);
+        }
 
         response.setImageType(
                 image.getImageType());

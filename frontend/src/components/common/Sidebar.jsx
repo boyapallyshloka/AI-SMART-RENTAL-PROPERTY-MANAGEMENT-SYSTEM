@@ -19,6 +19,7 @@ import {
   Activity,
   Settings,
   Bot,
+  User,
 } from 'lucide-react'
 import NavItem from './NavItem'
 import { useScout } from '../../context/ScoutContext'
@@ -37,9 +38,10 @@ export const MANAGER_MENU = [
   { id: 'properties', label: 'Assigned Properties', icon: <Building2 className="w-4 h-4" /> },
   { id: 'applications', label: 'Applications', icon: <FileCheck className="w-4 h-4" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
-  { id: 'inspections', label: 'Inspections', icon: <ShieldCheck className="w-4 h-4" /> },
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
+  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
+  { id: 'inspections', label: 'Inspections', icon: <ShieldCheck className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
 ]
 
@@ -50,6 +52,7 @@ const OWNER_MENU = [
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
+  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ai-insights', label: 'AI Insights', icon: <Sparkles className="w-4 h-4 text-[#315A7D]" /> },
 ]
@@ -164,6 +167,8 @@ export default function Sidebar({
         navigate('/manager/payments')
       } else if (id === 'maintenance') {
         navigate('/manager/maintenance')
+      } else if (id === 'profile') {
+        navigate('/manager/profile')
       } else {
         const itemLabels = {
           inspections: 'Property & Unit Inspections',
@@ -180,6 +185,7 @@ export default function Sidebar({
       else if (id === 'agreements') navigate('/owner/agreements')
       else if (id === 'payments') navigate('/owner/payments')
       else if (id === 'maintenance') navigate('/owner/maintenance')
+      else if (id === 'profile') navigate('/owner/profile')
       else if (id === 'reports') navigate('/owner/reports')
       else if (id === 'ai-insights') navigate('/owner/ai-insights')
     } else if (isTenant(role)) {
@@ -269,6 +275,12 @@ export default function Sidebar({
                 item.id === 'maintenance' &&
                 (location.pathname === '/manager/maintenance' ||
                   location.pathname.startsWith('/manager/maintenance/'))) ||
+              (isPropertyManager(role) &&
+                item.id === 'profile' &&
+                location.pathname === '/manager/profile') ||
+              (isPropertyOwner(role) &&
+                item.id === 'profile' &&
+                location.pathname === '/owner/profile') ||
               (isPropertyManager(role) &&
                 item.id === 'dashboard' &&
                 location.pathname === '/manager/dashboard')
