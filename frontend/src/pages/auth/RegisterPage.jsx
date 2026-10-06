@@ -28,7 +28,8 @@ export default function RegisterPage() {
   const { register } = useAuth()
   const navigate = useNavigate()
 
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [gender, setGender] = useState('OTHER')
@@ -41,13 +42,26 @@ export default function RegisterPage() {
   const [isPendingApproval, setIsPendingApproval] = useState(false)
   const [registeredData, setRegisteredData] = useState(null)
 
+  const [passwordChecks, setPasswordChecks] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    number: false,
+    special: false
+  })
+
+
   const validate = () => {
     const errs = {}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     const phoneRegex = /^[6-9]\d{9}$/
 
-    if (!name.trim()) {
-      errs.name = 'Full name is required'
+
+    if (!firstName.trim()) {
+      errs.firstName = 'First name is required'
+    }
+    if (!lastName.trim()) {
+      errs.lastName = 'Last name is required'
     }
 
     if (!email.trim()) {
@@ -66,12 +80,21 @@ export default function RegisterPage() {
       errs.gender = 'Gender is required'
     }
 
-    if (!password) {
+    if (!password.trim()) {
       errs.password = 'Password is required'
-    } else if (password.length < 8) {
-      errs.password = 'Password must be at least 8 characters'
-    } else if (password.length > 100) {
-      errs.password = 'Password must not exceed 100 characters'
+    } else {
+      const checks = validatePassword(password)
+
+      if (
+        !checks.length ||
+        !checks.uppercase ||
+        !checks.lowercase ||
+        !checks.number ||
+        !checks.special
+      ) {
+        errs.password =
+          'Password must contain at least 8 characters, uppercase, lowercase, number, and special character'
+      }
     }
 
     if (!confirmPassword) {
@@ -84,6 +107,18 @@ export default function RegisterPage() {
     return Object.keys(errs).length === 0
   }
 
+  const validatePassword = (password) => {
+    return {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[^A-Za-z0-9]/.test(password)
+
+    }
+  }
+
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
@@ -92,7 +127,8 @@ export default function RegisterPage() {
     setIsLoading(true)
     try {
       const result = await register({
-        name,
+        firstName,
+        lastName,
         email,
         phone,
         gender,
@@ -102,7 +138,8 @@ export default function RegisterPage() {
       if (result.success) {
         if (result.isPending || result.status === 'PENDING') {
           setRegisteredData({
-            name: name.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             email: email.trim().toLowerCase(),
             phone: phone.trim(),
             gender,
@@ -141,7 +178,10 @@ export default function RegisterPage() {
                 Awaiting Administrator Approval
               </h3>
               <p className="text-xs text-[#5B6875] mt-1 max-w-sm mx-auto leading-relaxed">
-                Thank you, <span className="font-semibold text-[#243447]">{registeredData?.name || name}</span>.
+                Thank you, <span className="font-semibold text-[#243447]">{registeredData
+                  ? `${registeredData.firstName} ${registeredData.lastName}`
+                  : `${firstName} ${lastName}`}
+                </span>.
                 Your property owner registration has been recorded and submitted for Super Admin review.
               </p>
             </div>
@@ -227,11 +267,10 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setRole(ROLES.TENANT)}
-              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                isTenant(role)
-                  ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
-                  : 'text-[#5B6875] hover:text-[#243447]'
-              }`}
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${isTenant(role)
+                ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447]'
+                }`}
             >
               <User className="w-3.5 h-3.5" />
               <span>Tenant</span>
@@ -239,11 +278,10 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setRole(ROLES.PROPERTY_OWNER)}
-              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                isPropertyOwner(role)
-                  ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
-                  : 'text-[#5B6875] hover:text-[#243447]'
-              }`}
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${isPropertyOwner(role)
+                ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447]'
+                }`}
             >
               <Building2 className="w-3.5 h-3.5" />
               <span>Owner</span>
@@ -251,11 +289,10 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setRole(ROLES.PROPERTY_MANAGER)}
-              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                isPropertyManager(role)
-                  ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
-                  : 'text-[#5B6875] hover:text-[#243447]'
-              }`}
+              className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${isPropertyManager(role)
+                ? 'bg-white text-[#315A7D] border border-[#D9E0E6] shadow-xs'
+                : 'text-[#5B6875] hover:text-[#243447]'
+                }`}
             >
               <Briefcase className="w-3.5 h-3.5" />
               <span>Manager</span>
@@ -264,14 +301,36 @@ export default function RegisterPage() {
         </div>
 
         <Input
-          label="Full Name"
-          placeholder="e.g. Alex Morgan"
-          value={name}
+          label="First Name"
+          placeholder="e.g.Alex"
+          value={firstName}
           onChange={(e) => {
-            setName(e.target.value)
-            if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+            setFirstName(e.target.value)
+            if (errors.firstName) {
+              setErrors((prev) => ({
+                ...prev, firstName: ''
+              }))
+
+            }
           }}
-          error={errors.name}
+          error={errors.firstName}
+          leftIcon={<User className="w-4 h-4" />}
+          required
+
+        />
+        <Input
+          label="last Name"
+          placeholder="e.g.mallikarjun"
+          value={lastName}
+          onChange={(e) => {
+            setLastName(e.target.value)
+            if (errors.lastName) {
+              setErrors((prev) => ({
+                ...prev, lastName: ''
+              }))
+            }
+          }}
+          error={errors.lastName}
           leftIcon={<User className="w-4 h-4" />}
           required
         />
@@ -327,13 +386,38 @@ export default function RegisterPage() {
           placeholder="At least 8 characters"
           value={password}
           onChange={(e) => {
-            setPassword(e.target.value)
-            if (errors.password) setErrors((prev) => ({ ...prev, password: '' }))
+            const value = e.target.value
+            setPassword(value)
+            const checks = validatePassword(value)
+            setPasswordChecks(checks)
+            if (errors.password) {
+              setErrors((prev) => ({ ...prev, password: '' }))
+            }
           }}
-          error={errors.password}
-          leftIcon={<Lock className="w-4 h-4" />}
           required
         />
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span className={passwordChecks.length ? 'text-green-600' : 'text-gray-500'}>
+            {passwordChecks.length ? '✓' : '○'} 8+ characters
+          </span>
+
+          <span className={passwordChecks.uppercase ? 'text-green-600' : 'text-gray-500'}>
+            {passwordChecks.uppercase ? '✓' : '○'} Uppercase
+          </span>
+
+          <span className={passwordChecks.lowercase ? 'text-green-600' : 'text-gray-500'}>
+            {passwordChecks.lowercase ? '✓' : '○'} Lowercase
+          </span>
+
+          <span className={passwordChecks.number ? 'text-green-600' : 'text-gray-500'}>
+            {passwordChecks.number ? '✓' : '○'} Number
+          </span>
+
+          <span className={passwordChecks.special ? 'text-green-600' : 'text-gray-500'}>
+            {passwordChecks.special ? '✓' : '○'} Special character
+          </span>
+        </div>
+
 
         <Input
           label="Confirm Password"
@@ -341,14 +425,30 @@ export default function RegisterPage() {
           placeholder="Repeat your password"
           value={confirmPassword}
           onChange={(e) => {
-            setConfirmPassword(e.target.value)
-            if (errors.confirmPassword)
+            const value = e.target.value
+            setConfirmPassword(value)
+
+            if (errors.confirmPassword) {
               setErrors((prev) => ({ ...prev, confirmPassword: '' }))
+            }
           }}
           error={errors.confirmPassword}
           leftIcon={<Lock className="w-4 h-4" />}
           required
         />
+        {confirmPassword && (
+          <p
+            className={
+              confirmPassword === password
+                ? 'text-xs text-green-600 mt-1'
+                : 'text-xs text-red-500 mt-1'
+            }
+          >
+            {confirmPassword === password
+              ? '✓ Passwords match'
+              : '✗ Passwords do not match'}
+          </p>
+        )}
 
         <Button
           type="submit"

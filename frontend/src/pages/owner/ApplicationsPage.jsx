@@ -109,8 +109,8 @@ export default function ApplicationsPage() {
       const propList = Array.isArray(propRes?.data)
         ? propRes.data
         : Array.isArray(propRes)
-        ? propRes
-        : []
+          ? propRes
+          : []
       setProperties(propList)
 
       // 2. Fetch real applications for owner, passing known properties to avoid duplicate requests
@@ -134,7 +134,7 @@ export default function ApplicationsPage() {
       } else {
         setError(
           err?.message ||
-            'Unable to load rental applications from the server. Please check your connection and try again.'
+          'Unable to load rental applications from the server. Please check your connection and try again.'
         )
       }
       setApplications([])
@@ -287,9 +287,7 @@ export default function ApplicationsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5B6875] mb-1.5 uppercase tracking-wide">
-                Status
-              </label>
+
               <Select
                 options={statusOptions}
                 value={statusFilter}
@@ -300,9 +298,7 @@ export default function ApplicationsPage() {
 
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-[#5B6875] mb-1.5 uppercase tracking-wide">
-                  Property
-                </label>
+
                 <Select
                   options={propertyOptions}
                   value={propertyFilter}
@@ -404,10 +400,10 @@ export default function ApplicationsPage() {
               action={
                 hasActiveFilters
                   ? {
-                      label: 'Reset Filters',
-                      onClick: resetFilters,
-                      variant: 'outline',
-                    }
+                    label: 'Reset Filters',
+                    onClick: resetFilters,
+                    variant: 'outline',
+                  }
                   : undefined
               }
             />

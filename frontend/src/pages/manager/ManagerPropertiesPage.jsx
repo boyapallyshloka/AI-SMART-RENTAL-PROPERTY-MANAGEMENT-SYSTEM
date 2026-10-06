@@ -240,13 +240,7 @@ export default function ManagerPropertiesPage() {
         {/* Navigation & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <Link
-              to="/manager/dashboard"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315A7D] hover:text-[#274B68] transition-colors mb-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Dashboard</span>
-            </Link>
+
             <div className="flex items-center gap-3">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
                 Assigned Properties
@@ -258,7 +252,7 @@ export default function ManagerPropertiesPage() {
               )}
             </div>
             <p className="text-xs sm:text-sm text-[#5B6875]">
-              Properties assigned to your management portfolio for day-to-day operations and tenant oversight.
+              View and Manage your Properties.
             </p>
           </div>
 
@@ -351,10 +345,10 @@ export default function ManagerPropertiesPage() {
                   {errorType === '403'
                     ? 'Access Restricted'
                     : errorType === '401'
-                    ? 'Session Expired'
-                    : errorType === 'network'
-                    ? 'Network Connection Issue'
-                    : 'Failed to Load Assigned Properties'}
+                      ? 'Session Expired'
+                      : errorType === 'network'
+                        ? 'Network Connection Issue'
+                        : 'Failed to Load Assigned Properties'}
                 </h2>
                 <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
                   {error}

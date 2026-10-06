@@ -86,8 +86,8 @@ export default function ManagerMaintenancePage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
   const [activeTab, setActiveTab] = useState('active') // 'active' | 'history' | 'all'
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
@@ -557,7 +557,7 @@ export default function ManagerMaintenancePage() {
   }
 
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
+    { value: 'all', label: 'All' },
     ...MAINTENANCE_STATUSES.map((st) => ({
       value: st,
       label: formatStatusLabel(st),
@@ -565,7 +565,7 @@ export default function ManagerMaintenancePage() {
   ]
 
   const priorityOptions = [
-    { value: 'all', label: 'All Priorities' },
+    { value: 'all', label: 'All' },
     ...MAINTENANCE_PRIORITIES.map((pr) => ({
       value: pr,
       label: `${formatPriorityLabel(pr)} Priority`,
@@ -624,24 +624,16 @@ export default function ManagerMaintenancePage() {
         {/* Navigation & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <Link
-              to="/manager/dashboard"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315A7D] hover:text-[#274B68] transition-colors mb-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Dashboard</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
-                Maintenance & Service Requests
+
+            <div>
+              <h1 className="text-2xl font-bold text-[#243447]">
+                Maintenance
               </h1>
-              <span className="font-mono text-xs font-bold text-[#315A7D] bg-[#EAF2F7] px-2.5 py-0.5 rounded-md border border-[#D9E0E6]">
-                Operational
-              </span>
+
+              <p className="text-sm text-[#5B6875] mt-1">
+                Manage maintenance requests
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-[#5B6875]">
-              Monitor repairs, assign service contractors, and track maintenance history across assigned properties.
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -654,11 +646,7 @@ export default function ManagerMaintenancePage() {
             >
               Refresh
             </Button>
-            <Link to="/manager/properties">
-              <Button variant="secondary" size="sm" leftIcon={<Building2 className="w-3.5 h-3.5" />}>
-                Assigned Properties
-              </Button>
-            </Link>
+
           </div>
         </div>
 
@@ -700,83 +688,91 @@ export default function ManagerMaintenancePage() {
           <button
             type="button"
             onClick={() => setActiveTab('active')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'active'
-              ? 'bg-[#315A7D] text-white shadow-xs'
-              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            className={`px-4 py-2 text-xs font-semibold transition-colors rounded-lg border flex items-center gap-2 ${activeTab === 'active'
+              ? 'bg-[#3157AD] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#3157AD] hover:bg-[#F7F8FA]'
               }`}
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Active Tickets</span>
+            <Clock className="w-4 h-4" />
+
+            <span>Active</span>
+
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-[#EAF2F7] text-[#315A7D]'
+              className={`px-1.5 py-0.5 font-bold rounded-full text-[10px] ${activeTab === 'active'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#EAF2F7] text-[#315A7D]'
                 }`}
             >
               {activeCount}
             </span>
           </button>
-
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'history'
-              ? 'bg-[#315A7D] text-white shadow-xs'
-              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            className={`px-4 py-2 text-xs font-semibold transition-colors rounded-lg border flex items-center gap-2 ${activeTab === 'history'
+              ? 'bg-[#3157AD] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#3157AD] hover:bg-[#F7F8FA]'
               }`}
           >
-            <History className="w-3.5 h-3.5" />
-            <span>Maintenance History</span>
+            <History className="w-4 h-4" />
+            <span>History</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-[#EDF7EE] text-[#2A583B]'
+              className={`px-1.5 py-0.5 font-bold rounded-full text-[10px] ${activeTab === 'history'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#EAF2F7] text-[#315A7D]'
                 }`}
             >
               {historyCount}
             </span>
           </button>
-
           <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'all'
-              ? 'bg-[#315A7D] text-white shadow-xs'
-              : 'text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA]'
+            type='button'
+            onClick={() => setActiveTab("all")}
+            className={`px-4 py-2 font-semibold text-xs transition-colors rounded-lg border flex items-center gap-2 ${activeTab === "all"
+              ? 'bg-[#3157AD] text-white shadow-xs'
+              : 'text-[#5B6875] hover:text-[#3157AD] hover:bg-[#F7F8FA]'
               }`}
           >
-            <span>All Records</span>
+
+            <span>All</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#F7F8FA] text-[#5B6875]'
+              className={`px-1.5 py-0.5 font-bold rounded-full text-[10px] ${activeTab === "all"
+                ? 'bg-white/20 text-white'
+                : 'bg-[#EAF2F7] text-[#3157AD]'
                 }`}
             >
               {requests.length}
             </span>
           </button>
         </div>
-
         {/* Filters */}
-        <div className="bg-white rounded-xl border border-[#D9E0E6] p-4 sm:p-5 shadow-xs space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-            <div className="lg:col-span-2">
-              <Input
-                placeholder="Search ticket #, description, category..."
+        <div className='rounded-xl border border-[#D9E0E6] p-4 bg-white'>
+          <div className='flex flex-col lg:flex-row gap-3'>
+            <div className='flex-1'>
+              <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-[#5B6875]" />}
+                placeholder="search maintenance requests....."
               />
             </div>
-
-            <div>
+            <div className="w-48">
               <Select
+
                 options={statusOptions}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                placeholder="Status"
+
               />
             </div>
-
             <div className="flex items-center gap-2">
-              <div className="flex-1">
+              <div className="w-48">
                 <Select
+
                   options={priorityOptions}
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
+                  placeholder="Priority"
                 />
               </div>
               <button
@@ -810,13 +806,13 @@ export default function ManagerMaintenancePage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
-                    <th className="py-3.5 pl-6 pr-4">Ticket #</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Property & Unit</th>
-                    <th className="py-3.5 px-4">Priority</th>
-                    <th className="py-3.5 px-4">Assigned Worker</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
+                    <th className="py-3.5 pl-6 pr-4 text-[#243447]">Ticket #</th>
+                    <th className="py-3.5 px-4 text-[#243447]">Category</th>
+                    <th className="py-3.5 px-4 text-[#243447]">Property & Unit</th>
+                    <th className="py-3.5 px-4 text-[#243447]">Priority</th>
+                    <th className="py-3.5 px-4 text-[#243447]">Assigned Worker</th>
+                    <th className="py-3.5 px-4 text-[#243447]">Status</th>
+                    <th className="py-3.5 pl-4 pr-6 text-right text-[#243447]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D9E0E6] text-sm">

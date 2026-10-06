@@ -75,8 +75,8 @@ export default function ManagerApplicationsPage() {
       const propList = Array.isArray(propRes?.data)
         ? propRes.data
         : Array.isArray(propRes)
-        ? propRes
-        : []
+          ? propRes
+          : []
 
       setAssignedProperties(propList)
 
@@ -93,8 +93,8 @@ export default function ManagerApplicationsPage() {
           const appList = Array.isArray(appRes?.data)
             ? appRes.data
             : Array.isArray(appRes)
-            ? appRes
-            : []
+              ? appRes
+              : []
 
           // Enrich application with property details if missing
           return appList.map((app) => ({
@@ -228,25 +228,15 @@ export default function ManagerApplicationsPage() {
         {/* Navigation & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <Link
-              to="/manager/dashboard"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315A7D] hover:text-[#274B68] transition-colors mb-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Dashboard</span>
-            </Link>
+
             <div className="flex items-center gap-3">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#243447]">
                 Applications
               </h1>
-              {!loading && !error && (
-                <span className="font-mono text-xs font-bold text-[#315A7D] bg-[#EAF2F7] px-2.5 py-0.5 rounded-md border border-[#D9E0E6]">
-                  {applications.length} {applications.length === 1 ? 'Application' : 'Applications'}
-                </span>
-              )}
+
             </div>
             <p className="text-xs sm:text-sm text-[#5B6875]">
-              Rental applications submitted for your assigned property portfolio.
+              Rental applications submitted for your assigned property .
             </p>
           </div>
 
@@ -371,10 +361,10 @@ export default function ManagerApplicationsPage() {
                   {errorType === '403'
                     ? 'Access Restricted'
                     : errorType === '401'
-                    ? 'Session Expired'
-                    : errorType === 'network'
-                    ? 'Network Connection Issue'
-                    : 'Failed to Load Applications'}
+                      ? 'Session Expired'
+                      : errorType === 'network'
+                        ? 'Network Connection Issue'
+                        : 'Failed to Load Applications'}
                 </h2>
                 <p className="text-xs sm:text-sm text-[#5B6875] leading-relaxed">
                   {error}
@@ -405,7 +395,7 @@ export default function ManagerApplicationsPage() {
             message="You do not currently have any properties assigned to your management portfolio. Rental applications will appear here once properties are assigned."
             action={{
               label: 'Return to Dashboard',
-              onClick: () => {},
+              onClick: () => { },
               variant: 'primary',
             }}
           />
@@ -442,13 +432,13 @@ export default function ManagerApplicationsPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-[#D9E0E6] bg-[#F7F8FA] text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
-                      <th className="py-3.5 pl-6 pr-4">Applicant</th>
-                      <th className="py-3.5 px-4">Property / Unit</th>
-                      <th className="py-3.5 px-4">Application Date</th>
-                      <th className="py-3.5 px-4">Preferred Move-In</th>
-                      <th className="py-3.5 px-4">Monthly Rent</th>
-                      <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 pl-4 pr-6 text-right">Action</th>
+                      <th className="py-3.5 pl-6 pr-4 text-[#243447]">Applicant</th>
+                      <th className="py-3.5 px-4 text-[#243447]">Property / Unit</th>
+                      <th className="py-3.5 px-4 text-[#243447]">Application Date</th>
+                      <th className="py-3.5 px-4 text-[#243447]">Preferred Move-In</th>
+                      <th className="py-3.5 px-4 text-[#243447]">Monthly Rent</th>
+                      <th className="py-3.5 px-4 text-[#243447]">Status</th>
+                      <th className="py-3.5 pl-4 pr-6 text-right text-[#243447]">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D9E0E6] text-sm">
