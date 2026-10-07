@@ -13,4 +13,8 @@ public interface PropertyAddressRepository
     Optional<PropertyAddress> findByProperty(Property property);
 
     boolean existsByProperty(Property property);
+ // M3 Rental Demand Prediction
+    long countByCityIgnoreCaseAndAreaIgnoreCase(
+            String city,
+            String area);
 }
