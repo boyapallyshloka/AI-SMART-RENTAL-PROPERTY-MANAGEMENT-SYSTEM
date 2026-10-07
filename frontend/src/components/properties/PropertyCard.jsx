@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   MapPin,
   Bed,
@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   Building2,
 } from 'lucide-react'
-import { resolveImageUrl } from '../../api/propertyApi'
+import { resolveImageUrl, getPublicPropertyDetails } from '../../api/propertyApi'
 
 /**
  * Enterprise PropertyCard Component for HomeSphere
@@ -36,6 +36,7 @@ export default function PropertyCard({
 }) {
   const [internalFavorite, setInternalFavorite] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [lazyImageUrl, setLazyImageUrl] = useState(null)
   const isFav = controlledFavorite !== undefined ? controlledFavorite : internalFavorite
 
   const {
@@ -89,9 +90,84 @@ export default function PropertyCard({
     }
   }
 
-  // Real image resolution
-  const rawImg = imageUrl || (Array.isArray(images) && images[0]?.imageUrl) || ''
-  const resolvedImg = resolveImageUrl(rawImg)
+  // Real image resolution supporting imageUrl, primaryImage, images, or legacy arrays
+  const extractRawImage = () => {
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim()) {
+      return imageUrl.trim()
+    }
+    if (property.primaryImage) {
+      if (typeof property.primaryImage === 'string' && property.primaryImage.trim()) {
+        return property.primaryImage.trim()
+      }
+      if (typeof property.primaryImage === 'object' && property.primaryImage.imageUrl) {
+        return property.primaryImage.imageUrl
+      }
+    }
+    const list = Array.isArray(images) && images.length > 0
+      ? images
+      : Array.isArray(property.imageUrls) && property.imageUrls.length > 0
+      ? property.imageUrls
+      : Array.isArray(property.photos) && property.photos.length > 0
+      ? property.photos
+      : Array.isArray(property.propertyImages) && property.propertyImages.length > 0
+      ? property.propertyImages
+      : []
+
+    if (list.length > 0) {
+      const primary = list.find((img) => img && typeof img === 'object' && Boolean(img.isPrimary))
+      const target = primary || list[0]
+      if (typeof target === 'string' && target.trim()) {
+        return target.trim()
+      }
+      if (target && typeof target === 'object') {
+        const candidate = target.imageUrl || target.url || target.src || target.imagePath
+        if (candidate && typeof candidate === 'string') {
+          return candidate.trim()
+        }
+      }
+    }
+    return ''
+  }
+
+  const rawImg = extractRawImage()
+  const initialResolved = rawImg ? resolveImageUrl(rawImg) : ''
+  const displayImg = initialResolved || lazyImageUrl || ''
+
+  // Fallback: If no image was provided on the property object, lazily fetch property details
+  useEffect(() => {
+    let isMounted = true
+    if (!initialResolved && realId && lazyImageUrl === null) {
+      getPublicPropertyDetails(realId)
+        .then((res) => {
+          if (!isMounted) return
+          const details = res?.data || res
+          const rawList = Array.isArray(details?.images) && details.images.length > 0
+            ? details.images
+            : Array.isArray(details?.property?.images) && details.property.images.length > 0
+            ? details.property.images
+            : []
+
+          const primary = rawList.find((img) => img && typeof img === 'object' && Boolean(img.isPrimary)) || rawList[0]
+          const target = typeof primary === 'string' ? primary : primary?.imageUrl
+          if (target && typeof target === 'string' && target.trim()) {
+            setLazyImageUrl(resolveImageUrl(target.trim()))
+          } else {
+            setLazyImageUrl('')
+          }
+        })
+        .catch(() => {
+          if (isMounted) setLazyImageUrl('')
+        })
+    }
+    return () => {
+      isMounted = false
+    }
+  }, [initialResolved, realId, lazyImageUrl])
+
+  // Reset image error state whenever displayImg changes
+  useEffect(() => {
+    setImageError(false)
+  }, [displayImg])
 
   // Availability / Status: derived from real backend status
   const rawStatus = status || availabilityStatus || ''
@@ -137,9 +213,9 @@ export default function PropertyCard({
     >
       {/* Property Image Container */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#EAF2F7]">
-        {resolvedImg && !imageError ? (
+        {displayImg && !imageError ? (
           <img
-            src={resolvedImg}
+            src={displayImg}
             alt={displayName}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-102"
@@ -147,13 +223,10 @@ export default function PropertyCard({
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-[#F7F8FA] p-4 text-center select-none">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF2F7] text-[#315A7D] mb-2 shadow-2xs border border-[#D9E0E6]">
-              <Building2 className="w-5 h-5" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF2F7] text-[#315A7D] mb-1.5 shadow-2xs border border-[#D9E0E6]">
+              <Building2 className="w-5 h-5 text-[#315A7D]" />
             </div>
-            <span className="text-xs font-semibold text-[#243447]">
-              No Preview Available
-            </span>
-            <span className="text-[10px] text-[#5B6875] mt-0.5 max-w-[160px] truncate">
+            <span className="text-xs font-medium text-[#5B6875] truncate max-w-[180px]">
               {displayName}
             </span>
           </div>

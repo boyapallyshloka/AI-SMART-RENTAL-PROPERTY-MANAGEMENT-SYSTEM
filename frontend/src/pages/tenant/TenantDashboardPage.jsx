@@ -19,6 +19,7 @@ import { resolveTenantRentalContext } from '../../utils/tenantRentalHelper'
 import { getMyInvoices } from '../../api/invoiceApi'
 import { getMaintenanceRequests } from '../../api/maintenanceApi'
 import { formatCurrency } from '../../utils/currency'
+import ownerHeroBg from '../../assets/owner-hero-bg.jpg'
 
 export default function TenantDashboardPage() {
   const { user } = useAuth()
@@ -110,9 +111,9 @@ export default function TenantDashboardPage() {
       <div className="space-y-6">
         {/* Error Notification Banner */}
         {errorMessage && (
-          <div className="p-4 rounded-lg bg-[#FDF2F2] border border-[#F4B4B4] text-[#8A2E2C] text-xs sm:text-sm flex items-center justify-between shadow-2xs">
+          <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs sm:text-sm flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-[#8A2E2C] shrink-0" />
+              <AlertCircle className="w-5 h-5 text-[#991B1B] shrink-0" />
               <span>{errorMessage}</span>
             </div>
             <Button
@@ -127,34 +128,23 @@ export default function TenantDashboardPage() {
         )}
 
         {loading ? (
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-12 shadow-2xs flex justify-center">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 shadow-xs flex justify-center">
             <Loader text="Loading tenancy dashboard..." size="md" center />
           </div>
         ) : (
           <>
-            {/* Tenant Welcome Banner */}
-            <div className="rounded-lg bg-[#315A7D] p-6 sm:p-8 text-white border border-[#274B68] shadow-xs">
-              <div className="max-w-xl space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#274B68] text-[#EAF2F7] border border-[#315A7D]">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#EAF2F7]" />
-                  <span>
-                    {activeUnit
-                      ? `Active Tenancy • Unit ${activeUnit}`
-                      : 'Tenancy Overview'}
-                  </span>
-                </div>
-                <h1 className="font-serif text-2xl sm:text-3xl font-normal tracking-tight text-white">
+            {/* Hero / Header Section with Residential Community Framing */}
+            <div
+              className="relative overflow-hidden rounded-2xl border border-[#D9E2EC] shadow-xs bg-cover bg-center min-h-[140px] sm:min-h-[170px] flex items-center"
+              style={{ backgroundImage: `url(${ownerHeroBg})` }}
+            >
+              {/* Soft luminous gradient overlay to ensure contrast and highlight the center sky while framing side buildings */}
+              <div className="absolute inset-0 bg-gradient-to-r from-white/92 via-white/75 to-white/92 backdrop-blur-[0.5px]" />
+
+              <div className="relative z-10 px-6 sm:px-10 py-8 max-w-3xl">
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#1B2B4A]">
                   Welcome back, {tenantDisplayName}!
                 </h1>
-                <p className="text-xs sm:text-sm text-[#EAF2F7]/90">
-                  {activeProperty
-                    ? `Leasing at ${activeProperty}${
-                        pendingBalance > 0
-                          ? `. Outstanding balance: ${formatCurrency(pendingBalance)}.`
-                          : '. All current invoices are up to date.'
-                      }`
-                    : 'Browse available listings to apply for your next rental home.'}
-                </p>
               </div>
             </div>
 
@@ -165,7 +155,8 @@ export default function TenantDashboardPage() {
                 value={activeUnit ? `Unit ${activeUnit}` : 'No Lease'}
                 subtitle={activeProperty || 'No active rental agreement'}
                 change={leaseStatus ? `Status: ${leaseStatus}` : 'Available for leasing'}
-                icon={<Building2 className="w-4 h-4 text-[#315A7D]" />}
+                icon={<Building2 className="w-5 h-5 text-[#315A7D]" />}
+                iconBg="bg-[#EBF2F7] border-[#D9E2EC]"
               />
               <MetricCard
                 title="Billing Status"
@@ -176,7 +167,8 @@ export default function TenantDashboardPage() {
                     : 'No outstanding balance'
                 }
                 change={invoices.length > 0 ? `${invoices.length} total invoice records` : 'No invoices on record'}
-                icon={<CreditCard className="w-4 h-4 text-[#3F7D58]" />}
+                icon={<CreditCard className="w-5 h-5 text-[#2E7D5B]" />}
+                iconBg="bg-[#EAF5EF] border-[#D0E7D9]"
               />
               <MetricCard
                 title="Maintenance"
@@ -187,20 +179,21 @@ export default function TenantDashboardPage() {
                     : 'All service tickets resolved'
                 }
                 change={`${maintenanceRequests.length} total requests submitted`}
-                icon={<Wrench className="w-4 h-4 text-[#5B6875]" />}
+                icon={<Wrench className="w-5 h-5 text-[#B7791F]" />}
+                iconBg="bg-[#FEF6EC] border-[#FAD7B2]"
               />
             </div>
 
             {/* Recent Records & Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Payment / Invoice History */}
-              <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-[#EDF2F7] pb-4">
                   <div>
-                    <h2 className="text-base font-semibold text-[#243447]">
+                    <h2 className="font-serif text-lg sm:text-xl font-bold text-[#1B2B4A]">
                       Rent Invoices
                     </h2>
-                    <p className="text-xs text-[#5B6875]">Recent statements and payment records</p>
+                    <p className="text-xs text-[#64748B] mt-0.5">Recent statements and payment records</p>
                   </div>
                   <Link to="/tenant/payments">
                     <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
@@ -216,29 +209,33 @@ export default function TenantDashboardPage() {
                     description="You do not have any rent invoices issued to your account."
                   />
                 ) : (
-                  <div className="space-y-2.5">
+                  <div className="divide-y divide-[#EDF2F7]">
                     {invoices.slice(0, 4).map((inv) => {
                       const invId = inv.invoiceId || inv.id
                       const amount = Number(inv.amount || inv.totalAmount || 0)
-                      const isPaid = String(inv.status || '').toUpperCase() === 'PAID'
 
                       return (
                         <div
                           key={invId}
-                          className="flex items-center justify-between p-3 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs"
+                          className="py-3.5 flex items-start justify-between gap-3 text-sm hover:bg-[#F8FAFC]/80 px-2 rounded-xl transition-colors -mx-2"
                         >
-                          <div>
-                            <p className="font-semibold text-[#243447]">
-                              Invoice #{invId}
-                            </p>
-                            <p className="text-[#5B6875]">
-                              Due: {inv.dueDate || 'Current cycle'}
-                            </p>
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-[#EAF5EF] border border-[#D0E7D9] flex items-center justify-center shrink-0 mt-0.5">
+                              <CreditCard className="w-4 h-4 text-[#2E7D5B]" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[#1B2B4A] text-xs">
+                                Invoice #{invId}
+                              </p>
+                              <p className="text-[11px] text-[#64748B]">
+                                Due {inv.dueDate || 'Current cycle'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-[#243447]">
+                          <div className="text-right shrink-0">
+                            <span className="font-semibold text-xs text-[#1B2B4A] block">
                               {formatCurrency(amount)}
-                            </p>
+                            </span>
                             <StatusBadge status={inv.status || 'PENDING'} size="xs" />
                           </div>
                         </div>
@@ -249,50 +246,50 @@ export default function TenantDashboardPage() {
               </div>
 
               {/* Tenant Actions Panel */}
-              <div className="rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs space-y-4">
-                <div className="border-b border-[#D9E0E6] pb-3">
-                  <h2 className="text-base font-semibold text-[#243447]">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6 shadow-xs space-y-5 flex flex-col justify-between">
+                <div>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-[#1B2B4A]">
                     Tenant Actions
                   </h2>
-                  <p className="text-xs text-[#5B6875]">Quick access to tenancy services</p>
-                </div>
-                <div className="space-y-2.5">
-                  <Link to="/tenant/maintenance/new" className="block">
-                    <Button
-                      variant="primary"
-                      className="w-full justify-start"
-                      leftIcon={<Wrench className="w-4 h-4" />}
-                    >
-                      Submit Maintenance Request
-                    </Button>
-                  </Link>
-                  <Link to="/tenant/agreement" className="block">
-                    <Button
-                      variant="secondary"
-                      className="w-full justify-start"
-                      leftIcon={<FileText className="w-4 h-4" />}
-                    >
-                      View Signed Lease Document
-                    </Button>
-                  </Link>
-                  <Link to="/tenant/properties" className="block">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      leftIcon={<Search className="w-4 h-4" />}
-                    >
-                      Explore Available Listings
-                    </Button>
-                  </Link>
+                  <p className="text-xs text-[#64748B] mt-0.5">Quick access to tenancy services</p>
+                  <div className="space-y-2.5 mt-4">
+                    <Link to="/tenant/maintenance/new" className="block">
+                      <Button
+                        variant="primary"
+                        className="w-full justify-start rounded-xl"
+                        leftIcon={<Wrench className="w-4 h-4" />}
+                      >
+                        Submit Maintenance Request
+                      </Button>
+                    </Link>
+                    <Link to="/tenant/agreement" className="block">
+                      <Button
+                        variant="secondary"
+                        className="w-full justify-start rounded-xl"
+                        leftIcon={<FileText className="w-4 h-4" />}
+                      >
+                        View Signed Lease Document
+                      </Button>
+                    </Link>
+                    <Link to="/tenant/properties" className="block">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start rounded-xl"
+                        leftIcon={<Search className="w-4 h-4" />}
+                      >
+                        Explore Available Listings
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
 
-                <div className="pt-3 border-t border-[#D9E0E6]">
-                  <div className="p-3 rounded-md bg-[#EAF2F7] border border-[#D9E0E6] text-xs">
-                    <p className="font-semibold text-[#243447] flex items-center gap-1.5">
+                <div className="pt-4 border-t border-[#EDF2F7]">
+                  <div className="p-3.5 rounded-xl bg-[#F0F5FA] border border-[#D9E2EC] text-xs">
+                    <p className="font-semibold text-[#1B2B4A] flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#315A7D]" />
                       Maintenance Status
                     </p>
-                    <p className="text-[#5B6875] mt-1 leading-relaxed">
+                    <p className="text-[#64748B] mt-1.5 leading-relaxed font-normal">
                       {openMaintenanceCount > 0
                         ? `You have ${openMaintenanceCount} active service request(s) open.`
                         : 'No pending maintenance issues reported.'}
@@ -308,24 +305,27 @@ export default function TenantDashboardPage() {
   )
 }
 
-function MetricCard({ title, value, subtitle, change, icon }) {
+function MetricCard({ title, value, subtitle, change, icon, iconBg = 'bg-[#EBF2F7] border-[#D9E2EC]' }) {
   return (
-    <div className="rounded-lg border border-[#D9E0E6] bg-white p-4 shadow-2xs space-y-2.5">
+    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[#5B6875]">
           {title}
         </span>
-        <div className="w-8 h-8 rounded-md bg-[#EAF2F7] flex items-center justify-center">
+        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${iconBg}`}>
           {icon}
         </div>
       </div>
       <div>
-        <p className="text-2xl font-bold tracking-tight text-[#243447]">{value}</p>
-        <p className="text-xs text-[#5B6875] mt-0.5">{subtitle}</p>
+        <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2B4A] font-sans">{value}</p>
+        <p className="text-xs text-[#64748B] mt-1 font-medium">{subtitle}</p>
       </div>
-      <div className="pt-2 border-t border-[#D9E0E6]">
-        <span className="text-[11px] font-medium text-[#315A7D]">{change}</span>
-      </div>
+      {change && (
+        <div className="pt-3 border-t border-[#EDF2F7]">
+          <span className="text-xs font-semibold text-[#315A7D]">{change}</span>
+        </div>
+      )}
     </div>
   )
 }
+

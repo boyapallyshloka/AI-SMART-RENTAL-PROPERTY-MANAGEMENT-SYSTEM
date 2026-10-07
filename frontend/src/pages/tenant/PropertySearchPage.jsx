@@ -9,6 +9,9 @@ import {
   getPublicProperties,
   searchPublicProperties,
   getPublicPropertyDetails,
+  getPublicPropertiesWithDetails,
+  searchPublicPropertiesWithDetails,
+  resolveImageUrl,
 } from '../../api/propertyApi'
 import { getPropertyRecommendations } from '../../api/aiApi'
 import { getMyTenantProfile } from '../../api/tenantApi'
@@ -158,6 +161,30 @@ function mapRecommendationToProperty(item) {
       ? item.availableUnits.length
       : null
 
+  const rawImages = Array.isArray(details.images) && details.images.length > 0
+    ? details.images
+    : (Array.isArray(prop.images) ? prop.images : [])
+
+  const validImages = rawImages
+    .map((img) => {
+      if (typeof img === 'string') {
+        const trimmed = img.trim()
+        return trimmed ? { imageUrl: resolveImageUrl(trimmed), isPrimary: false } : null
+      }
+      if (img && typeof img === 'object' && img.imageUrl) {
+        return {
+          ...img,
+          imageUrl: resolveImageUrl(img.imageUrl),
+          isPrimary: Boolean(img.isPrimary),
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+
+  const primaryImageObj = validImages.find((img) => img.isPrimary) || validImages[0] || null
+  const resolvedImageUrl = primaryImageObj?.imageUrl || (prop.imageUrl ? resolveImageUrl(prop.imageUrl) : '')
+
   return {
     ...prop,
     id: propertyId,
@@ -172,8 +199,8 @@ function mapRecommendationToProperty(item) {
     bedrooms: bedrooms,
     bathrooms: prop.bathrooms,
     totalArea: prop.totalArea || prop.area,
-    images: images,
-    imageUrl: images[0]?.imageUrl || prop.imageUrl,
+    images: validImages,
+    imageUrl: resolvedImageUrl,
     status: prop.status || 'AVAILABLE',
     aiMatchScore: aiScore,
     matchCriteria,
@@ -890,9 +917,9 @@ export default function PropertySearchPage() {
     try {
       let list = []
       if (hasActiveBackendFilters(currentFilters)) {
-        list = await searchPublicProperties(currentFilters)
+        list = await searchPublicPropertiesWithDetails(currentFilters)
       } else {
-        list = await getPublicProperties()
+        list = await getPublicPropertiesWithDetails()
       }
       setRawProperties(Array.isArray(list) ? list : [])
     } catch (err) {
