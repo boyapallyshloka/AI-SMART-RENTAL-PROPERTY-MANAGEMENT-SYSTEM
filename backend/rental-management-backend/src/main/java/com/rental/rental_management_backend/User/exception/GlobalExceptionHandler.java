@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.rental.rental_management_backend.ai.exception.M4PaymentRiskException;
+
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -141,4 +144,39 @@ public class GlobalExceptionHandler {
                                 .status(status)
                                 .body(response);
         }
+        
+        @ExceptionHandler(M4PaymentRiskException.class)
+        public ResponseEntity<Map<String, Object>> handleM4PaymentRiskException(
+                M4PaymentRiskException ex) {
+
+            HttpStatus status;
+
+            switch (ex.getErrorCode()) {
+
+                case "INVALID_INPUT":
+                    status = HttpStatus.BAD_REQUEST;
+                    break;
+
+                case "MODEL_NOT_FOUND":
+                    status = HttpStatus.INTERNAL_SERVER_ERROR;
+                    break;
+
+                case "PREDICTION_ERROR":
+                    status = HttpStatus.INTERNAL_SERVER_ERROR;
+                    break;
+
+                case "AI_SERVICE_UNAVAILABLE":
+                    status = HttpStatus.SERVICE_UNAVAILABLE;
+                    break;
+
+                default:
+                    status = HttpStatus.INTERNAL_SERVER_ERROR;
+                    break;
+            }
+
+            return buildResponse(
+                    status,
+                    ex.getMessage());
+        }
+        
 }
