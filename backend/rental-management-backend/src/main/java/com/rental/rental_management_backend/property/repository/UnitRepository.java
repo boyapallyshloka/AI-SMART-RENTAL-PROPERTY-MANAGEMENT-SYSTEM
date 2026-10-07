@@ -2,9 +2,12 @@ package com.rental.rental_management_backend.property.repository;
 
 
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Unit;
@@ -28,4 +31,52 @@ public interface UnitRepository extends JpaRepository<Unit, Long> {
             UnitStatus status);
 
     List<Unit> findByStatus(UnitStatus status);
+ 
+ // M3 Rental Demand Prediction
+
+    @Query("""
+        SELECT COUNT(u)
+        FROM Unit u
+        JOIN u.floor f
+        JOIN f.building b
+        JOIN PropertyAddress pa
+            ON pa.property = b.property
+        WHERE LOWER(pa.city) = LOWER(:city)
+          AND LOWER(pa.area) = LOWER(:area)
+        """)
+    long countUnitsForRentalDemand(
+            @Param("city") String city,
+            @Param("area") String area);
+
+
+    @Query("""
+        SELECT COUNT(u)
+        FROM Unit u
+        JOIN u.floor f
+        JOIN f.building b
+        JOIN PropertyAddress pa
+            ON pa.property = b.property
+        WHERE LOWER(pa.city) = LOWER(:city)
+          AND LOWER(pa.area) = LOWER(:area)
+          AND u.status = :status
+        """)
+    long countUnitsByStatusForRentalDemand(
+            @Param("city") String city,
+            @Param("area") String area,
+            @Param("status") UnitStatus status);
+
+
+    @Query("""
+        SELECT AVG(u.monthlyRent)
+        FROM Unit u
+        JOIN u.floor f
+        JOIN f.building b
+        JOIN PropertyAddress pa
+            ON pa.property = b.property
+        WHERE LOWER(pa.city) = LOWER(:city)
+          AND LOWER(pa.area) = LOWER(:area)
+        """)
+    BigDecimal averageMonthlyRentForRentalDemand(
+            @Param("city") String city,
+            @Param("area") String area);
 }

@@ -1,28 +1,30 @@
+
 package com.rental.rental_management_backend.location.serviceimpl;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rental.rental_management_backend.location.dto.PincodeResponse;
+import com.rental.rental_management_backend.location.dto.PincodeSuggestionResponse;
 import com.rental.rental_management_backend.location.dto.ReverseGeocodeResponse;
 import com.rental.rental_management_backend.location.service.LocationService;
 
 @Service
 public class LocationServiceImpl implements LocationService {
 
-    private static final String PINCODE_API =
+    private static final String INDIA_POST_API =
             "https://api.postalpincode.in/pincode/";
 
-    private static final String NOMINATIM_API =
-            "https://nominatim.openstreetmap.org/reverse";
+    private static final String PINCODE_API =
+            "https://api.pincodeapi.in/api/v1";
 
     private final RestClient restClient;
 
@@ -30,20 +32,36 @@ public class LocationServiceImpl implements LocationService {
 
     public LocationServiceImpl() {
 
-        this.restClient = RestClient.builder()
-                .defaultHeader(
-                        HttpHeaders.USER_AGENT,
-                        "AI-Smart-Rental-Property-Management-System/1.0"
-                )
-                .build();
+        this.restClient = RestClient.builder().build();
 
         this.objectMapper = new ObjectMapper();
     }
 
-    // =========================================================
-    // PINCODE LOOKUP
-    // =========================================================
-
+    /*
+     * ============================================================
+     * GET COMPLETE ADDRESS BY PINCODE
+     * ============================================================
+     *
+     * Flow:
+     *
+     * User selects pincode
+     *        ↓
+     * Frontend calls:
+     * GET /api/location/pincode/{pincode}
+     *        ↓
+     * Spring Boot
+     *        ↓
+     * India Post API
+     *        ↓
+     * Country
+     * State
+     * District
+     * City
+     * Areas
+     *
+     * These details are then automatically filled
+     * in the frontend form.
+     */
     @Override
     public PincodeResponse getAddressByPincode(String pincode) {
 
@@ -54,9 +72,9 @@ public class LocationServiceImpl implements LocationService {
             );
         }
 
-        String url = PINCODE_API + pincode;
-
         try {
+
+            String url = INDIA_POST_API + pincode;
 
             String response = restClient.get()
                     .uri(url)
@@ -64,327 +82,101 @@ public class LocationServiceImpl implements LocationService {
                     .retrieve()
                     .body(String.class);
 
-            JsonNode root =
-                    objectMapper.readTree(response);
+            JsonNode root = objectMapper.readTree(response);
 
             if (!root.isArray() || root.isEmpty()) {
-
-                throw new IllegalArgumentException(
-                        "Invalid response from pincode service"
-                );
-            }
-
-            JsonNode result = root.get(0);
-
-            String status =
-                    result.path("Status").asText();
-
-            if (!"Success".equalsIgnoreCase(status)) {
 
                 throw new IllegalArgumentException(
                         "No address found for pincode: " + pincode
                 );
             }
 
-            JsonNode postOffice =
-                    result.path("PostOffice");
+            JsonNode firstResult = root.get(0);
 
-            if (!postOffice.isArray()
-                    || postOffice.isEmpty()) {
+            String status =
+                    firstResult.path("Status").asText();
+
+            if (!"Success".equalsIgnoreCase(status)) {
 
                 throw new IllegalArgumentException(
-                        "No post offices found for pincode: "
+                        "Invalid pincode: " + pincode
+                );
+            }
+
+            JsonNode postOffices =
+                    firstResult.path("PostOffice");
+
+            if (!postOffices.isArray()
+                    || postOffices.isEmpty()) {
+
+                throw new IllegalArgumentException(
+                        "No post office data found for pincode: "
                                 + pincode
                 );
             }
 
-            PincodeResponse pincodeResponse =
+            JsonNode firstOffice =
+                    postOffices.get(0);
+
+            PincodeResponse result =
                     new PincodeResponse();
 
-            pincodeResponse.setPincode(pincode);
+            /*
+             * Pincode
+             */
+            result.setPincode(pincode);
 
+            /*
+             * Country
+             */
+            result.setCountry("India");
+
+            /*
+             * State
+             */
+            result.setState(
+                    firstOffice.path("State").asText(null)
+            );
+
+            /*
+             * District
+             */
+            result.setDistrict(
+                    firstOffice.path("District").asText(null)
+            );
+
+            /*
+             * City
+             *
+             * India Post provides Division in this response.
+             *
+             * We keep your existing mapping here.
+             */
+            result.setCity(
+                    firstOffice.path("Division").asText(null)
+            );
+
+            /*
+             * Areas / Post Offices
+             *
+             * One pincode can contain multiple
+             * post offices.
+             */
             List<String> areas =
                     new ArrayList<>();
 
-            JsonNode firstPostOffice =
-                    postOffice.get(0);
+            for (JsonNode office : postOffices) {
 
-            // -------------------------------------------------
-            // COUNTRY
-            // -------------------------------------------------
+                String name =
+                        office.path("Name").asText(null);
 
-            pincodeResponse.setCountry(
-                    firstPostOffice
-                            .path("Country")
-                            .asText(null)
-            );
+                if (name != null && !name.isBlank()) {
 
-            // -------------------------------------------------
-            // STATE
-            // -------------------------------------------------
-
-            pincodeResponse.setState(
-                    firstPostOffice
-                            .path("State")
-                            .asText(null)
-            );
-
-            // -------------------------------------------------
-            // DISTRICT
-            // -------------------------------------------------
-
-            pincodeResponse.setDistrict(
-                    firstPostOffice
-                            .path("District")
-                            .asText(null)
-            );
-
-            // -------------------------------------------------
-            // CITY
-            // -------------------------------------------------
-            /*
-             * India Post does not always provide a dedicated
-             * "City" field.
-             *
-             * We therefore use the postal hierarchy as a
-             * practical fallback.
-             *
-             * Preference:
-             * Division -> Region
-             *
-             * This value can be treated as the city/locality
-             * suggestion by the frontend.
-             */
-
-            String city =
-                    firstNonBlank(
-                            firstPostOffice
-                                    .path("Division")
-                                    .asText(null),
-
-                            firstPostOffice
-                                    .path("Region")
-                                    .asText(null)
-                    );
-
-            pincodeResponse.setCity(city);
-
-            // -------------------------------------------------
-            // AREAS / POST OFFICES
-            // -------------------------------------------------
-            /*
-             * A single pincode can have multiple
-             * post offices/areas.
-             *
-             * We return all of them so the frontend
-             * can display them in a dropdown.
-             */
-
-            for (JsonNode office : postOffice) {
-
-                String officeName =
-                        office.path("Name")
-                                .asText(null);
-
-                if (officeName != null
-                        && !officeName.isBlank()
-                        && !areas.contains(officeName)) {
-
-                    areas.add(officeName);
+                    areas.add(name);
                 }
             }
 
-            pincodeResponse.setAreas(areas);
-
-            return pincodeResponse;
-
-        } catch (IllegalArgumentException ex) {
-
-            throw ex;
-
-        } catch (Exception ex) {
-
-            throw new RuntimeException(
-                    "Failed to lookup pincode: " + pincode,
-                    ex
-            );
-        }
-    }
-
-    // =========================================================
-    // CURRENT LOCATION
-    // REVERSE GEOCODING
-    // =========================================================
-
-    @Override
-    public ReverseGeocodeResponse reverseGeocode(
-            double latitude,
-            double longitude) {
-
-        /*
-         * Basic coordinate validation
-         */
-
-        if (latitude < -90 || latitude > 90) {
-
-            throw new IllegalArgumentException(
-                    "Invalid latitude"
-            );
-        }
-
-        if (longitude < -180 || longitude > 180) {
-
-            throw new IllegalArgumentException(
-                    "Invalid longitude"
-            );
-        }
-
-        try {
-
-            String url = UriComponentsBuilder
-                    .fromUriString(NOMINATIM_API)
-                    .queryParam("format", "jsonv2")
-                    .queryParam("lat", latitude)
-                    .queryParam("lon", longitude)
-                    .queryParam("addressdetails", 1)
-                    .queryParam("zoom", 18)
-                    .queryParam("accept-language", "en")
-                    .build()
-                    .toUriString();
-
-            String response = restClient.get()
-                    .uri(url)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(String.class);
-
-            JsonNode root =
-                    objectMapper.readTree(response);
-
-            if (root == null || root.isEmpty()) {
-
-                throw new IllegalArgumentException(
-                        "No address found for the provided location"
-                );
-            }
-
-            JsonNode address =
-                    root.path("address");
-
-            if (address.isMissingNode()
-                    || address.isEmpty()) {
-
-                throw new IllegalArgumentException(
-                        "Address details were not found"
-                );
-            }
-
-            ReverseGeocodeResponse result =
-                    new ReverseGeocodeResponse();
-
-            // -------------------------------------------------
-            // ADDRESS LINE 1
-            // -------------------------------------------------
-
-            String houseNumber =
-                    address.path("house_number")
-                            .asText(null);
-
-            String road =
-                    address.path("road")
-                            .asText(null);
-
-            String addressLine1 =
-                    buildAddressLine(
-                            houseNumber,
-                            road
-                    );
-
-            result.setAddressLine1(addressLine1);
-
-            // -------------------------------------------------
-            // AREA
-            // -------------------------------------------------
-
-            String area =
-                    firstNonBlank(
-                            address.path("neighbourhood")
-                                    .asText(null),
-
-                            address.path("suburb")
-                                    .asText(null),
-
-                            address.path("village")
-                                    .asText(null)
-                    );
-
-            result.setArea(area);
-
-            // -------------------------------------------------
-            // DISTRICT
-            // -------------------------------------------------
-
-            String district =
-                    firstNonBlank(
-                            address.path("county")
-                                    .asText(null),
-
-                            address.path("state_district")
-                                    .asText(null),
-
-                            address.path("district")
-                                    .asText(null)
-                    );
-
-            result.setDistrict(district);
-
-            // -------------------------------------------------
-            // CITY
-            // -------------------------------------------------
-
-            String city =
-                    firstNonBlank(
-                            address.path("city")
-                                    .asText(null),
-
-                            address.path("town")
-                                    .asText(null),
-
-                            address.path("municipality")
-                                    .asText(null),
-
-                            address.path("village")
-                                    .asText(null)
-                    );
-
-            result.setCity(city);
-
-            // -------------------------------------------------
-            // STATE
-            // -------------------------------------------------
-
-            result.setState(
-                    address.path("state")
-                            .asText(null)
-            );
-
-            // -------------------------------------------------
-            // COUNTRY
-            // -------------------------------------------------
-
-            result.setCountry(
-                    address.path("country")
-                            .asText(null)
-            );
-
-            // -------------------------------------------------
-            // PINCODE
-            // -------------------------------------------------
-
-            result.setPincode(
-                    address.path("postcode")
-                            .asText(null)
-            );
+            result.setAreas(areas);
 
             return result;
 
@@ -395,47 +187,384 @@ public class LocationServiceImpl implements LocationService {
         } catch (Exception ex) {
 
             throw new RuntimeException(
-                    "Failed to reverse geocode the provided location",
+                    "Failed to fetch address for pincode: "
+                            + pincode,
                     ex
             );
         }
     }
 
-    // =========================================================
-    // BUILD ADDRESS LINE
-    // =========================================================
+    /*
+     * ============================================================
+     * PINCODE SEARCH / AUTOCOMPLETE
+     * ============================================================
+     *
+     * Flow:
+     *
+     * User types:
+     * 523
+     *        ↓
+     * PincodeAPI.in
+     *        ↓
+     * Unique pincode suggestions
+     *
+     * IMPORTANT:
+     *
+     * This method does NOT try to fill city or area.
+     *
+     * It only helps the user find/select a pincode.
+     *
+     * After selecting the pincode,
+     * getAddressByPincode() is called.
+     */
+    @Override
+    public List<PincodeSuggestionResponse> searchPincodes(
+            String prefix) {
 
+        if (prefix == null || prefix.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Pincode prefix cannot be empty"
+            );
+        }
+
+        if (!prefix.matches("\\d+")) {
+
+            throw new IllegalArgumentException(
+                    "Pincode prefix must contain only digits"
+            );
+        }
+
+        if (prefix.length() < 3
+                || prefix.length() > 6) {
+
+            throw new IllegalArgumentException(
+                    "Pincode prefix must contain between 3 and 6 digits"
+            );
+        }
+
+        try {
+
+            String response =
+                    restClient.get()
+                            .uri(uriBuilder ->
+                                    uriBuilder
+                                            .scheme("https")
+                                            .host("api.pincodeapi.in")
+                                            .path("/api/v1/search")
+                                            .queryParam(
+                                                    "q",
+                                                    prefix
+                                            )
+                                            .queryParam(
+                                                    "limit",
+                                                    50
+                                            )
+                                            .queryParam(
+                                                    "offset",
+                                                    0
+                                            )
+                                            .build()
+                            )
+                            .accept(MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(String.class);
+
+            JsonNode root =
+                    objectMapper.readTree(response);
+
+            boolean success =
+                    root.path("success")
+                            .asBoolean(false);
+
+            if (!success) {
+
+                throw new RuntimeException(
+                        "PincodeAPI.in search failed"
+                );
+            }
+
+            JsonNode postOffices =
+                    root.path("data")
+                            .path("post_offices");
+
+            List<PincodeSuggestionResponse> suggestions =
+                    new ArrayList<>();
+
+            if (!postOffices.isArray()) {
+
+                return suggestions;
+            }
+
+            /*
+             * PincodeAPI can return multiple post-office
+             * records for the same pincode.
+             *
+             * Therefore we keep track of the pincodes
+             * already added to the response.
+             */
+            Set<String> addedPincodes =
+                    new HashSet<>();
+
+            for (JsonNode office : postOffices) {
+
+                String pincode =
+                        office.path("pincode")
+                                .asText(null);
+
+                /*
+                 * Ignore invalid pincode values.
+                 */
+                if (pincode == null
+                        || !pincode.startsWith(prefix)) {
+
+                    continue;
+                }
+
+                /*
+                 * Ignore duplicate pincodes.
+                 */
+                if (!addedPincodes.add(pincode)) {
+
+                    continue;
+                }
+
+                String district =
+                        office.path("district")
+                                .asText(null);
+
+                String state =
+                        office.path("state")
+                                .asText(null);
+
+                /*
+                 * Search response only contains:
+                 *
+                 * Pincode
+                 * District
+                 * State
+                 *
+                 * We intentionally do not use "division"
+                 * as city.
+                 */
+                suggestions.add(
+                        new PincodeSuggestionResponse(
+                                pincode,
+                                district,
+                                state
+                        )
+                );
+
+                /*
+                 * Return maximum 10 suggestions.
+                 */
+                if (suggestions.size() >= 10) {
+
+                    break;
+                }
+            }
+
+            return suggestions;
+
+        } catch (Exception ex) {
+
+            throw new RuntimeException(
+                    "Failed to search pincode prefix: "
+                            + prefix,
+                    ex
+            );
+        }
+    }
+
+    /*
+     * ============================================================
+     * CURRENT LOCATION / REVERSE GEOCODING
+     * ============================================================
+     *
+     * Flow:
+     *
+     * Browser gets latitude + longitude
+     *        ↓
+     * Nominatim
+     *        ↓
+     * Address details
+     *
+     * This is completely separate from pincode search.
+     */
+    @Override
+    public ReverseGeocodeResponse reverseGeocode(
+            double latitude,
+            double longitude) {
+
+        if (latitude < -90
+                || latitude > 90) {
+
+            throw new IllegalArgumentException(
+                    "Invalid latitude"
+            );
+        }
+
+        if (longitude < -180
+                || longitude > 180) {
+
+            throw new IllegalArgumentException(
+                    "Invalid longitude"
+            );
+        }
+
+        try {
+
+            String response =
+                    restClient.get()
+                            .uri(uriBuilder ->
+                                    uriBuilder
+                                            .scheme("https")
+                                            .host(
+                                                    "nominatim.openstreetmap.org"
+                                            )
+                                            .path("/reverse")
+                                            .queryParam(
+                                                    "lat",
+                                                    latitude
+                                            )
+                                            .queryParam(
+                                                    "lon",
+                                                    longitude
+                                            )
+                                            .queryParam(
+                                                    "format",
+                                                    "json"
+                                            )
+                                            .queryParam(
+                                                    "addressdetails",
+                                                    1
+                                            )
+                                            .build()
+                            )
+                            .header(
+                                    "User-Agent",
+                                    "AI-Smart-Rental-Property-Management-System"
+                            )
+                            .accept(
+                                    MediaType.APPLICATION_JSON
+                            )
+                            .retrieve()
+                            .body(String.class);
+
+            JsonNode root =
+                    objectMapper.readTree(response);
+
+            JsonNode address =
+                    root.path("address");
+
+            ReverseGeocodeResponse result =
+                    new ReverseGeocodeResponse();
+
+            result.setAddressLine1(
+                    buildAddressLine(address)
+            );
+
+            result.setArea(
+                    firstNonBlank(
+                            address.path("suburb")
+                                    .asText(null),
+
+                            address.path("neighbourhood")
+                                    .asText(null),
+
+                            address.path("village")
+                                    .asText(null)
+                    )
+            );
+
+            result.setDistrict(
+                    firstNonBlank(
+                            address.path("county")
+                                    .asText(null),
+
+                            address.path("district")
+                                    .asText(null)
+                    )
+            );
+
+            result.setCity(
+                    firstNonBlank(
+                            address.path("city")
+                                    .asText(null),
+
+                            address.path("town")
+                                    .asText(null),
+
+                            address.path("municipality")
+                                    .asText(null)
+                    )
+            );
+
+            result.setState(
+                    address.path("state")
+                            .asText(null)
+            );
+
+            result.setCountry(
+                    address.path("country")
+                            .asText(null)
+            );
+
+            result.setPincode(
+                    address.path("postcode")
+                            .asText(null)
+            );
+
+            return result;
+
+        } catch (Exception ex) {
+
+            throw new RuntimeException(
+                    "Failed to reverse geocode location",
+                    ex
+            );
+        }
+    }
+
+    /*
+     * ============================================================
+     * BUILD ADDRESS LINE
+     * ============================================================
+     */
     private String buildAddressLine(
-            String houseNumber,
-            String road) {
+            JsonNode address) {
+
+        List<String> parts =
+                new ArrayList<>();
+
+        String houseNumber =
+                address.path("house_number")
+                        .asText(null);
+
+        String road =
+                address.path("road")
+                        .asText(null);
 
         if (houseNumber != null
-                && !houseNumber.isBlank()
-                && road != null
-                && !road.isBlank()) {
+                && !houseNumber.isBlank()) {
 
-            return houseNumber + ", " + road;
+            parts.add(houseNumber);
         }
 
         if (road != null
                 && !road.isBlank()) {
 
-            return road;
+            parts.add(road);
         }
 
-        if (houseNumber != null
-                && !houseNumber.isBlank()) {
-
-            return houseNumber;
-        }
-
-        return null;
+        return String.join(", ", parts);
     }
 
-    // =========================================================
-    // FIRST NON-BLANK VALUE
-    // =========================================================
-
+    /*
+     * ============================================================
+     * FIRST NON-BLANK VALUE
+     * ============================================================
+     */
     private String firstNonBlank(
             String... values) {
 
