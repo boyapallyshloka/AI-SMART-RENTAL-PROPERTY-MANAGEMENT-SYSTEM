@@ -1,4 +1,5 @@
 from scout.intent import ScoutOperation, ScoutIntent, detect_intent
+from scout.m4_client import predict_payment_risk_for_tenant
 from M2_Property_Recommendation.service import generate_recommendations
 
 
@@ -116,7 +117,58 @@ def process_message(
         response = "You are asking about rental demand."
 
     elif intent.operation == ScoutOperation.PAYMENT_RISK:
-        response = "You are asking about payment risk."
+        tenant_id_value = intent.parameters.get("tenant_id")
+        
+        if not tenant_id_value:
+            response = (
+                "Tenant ID is required to assess payment risk."
+            )
+            data = {
+                "success": False,
+                "message": "Tenant ID is required."
+            }
+
+        else:
+            try:
+                prediction = predict_payment_risk_for_tenant(
+                    tenant_id_value
+                )
+
+                data = {
+                    "success": True,
+                    "tenant_id": tenant_id_value,
+                    **prediction,
+                }
+
+                response = (
+                    f"Payment risk assessment: "
+                    f"{prediction['risk_status']} "
+                    f"with probability "
+                    f"{prediction['risk_probability']:.2f}."
+                )
+
+            except ValueError as exc:
+                response = str(exc)
+                data = {
+                    "success": False,
+                    "message": str(exc),
+                }
+
+            except FileNotFoundError as exc:
+                response = "M4 payment-risk model is not available."
+                data = {
+                    "success": False,
+                    "message": str(exc),
+                }
+
+            except Exception as exc:
+                response = (
+                    "Unable to generate payment-risk prediction."
+                )
+                data = {
+                    "success": False,
+                    "message": str(exc),
+                }
 
     elif intent.operation == ScoutOperation.PREDICTIVE_MAINTENANCE:
         response = "You are asking about predictive maintenance."
