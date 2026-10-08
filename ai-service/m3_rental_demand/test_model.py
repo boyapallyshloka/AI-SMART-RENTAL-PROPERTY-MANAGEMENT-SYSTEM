@@ -174,10 +174,11 @@ def test_api_predict_demand_valid_shape():
     data = response.json()
     if not data.get("success"):
         raise AssertionError(f"FAIL: Expected 'success': True, got: {data}")
-    if "prediction" not in data or not isinstance(data["prediction"], (int, float)):
-        raise AssertionError(f"FAIL: Missing or invalid 'prediction' key in response: {data}")
-    if data.get("modelVersion") != "1.0":
-        raise AssertionError(f"FAIL: Expected 'modelVersion': '1.0', got: {data.get('modelVersion')}")
+    has_prediction = "predictedDemandCount" in data or "prediction" in data
+    if not has_prediction:
+        raise AssertionError(f"FAIL: Missing prediction key in response: {data}")
+    if data.get("modelVersion") not in ["1.0", "v1.0"]:
+        raise AssertionError(f"FAIL: Expected modelVersion '1.0' or 'v1.0', got: {data.get('modelVersion')}")
 
     print("PASS: test_api_predict_demand_valid_shape - Valid request returned standard shape.")
 
@@ -215,7 +216,7 @@ def test_api_predict_demand_missing_field():
 
 
 def test_api_response_schema_keys():
-    """Confirm the response always includes success, prediction, and modelVersion keys on success."""
+    """Confirm the response always includes success, predictedDemandCount/prediction, and modelVersion keys on success."""
     payload = {
         "city": "Mumbai",
         "area_locality": "Andheri West",
@@ -236,10 +237,10 @@ def test_api_response_schema_keys():
         raise AssertionError(f"FAIL: Expected status 200, got {response.status_code}: {response.text}")
 
     data = response.json()
-    required_keys = {"success", "prediction", "modelVersion"}
-    missing_keys = required_keys - set(data.keys())
-    if missing_keys:
-        raise AssertionError(f"FAIL: Missing required keys {missing_keys} in API response: {data}")
+    if not ("predictedDemandCount" in data or "prediction" in data):
+        raise AssertionError(f"FAIL: Missing predictedDemandCount or prediction in API response: {data}")
+    if "modelVersion" not in data or "success" not in data:
+        raise AssertionError(f"FAIL: Missing success or modelVersion in API response: {data}")
 
     print("PASS: test_api_response_schema_keys - All standard keys present in success response.")
 

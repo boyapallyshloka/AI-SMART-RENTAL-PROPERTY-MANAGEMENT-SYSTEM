@@ -1,25 +1,23 @@
 {
   "model_version": "1.0",
-  "legacy_version_tag": "m3_v5_gb_autothreshold",
   "model_type": "GradientBoostingClassifier(weighted) + GradientBoostingRegressor",
+  "architecture": "two_stage_hurdle",
   "pipeline_artifact": "model_pipeline.joblib",
   "threshold": 0.5,
-  "mae": 0.4771087742832911,
-  "rmse": 0.7866147126797448,
-  "binarized_accuracy": 0.7060087933561309,
-  "binarized_f1": 0.5518987341772152,
-  "recall": 0.6398480662983426,
-  "precision": 0.48520555119141134,
-  "roc_auc": 0.7559654901272924,
+  "mae": 0.4943204800084078,
+  "rmse": 0.795255199001707,
+  "r2_score": 0.04114606949272315,
+  "binarized_accuracy": 0.6922325354176844,
+  "binarized_f1": 0.5517928286852589,
+  "recall": 0.6695441988950276,
+  "precision": 0.4692642787996128,
+  "roc_auc": 0.7531918376357596,
   "confusion_matrix": {
-    "tn": 5373,
-    "fp": 1966,
-    "fn": 1043,
-    "tp": 1853
+    "tn": 5146,
+    "fp": 2193,
+    "fn": 957,
+    "tp": 1939
   },
-  "r2_score": 0.06186886643201894,
-  "regressor_only_mae": 0.46627687898980985,
-  "regressor_only_rmse": 0.7383431827032291,
   "train_range": "2024-01 to 2025-06",
   "test_range": "2025-07 to 2025-11",
   "features": [
@@ -34,7 +32,7 @@
     "vacancy_rate",
     "available_unit_count",
     "month",
-    "city_freq",
-    "area_locality_freq"
+    "city",
+    "area_locality"
   ]
 }

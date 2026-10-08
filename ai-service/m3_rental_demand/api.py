@@ -1,11 +1,16 @@
 import os
 import sys
 import logging
-from fastapi import APIRouter, Request, status
+from fastapi import FastAPI, APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+
+app = FastAPI(
+    title="M3 Rental Demand Prediction API",
+    version="1.0"
+)
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
@@ -28,6 +33,7 @@ router = APIRouter(
     prefix="/m3",
     tags=["Rental Demand prediction"]
 )
+app.include_router(router)
 
 
 
@@ -51,11 +57,10 @@ class DemandRequest(BaseModel):
 
 class DemandSuccessResponse(BaseModel):
     success: bool = True
-    prediction: float
     predictedDemandCount: int
-    demandUnit: str = "prospective tenant applications"
-    forecastPeriod: str = "next_month"
+    demandLevel : str
     city: str
+    month : int    
     areaLocality: str
     modelVersion: str = "1.0"
 
@@ -143,6 +148,8 @@ def root():
     }
 
 
+
+
 @router.post("/predict-demand", response_model=DemandSuccessResponse)
 def predict_demand_endpoint(request: DemandRequest):
     """
@@ -150,20 +157,27 @@ def predict_demand_endpoint(request: DemandRequest):
     Endpoint adheres strictly to Avenue360 ML Standard v1.1.
     """
     try:
-        features = request.dict() if hasattr(request, "dict") else request.model_dump()
+        features = request.model_dump(by_alias=False)
         prediction = float(predict_demand(features))
 
         predicted_demand_count = max(0, int(prediction + 0.5))
+        if predicted_demand_count <= 2:
+            demand_level ="LOW"
+        elif predicted_demand_count <=5:
+            demand_level="MEDIUM"
+        elif predicted_demand_count <=10:
+            demand_level="HIGH"
+        else:
+            demand_level="VERY_HIGH"
 
         return {
         "success": True,
-        "prediction": prediction,
         "predictedDemandCount": predicted_demand_count,
-        "demandUnit": "prospective tenant applications",
-        "forecastPeriod": "next_month",
+        "demandLevel":demand_level,
         "city": request.city,
         "areaLocality": request.area_locality,
-        "modelVersion": "1.0"
+        "month":request.month,
+        "modelVersion": "v1.0"
     }
     except FileNotFoundError:
         return JSONResponse(
@@ -193,3 +207,4 @@ def predict_demand_endpoint(request: DemandRequest):
                 "message": "Failed to compute demand prediction for the given input."
             }
         )
+

@@ -3,6 +3,8 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.metrics import f1_score
@@ -23,19 +25,18 @@ if __name__ in sys.modules:
         sys.modules["m3_rental_demand.pipeline"] = current_mod
 
 
-RAW_NUMERIC_FEATURES = [
+NUMERIC_FEATURES = [
     "property_count", "application_count", "agreement_start_count",
     "average_monthly_rent", "demand_lag_1_month", "demand_lag_2_month",
     "demand_growth_1_month", "occupancy_rate", "vacancy_rate",
-    "available_unit_count"
+    "available_unit_count", "month"
 ]
 
-MODEL_FEATURES = [
-    "property_count", "application_count", "agreement_start_count",
-    "average_monthly_rent", "demand_lag_1_month", "demand_lag_2_month",
-    "demand_growth_1_month", "occupancy_rate", "vacancy_rate",
-    "available_unit_count", "month", "city_freq", "area_locality_freq"
+CATEGORICAL_FEATURES = [
+    "city", "area_locality"
 ]
+
+MODEL_FEATURES = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 
 TARGET = "next_month_demand"
 
@@ -46,8 +47,8 @@ class RentalDemandPipeline(BaseEstimator, RegressorMixin):
     Avenue360 ML Standard v1.1.
 
     Encapsulates:
-    1. Fitted preprocessing: Frequency encoding for city and area_locality,
-       and month extraction.
+    1. Fitted preprocessing: OneHotEncoder for city and area_locality via
+       ColumnTransformer, and calendar month derivation from year_month.
     2. Two-stage model architecture:
        - GradientBoostingClassifier (with balanced sample weights) to predict
          zero vs non-zero demand probability with an optimized threshold.
@@ -62,56 +63,44 @@ class RentalDemandPipeline(BaseEstimator, RegressorMixin):
         self.model_version = "1.0"
 
         # Fitted attributes
-        self.city_freq_map_ = {}
-        self.locality_freq_map_ = {}
+        self.preprocessor_ = None
         self.threshold_ = threshold
         self.classifier_ = None
         self.regressor_ = None
         self.features_ = MODEL_FEATURES
 
-    def _transform(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _prepare_inputs(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Applies fitted preprocessing to raw input data.
-        Derives month (if needed) and frequency-encodes city and area_locality.
+        Derives calendar month if missing from year_month.
         """
         data = df.copy()
-
-        # Derive month if month is not present but year_month is
         if "month" not in data.columns and "year_month" in data.columns:
             data["month"] = data["year_month"].astype(str).str.split("-").str[1].astype(int)
-
-        # Apply fitted frequency maps
-        if "city" in data.columns:
-            data["city_freq"] = data["city"].map(self.city_freq_map_).fillna(0.0).astype(float)
-        elif "city_freq" not in data.columns:
-            data["city_freq"] = 0.0
-
-        if "area_locality" in data.columns:
-            data["area_locality_freq"] = data["area_locality"].map(self.locality_freq_map_).fillna(0.0).astype(float)
-        elif "area_locality_freq" not in data.columns:
-            data["area_locality_freq"] = 0.0
-
         return data
 
     def fit(self, df: pd.DataFrame, target_col: str = TARGET, val_df: pd.DataFrame = None):
         """
-        Fits preprocessing mappings and two-stage classifier + regressor.
+        Fits preprocessing ColumnTransformer and two-stage classifier + regressor.
 
         Parameters:
             df: Training DataFrame containing raw features and target column.
             target_col: Name of the demand target column.
             val_df: Optional validation DataFrame used to tune classification threshold.
         """
-        # 1. Compute and store frequency mappings from training data
-        self.city_freq_map_ = df["city"].value_counts(normalize=True).to_dict()
-        self.locality_freq_map_ = df["area_locality"].value_counts(normalize=True).to_dict()
-
-        # 2. Transform training data
-        train_transformed = self._transform(df)
-        X_train = train_transformed[self.features_]
-        y_train = train_transformed[target_col]
-
+        # 1. Prepare training data
+        train_data = self._prepare_inputs(df)
+        X_train = train_data[self.features_]
+        y_train = train_data[target_col]
         y_train_bin = (y_train > 0).astype(int)
+
+        # 2. Fit ColumnTransformer (OneHotEncoder fitted exclusively on training data)
+        self.preprocessor_ = ColumnTransformer(
+            transformers=[
+                ("num", "passthrough", NUMERIC_FEATURES),
+                ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=True), CATEGORICAL_FEATURES),
+            ]
+        )
+        X_train_encoded = self.preprocessor_.fit_transform(X_train)
 
         # 3. Fit Stage 1: GradientBoostingClassifier with balanced sample weights
         sample_weights = compute_sample_weight(class_weight="balanced", y=y_train_bin)
@@ -119,15 +108,16 @@ class RentalDemandPipeline(BaseEstimator, RegressorMixin):
             n_estimators=self.n_estimators,
             random_state=self.random_state
         )
-        self.classifier_.fit(X_train, y_train_bin, sample_weight=sample_weights)
+        self.classifier_.fit(X_train_encoded, y_train_bin, sample_weight=sample_weights)
 
         # 4. Tune threshold if validation set provided, otherwise use default
         if val_df is not None:
-            val_transformed = self._transform(val_df)
-            X_val = val_transformed[self.features_]
-            y_val_bin = (val_transformed[target_col] > 0).astype(int)
+            val_data = self._prepare_inputs(val_df)
+            X_val = val_data[self.features_]
+            y_val_bin = (val_data[target_col] > 0).astype(int)
+            X_val_encoded = self.preprocessor_.transform(X_val)
 
-            probs = self.classifier_.predict_proba(X_val)[:, 1]
+            probs = self.classifier_.predict_proba(X_val_encoded)[:, 1]
             best_threshold, best_f1 = self.threshold, 0.0
             for t in np.arange(0.05, 0.96, 0.05):
                 preds_t = (probs >= t).astype(int)
@@ -140,16 +130,15 @@ class RentalDemandPipeline(BaseEstimator, RegressorMixin):
             self.threshold_ = float(self.threshold)
 
         # 5. Fit Stage 2: GradientBoostingRegressor on non-zero demand subset
-        nonzero_mask = y_train > 0
+        nonzero_mask = (y_train > 0).values if hasattr(y_train, "values") else (y_train > 0)
         self.regressor_ = GradientBoostingRegressor(
             n_estimators=self.n_estimators,
             random_state=self.random_state
         )
         if nonzero_mask.sum() > 0:
-            self.regressor_.fit(X_train[nonzero_mask], y_train[nonzero_mask])
+            self.regressor_.fit(X_train_encoded[nonzero_mask], y_train[nonzero_mask])
         else:
-            # Fallback if no non-zero rows (edge case)
-            self.regressor_.fit(X_train, y_train)
+            self.regressor_.fit(X_train_encoded, y_train)
 
         return self
 
@@ -173,22 +162,21 @@ class RentalDemandPipeline(BaseEstimator, RegressorMixin):
         else:
             raise ValueError(f"Unsupported input type for predict: {type(raw_input)}")
 
-        # Apply stored fitted preprocessing
-        transformed_df = self._transform(raw_df)
+        data = self._prepare_inputs(raw_df)
 
-        # Verify required features are present
-        missing_features = [f for f in self.features_ if f not in transformed_df.columns]
+        missing_features = [f for f in self.features_ if f not in data.columns]
         if missing_features:
             raise ValueError(f"Missing required features after preprocessing: {missing_features}")
 
-        X = transformed_df[self.features_]
+        X = data[self.features_]
+        X_encoded = self.preprocessor_.transform(X)
 
         # Stage 1: Classify zero vs non-zero demand
-        probs = self.classifier_.predict_proba(X)[:, 1]
+        probs = self.classifier_.predict_proba(X_encoded)[:, 1]
         class_preds = (probs >= self.threshold_).astype(int)
 
         # Stage 2: Predict magnitude on demand
-        reg_preds = self.regressor_.predict(X).clip(min=0)
+        reg_preds = self.regressor_.predict(X_encoded).clip(min=0)
 
         # Final prediction: hurdle combination
         final_preds = np.maximum(0.0, class_preds * reg_preds)

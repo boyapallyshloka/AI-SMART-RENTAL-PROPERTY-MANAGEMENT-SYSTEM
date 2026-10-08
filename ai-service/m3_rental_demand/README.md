@@ -43,19 +43,19 @@ The M3 module forecasts next-month rental demand count for properties across Ind
 | `vacancy_rate` | Float | Locality vacancy rate |
 | `available_unit_count` | Integer | Immediately vacant/available rental units |
 
-### Encoded Features (Fitted Internally by Pipeline)
-- **`city_freq`**: Normalized frequency mapping of city occurrences learned from the training split.
-- **`area_locality_freq`**: Normalized frequency mapping of micro-market locality occurrences learned from the training split.
-- **`month`**: Extracted from `year_month` if not provided directly.
+### Categorical Features (Encoded Internally by Pipeline)
+- **`city`**: One-hot encoded across metropolitan city categories.
+- **`area_locality`**: One-hot encoded across micro-market localities with `handle_unknown="ignore"`.
+- **`month`**: Calendar month derived from `year_month` if not passed directly.
 
 ---
 
 ## 4. Preprocessing & Feature Engineering Applied
 Per Avenue360 ML Standard v1.1, all preprocessing logic is bundled directly inside the model pipeline (`RentalDemandPipeline` in `pipeline.py`):
-1. **Fitted Categorical Frequency Encoding**:
-   - High-cardinality locality names and city names are transformed into occurrence probabilities calculated during training.
-   - The fitted mappings are stored as pipeline attributes (`city_freq_map_` and `locality_freq_map_`).
-   - Unseen localities at inference time gracefully fall back to `0.0` without runtime exceptions.
+1. **Fitted Categorical OneHotEncoder (`ColumnTransformer`)**:
+   - `city` and `area_locality` are transformed into one-hot features via `OneHotEncoder(handle_unknown="ignore", sparse_output=True)`.
+   - The encoder is fitted strictly on the training split to eliminate data leakage.
+   - Unseen localities at inference time gracefully encode to zeros without runtime exceptions.
 2. **Temporal Feature Derivation**:
    - Derives calendar month numbers from composite date formats (`YYYY-MM`) to capture seasonality.
 3. **Imbalance & Hurdle Preprocessing**:
@@ -162,9 +162,15 @@ POST /predict-demand
 ### Success Response Schema (`200 OK`)
 ```json
 {
+  {
   "success": true,
-  "prediction": 2.45,
-  "modelVersion": "1.0"
+  "city": "Hyderabad",
+  "areaLocality": "Gachibowli",
+  "month": 9,
+  "predictedDemandCount": 8,
+  "demandLevel": "HIGH",
+  "modelVersion": "v1.0"
+}
 }
 ```
 
