@@ -16,6 +16,7 @@ import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
+
 import com.rental.rental_management_backend.maintenance.dto.M5PredictionRequest;
 import com.rental.rental_management_backend.maintenance.dto.M5PredictionResponse;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestRequest;
@@ -24,11 +25,18 @@ import com.rental.rental_management_backend.maintenance.dto.MaintenanceStatusUpd
 import com.rental.rental_management_backend.maintenance.entity.MaintenanceRequest;
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus;
 import com.rental.rental_management_backend.maintenance.repository.MaintenanceRequestRepository;
+
+import com.rental.rental_management_backend.notification.enums.NotificationPriority;
+import com.rental.rental_management_backend.notification.enums.NotificationType;
+import com.rental.rental_management_backend.notification.service.NotificationService;
+
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
+
 import com.rental.rental_management_backend.s3.service.S3Service;
+
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 
@@ -53,6 +61,12 @@ public class MaintenanceRequestServiceImpl
     private final M5AggregationService m5AggregationService;
 
     // =========================================================
+    // NOTIFICATION SERVICE
+    // =========================================================
+
+    private final NotificationService notificationService;
+
+    // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
@@ -65,7 +79,8 @@ public class MaintenanceRequestServiceImpl
             S3Service s3Service,
             UserRepository userRepository,
             MaintenanceAiServiceClient maintenanceAiServiceClient,
-            M5AggregationService m5AggregationService) {
+            M5AggregationService m5AggregationService,
+            NotificationService notificationService) {
 
         this.maintenanceRequestRepository =
                 maintenanceRequestRepository;
@@ -93,6 +108,9 @@ public class MaintenanceRequestServiceImpl
 
         this.m5AggregationService =
                 m5AggregationService;
+
+        this.notificationService =
+                notificationService;
     }
 
     // =========================================================
@@ -233,6 +251,28 @@ public class MaintenanceRequestServiceImpl
         MaintenanceRequest savedRequest =
                 maintenanceRequestRepository
                         .save(maintenanceRequest);
+
+        // -----------------------------------------------------
+        // NOTIFICATION
+        //
+        // Tenant creates maintenance request
+        //              |
+        //              v
+        //       Save maintenance
+        //              |
+        //       +------+------+
+        //       |             |
+        //       v             v
+        //    Owner          Manager
+        //       |             |
+        //       +------Notification
+        //              |
+        //              v
+        //             SSE
+        // -----------------------------------------------------
+
+        notifyOwnerAndManagerAboutNewMaintenance(
+                savedRequest);
 
         return mapToResponse(savedRequest);
     }
@@ -458,6 +498,13 @@ public class MaintenanceRequestServiceImpl
 
         boolean isTenant =
                 role == RoleType.TENANT;
+
+        // -----------------------------------------------------
+        // STORE OLD STATUS
+        // -----------------------------------------------------
+
+        MaintenanceStatus oldStatus =
+                existingRequest.getStatus();
 
         // -----------------------------------------------------
         // TENANT SECURITY CHECK
@@ -700,6 +747,19 @@ public class MaintenanceRequestServiceImpl
                 maintenanceRequestRepository
                         .save(existingRequest);
 
+        // -----------------------------------------------------
+        // NOTIFY TENANT IF STATUS CHANGED
+        // -----------------------------------------------------
+
+        MaintenanceStatus newStatus =
+                updatedRequest.getStatus();
+
+        if (oldStatus != newStatus) {
+
+            notifyTenantAboutMaintenanceStatus(
+                    updatedRequest);
+        }
+
         return mapToResponse(updatedRequest);
     }
 
@@ -736,6 +796,13 @@ public class MaintenanceRequestServiceImpl
                                         "Maintenance request not found "
                                                 + "with ID: "
                                                 + ticketId));
+
+        // -----------------------------------------------------
+        // STORE OLD STATUS
+        // -----------------------------------------------------
+
+        MaintenanceStatus oldStatus =
+                maintenanceRequest.getStatus();
 
         // -----------------------------------------------------
         // AUTHORIZATION CHECK
@@ -818,6 +885,18 @@ public class MaintenanceRequestServiceImpl
         MaintenanceRequest updatedRequest =
                 maintenanceRequestRepository
                         .save(maintenanceRequest);
+
+        // -----------------------------------------------------
+        // NOTIFICATION
+        //
+        // Only notify when status actually changes.
+        // -----------------------------------------------------
+
+        if (oldStatus != newStatus) {
+
+            notifyTenantAboutMaintenanceStatus(
+                    updatedRequest);
+        }
 
         return mapToResponse(updatedRequest);
     }
@@ -1030,6 +1109,176 @@ public class MaintenanceRequestServiceImpl
     }
 
     // =========================================================
+    // NOTIFICATION:
+    // NEW MAINTENANCE REQUEST
+    //
+    // RECIPIENTS:
+    // 1. PROPERTY OWNER
+    // 2. PROPERTY MANAGER
+    // =========================================================
+
+    private void notifyOwnerAndManagerAboutNewMaintenance(
+            MaintenanceRequest request) {
+
+        if (request == null
+                || request.getProperty() == null) {
+
+            return;
+        }
+
+        Property property =
+                request.getProperty();
+
+        // -----------------------------------------------------
+        // NOTIFY PROPERTY OWNER
+        // -----------------------------------------------------
+
+        if (property.getOwner() != null
+                && property.getOwner().getId() != null) {
+
+            notificationService.notifyUser(
+
+                    property.getOwner().getId(),
+
+                    NotificationType.MAINTENANCE_CREATED,
+
+                    NotificationPriority.MEDIUM,
+
+                    "New Maintenance Request",
+
+                    "A new maintenance request has been created "
+                            + "for your property.",
+
+                    request.getRequestId(),
+
+                    "MAINTENANCE"
+            );
+        }
+
+        // -----------------------------------------------------
+        // NOTIFY PROPERTY MANAGER
+        // -----------------------------------------------------
+
+        if (property.getPropertyManager() != null
+                && property.getPropertyManager().getUser() != null
+                && property.getPropertyManager()
+                        .getUser()
+                        .getId() != null) {
+
+            Long managerUserId =
+                    property.getPropertyManager()
+                            .getUser()
+                            .getId();
+
+            // Avoid sending duplicate notification
+            // if owner and manager happen to be same user.
+
+            if (property.getOwner() == null
+                    || property.getOwner().getId() == null
+                    || !property.getOwner()
+                            .getId()
+                            .equals(managerUserId)) {
+
+                notificationService.notifyUser(
+
+                        managerUserId,
+
+                        NotificationType.MAINTENANCE_CREATED,
+
+                        NotificationPriority.MEDIUM,
+
+                        "New Maintenance Request",
+
+                        "A new maintenance request has been created "
+                                + "for a property assigned to you.",
+
+                        request.getRequestId(),
+
+                        "MAINTENANCE"
+                );
+            }
+        }
+    }
+
+    // =========================================================
+    // NOTIFICATION:
+    // MAINTENANCE STATUS UPDATED
+    //
+    // RECIPIENT:
+    // TENANT
+    // =========================================================
+
+    private void notifyTenantAboutMaintenanceStatus(
+            MaintenanceRequest request) {
+
+        if (request == null
+                || request.getTenant() == null
+                || request.getTenant().getUser() == null
+                || request.getTenant()
+                        .getUser()
+                        .getId() == null) {
+
+            return;
+        }
+
+        Long tenantUserId =
+                request.getTenant()
+                        .getUser()
+                        .getId();
+
+        // -----------------------------------------------------
+        // COMPLETED
+        // -----------------------------------------------------
+
+        if (request.getStatus()
+                == MaintenanceStatus.COMPLETED) {
+
+            notificationService.notifyUser(
+
+                    tenantUserId,
+
+                    NotificationType.MAINTENANCE_COMPLETED,
+
+                    NotificationPriority.HIGH,
+
+                    "Maintenance Completed",
+
+                    "Your maintenance request has been completed.",
+
+                    request.getRequestId(),
+
+                    "MAINTENANCE"
+            );
+
+            return;
+        }
+
+        // -----------------------------------------------------
+        // OTHER STATUS CHANGES
+        // -----------------------------------------------------
+
+        notificationService.notifyUser(
+
+                tenantUserId,
+
+                NotificationType.MAINTENANCE_STATUS_UPDATED,
+
+                NotificationPriority.MEDIUM,
+
+                "Maintenance Status Updated",
+
+                "The status of your maintenance request has been "
+                        + "updated to "
+                        + request.getStatus()
+                        + ".",
+
+                request.getRequestId(),
+
+                "MAINTENANCE"
+        );
+    }
+
+    // =========================================================
     // HELPER METHOD
     // GET CURRENT LOGGED-IN USER
     // =========================================================
@@ -1085,14 +1334,14 @@ public class MaintenanceRequestServiceImpl
     // =========================================================
     // MAP ENTITY TO RESPONSE DTO
     //
-    // IMPORTANT:
-    // Database stores:
+    // DATABASE:
     //     images/filename.webp
     //
-    // API response returns:
+    // API:
     //     Temporary S3 presigned URL
     //
-    // The URL is valid for 10 minutes.
+    // URL VALIDITY:
+    //     10 minutes
     // =========================================================
 
     private MaintenanceRequestResponse mapToResponse(
@@ -1159,12 +1408,6 @@ public class MaintenanceRequestServiceImpl
 
         // -----------------------------------------------------
         // S3 IMAGE
-        //
-        // Database value:
-        // images/filename.webp
-        //
-        // Response value:
-        // presigned HTTPS URL
         // -----------------------------------------------------
 
         if (request.getImageUrl() != null
@@ -1197,4 +1440,3 @@ public class MaintenanceRequestServiceImpl
         return response;
     }
 }
-

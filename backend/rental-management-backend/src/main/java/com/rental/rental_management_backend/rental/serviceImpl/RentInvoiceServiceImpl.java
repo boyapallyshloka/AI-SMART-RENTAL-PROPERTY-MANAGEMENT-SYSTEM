@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.rental.serviceImpl;
 
 import java.math.BigDecimal;
@@ -11,6 +12,9 @@ import org.springframework.stereotype.Service;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.notification.enums.NotificationPriority;
+import com.rental.rental_management_backend.notification.enums.NotificationType;
+import com.rental.rental_management_backend.notification.service.NotificationService;
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
 import com.rental.rental_management_backend.payment.repository.PaymentRepository;
 import com.rental.rental_management_backend.rental.dto.RentInvoiceRequest;
@@ -26,6 +30,8 @@ import com.rental.rental_management_backend.rental.service.RentInvoiceService;
 import com.rental.rental_management_backend.s3.service.S3Service;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
+
+import org.springframework.stereotype.Service;
 
 @Service
 public class RentInvoiceServiceImpl implements RentInvoiceService {
@@ -44,14 +50,25 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
     private final S3Service s3Service;
 
+    private final NotificationService notificationService;
+
     public RentInvoiceServiceImpl(
+
             RentInvoiceRepository rentInvoiceRepository,
+
             RentalAgreementRepository rentalAgreementRepository,
+
             UserRepository userRepository,
+
             RentInvoicePdfService rentInvoicePdfService,
+
             TenantRepository tenantRepository,
+
             PaymentRepository paymentRepository,
-            S3Service s3Service) {
+
+            S3Service s3Service,
+
+            NotificationService notificationService) {
 
         this.rentInvoiceRepository =
                 rentInvoiceRepository;
@@ -73,6 +90,9 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
         this.s3Service =
                 s3Service;
+
+        this.notificationService =
+                notificationService;
     }
 
     // =========================================================
@@ -296,11 +316,70 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
                 );
 
         // -----------------------------------------------------
-        // 16. Return response
+        // 16. Notify tenant
+        // -----------------------------------------------------
+
+        notifyTenantAboutNewInvoice(
+                invoice
+        );
+
+        // -----------------------------------------------------
+        // 17. Return response
         // -----------------------------------------------------
 
         return mapToResponse(
                 invoice
+        );
+    }
+
+    // =========================================================
+    // NOTIFY TENANT ABOUT NEW INVOICE
+    // =========================================================
+
+    private void notifyTenantAboutNewInvoice(
+            RentInvoice invoice) {
+
+        if (invoice == null
+                || invoice.getTenantId() == null) {
+
+            return;
+        }
+
+        Tenant tenant =
+                tenantRepository
+                        .findById(
+                                invoice.getTenantId()
+                        )
+                        .orElse(null);
+
+        if (tenant == null
+                || tenant.getUser() == null
+                || tenant.getUser().getId() == null) {
+
+            return;
+        }
+
+        Long tenantUserId =
+                tenant.getUser().getId();
+
+        String message =
+                "Your rent invoice "
+                        + invoice.getInvoiceNumber()
+                        + " has been generated. "
+                        + "Amount: ₹"
+                        + invoice.getTotalAmount()
+                        + ". Due date: "
+                        + invoice.getDueDate()
+                        + ".";
+
+        notificationService.notifyUser(
+                tenantUserId,
+                NotificationType.RENT_DUE,
+                NotificationPriority.HIGH,
+                "Rent Invoice Generated",
+                message,
+                invoice.getInvoiceId(),
+                "RENT_INVOICE"
         );
     }
 
@@ -631,7 +710,8 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
                  */
                 response.setInvoiceDocument(
                         s3Service.generatePresignedUrl(
-                                documentKey)
+                                documentKey
+                        )
                 );
             }
 
@@ -657,3 +737,4 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         return response;
     }
 }
+
