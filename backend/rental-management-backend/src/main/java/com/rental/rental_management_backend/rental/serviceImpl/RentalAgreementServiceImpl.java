@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.notification.enums.NotificationPriority;
+import com.rental.rental_management_backend.notification.enums.NotificationType;
+import com.rental.rental_management_backend.notification.service.NotificationService;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.enums.UnitStatus;
 import com.rental.rental_management_backend.rental.dto.RentalAgreementRequest;
@@ -28,8 +31,7 @@ import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
-public class RentalAgreementServiceImpl
-        implements RentalAgreementService {
+public class RentalAgreementServiceImpl implements RentalAgreementService {
 
     private final RentalAgreementRepository rentalAgreementRepository;
 
@@ -41,12 +43,22 @@ public class RentalAgreementServiceImpl
 
     private final S3Service s3Service;
 
+    /*
+     * Notification service
+     *
+     * Used to:
+     * 1. Save notification in database
+     * 2. Send notification through SSE if tenant is connected
+     */
+    private final NotificationService notificationService;
+
     public RentalAgreementServiceImpl(
             RentalAgreementRepository rentalAgreementRepository,
             RentalApplicationRepository rentalApplicationRepository,
             UserRepository userRepository,
             RentalAgreementPdfService rentalAgreementPdfService,
-            S3Service s3Service) {
+            S3Service s3Service,
+            NotificationService notificationService) {
 
         this.rentalAgreementRepository =
                 rentalAgreementRepository;
@@ -62,6 +74,9 @@ public class RentalAgreementServiceImpl
 
         this.s3Service =
                 s3Service;
+
+        this.notificationService =
+                notificationService;
     }
 
     // =========================================================
@@ -74,13 +89,11 @@ public class RentalAgreementServiceImpl
             String email) {
 
         if (request == null) {
-
             throw new IllegalArgumentException(
                     "Rental agreement request is required");
         }
 
         if (request.getApplicationId() == null) {
-
             throw new IllegalArgumentException(
                     "Application ID is required");
         }
@@ -133,13 +146,11 @@ public class RentalAgreementServiceImpl
 
         // Application must contain tenant and unit.
         if (application.getTenant() == null) {
-
             throw new IllegalStateException(
                     "Rental application does not have a tenant");
         }
 
         if (application.getUnit() == null) {
-
             throw new IllegalStateException(
                     "Rental application does not have a unit");
         }
@@ -420,13 +431,20 @@ public class RentalAgreementServiceImpl
         AgreementStatus currentStatus =
                 agreement.getStatus();
 
+        /*
+         * If the requested status is already the current status,
+         * do not send another notification.
+         */
         if (currentStatus == status) {
 
             return mapToResponse(
                     agreement);
         }
 
+        // =====================================================
         // DRAFT -> ACTIVE
+        // =====================================================
+
         if (status == AgreementStatus.ACTIVE) {
 
             validateActivation(
@@ -439,7 +457,10 @@ public class RentalAgreementServiceImpl
                     agreement.getUnit());
         }
 
+        // =====================================================
         // ACTIVE -> EXPIRED
+        // =====================================================
+
         else if (status == AgreementStatus.EXPIRED) {
 
             if (currentStatus != AgreementStatus.ACTIVE) {
@@ -468,7 +489,10 @@ public class RentalAgreementServiceImpl
                     agreement.getUnit());
         }
 
+        // =====================================================
         // ACTIVE -> TERMINATED
+        // =====================================================
+
         else if (status == AgreementStatus.TERMINATED) {
 
             if (currentStatus != AgreementStatus.ACTIVE) {
@@ -490,7 +514,10 @@ public class RentalAgreementServiceImpl
                     agreement.getUnit());
         }
 
+        // =====================================================
         // DRAFT
+        // =====================================================
+
         else if (status == AgreementStatus.DRAFT) {
 
             if (currentStatus == AgreementStatus.ACTIVE) {
@@ -503,9 +530,20 @@ public class RentalAgreementServiceImpl
                     AgreementStatus.DRAFT);
         }
 
+        // =====================================================
+        // SAVE AGREEMENT
+        // =====================================================
+
         RentalAgreement updatedAgreement =
                 rentalAgreementRepository.save(
                         agreement);
+
+        // =====================================================
+        // SEND NOTIFICATION
+        // =====================================================
+
+        sendAgreementStatusNotification(
+                updatedAgreement);
 
         return mapToResponse(
                 updatedAgreement);
@@ -561,6 +599,10 @@ public class RentalAgreementServiceImpl
         agreement.setMoveOutDate(
                 moveOutDate);
 
+        /*
+         * If an ACTIVE agreement receives a move-out date,
+         * automatically terminate the agreement.
+         */
         if (agreement.getStatus()
                 == AgreementStatus.ACTIVE) {
 
@@ -575,8 +617,103 @@ public class RentalAgreementServiceImpl
                 rentalAgreementRepository.save(
                         agreement);
 
+        // =====================================================
+        // SEND TERMINATION NOTIFICATION
+        // =====================================================
+
+        sendAgreementStatusNotification(
+                updatedAgreement);
+
         return mapToResponse(
                 updatedAgreement);
+    }
+
+    // =========================================================
+    // SEND AGREEMENT STATUS NOTIFICATION
+    // =========================================================
+
+    private void sendAgreementStatusNotification(
+            RentalAgreement agreement) {
+
+        /*
+         * Safety checks.
+         *
+         * If tenant/user/status information is missing,
+         * simply skip notification instead of breaking
+         * the agreement operation.
+         */
+        if (agreement == null
+                || agreement.getTenant() == null
+                || agreement.getTenant().getUser() == null
+                || agreement.getTenant().getUser().getId() == null
+                || agreement.getStatus() == null) {
+
+            return;
+        }
+
+        Long tenantUserId =
+                agreement
+                        .getTenant()
+                        .getUser()
+                        .getId();
+
+        Long agreementId =
+                agreement.getAgreementId();
+
+        // =====================================================
+        // ACTIVE
+        // =====================================================
+
+        if (agreement.getStatus()
+                == AgreementStatus.ACTIVE) {
+
+            notificationService.notifyUser(
+                    tenantUserId,
+                    NotificationType.AGREEMENT_ACTIVE,
+                    NotificationPriority.HIGH,
+                    "Rental Agreement Activated",
+                    "Your rental agreement has been activated successfully.",
+                    agreementId,
+                    "RENTAL_AGREEMENT");
+
+            return;
+        }
+
+        // =====================================================
+        // EXPIRED
+        // =====================================================
+
+        if (agreement.getStatus()
+                == AgreementStatus.EXPIRED) {
+
+            notificationService.notifyUser(
+                    tenantUserId,
+                    NotificationType.AGREEMENT_EXPIRED,
+                    NotificationPriority.HIGH,
+                    "Rental Agreement Expired",
+                    "Your rental agreement has expired.",
+                    agreementId,
+                    "RENTAL_AGREEMENT");
+
+            return;
+        }
+
+        // =====================================================
+        // TERMINATED
+        // =====================================================
+
+        if (agreement.getStatus()
+                == AgreementStatus.TERMINATED) {
+
+            notificationService.notifyUser(
+                    tenantUserId,
+                    NotificationType.AGREEMENT_TERMINATED,
+                    NotificationPriority.HIGH,
+                    "Rental Agreement Terminated",
+                    "Your rental agreement has been terminated.",
+                    agreementId,
+                    "RENTAL_AGREEMENT");
+        }
     }
 
     // =========================================================
@@ -746,6 +883,7 @@ public class RentalAgreementServiceImpl
             return true;
         }
 
+        // Tenant can access only own agreement.
         if (user.getRole()
                 == RoleType.TENANT) {
 
@@ -777,6 +915,7 @@ public class RentalAgreementServiceImpl
                         .getBuilding()
                         .getProperty();
 
+        // Property owner can access only own properties.
         if (user.getRole()
                 == RoleType.PROPERTY_OWNER) {
 
@@ -787,6 +926,7 @@ public class RentalAgreementServiceImpl
                             .equals(user.getId());
         }
 
+        // Property manager can access only assigned properties.
         if (user.getRole()
                 == RoleType.PROPERTY_MANAGER) {
 
@@ -832,6 +972,7 @@ public class RentalAgreementServiceImpl
                         .getBuilding()
                         .getProperty();
 
+        // Property owner can access only own properties.
         if (user.getRole()
                 == RoleType.PROPERTY_OWNER) {
 
@@ -842,6 +983,7 @@ public class RentalAgreementServiceImpl
                             .equals(user.getId());
         }
 
+        // Property manager can access only assigned properties.
         if (user.getRole()
                 == RoleType.PROPERTY_MANAGER) {
 
@@ -968,6 +1110,7 @@ public class RentalAgreementServiceImpl
          *
          * API response returns a temporary presigned URL.
          */
+
         String documentKey =
                 agreement.getAgreementDocument();
 
@@ -980,6 +1123,7 @@ public class RentalAgreementServiceImpl
                  * Backward compatibility for old
                  * locally stored agreement records.
                  */
+
                 response.setAgreementDocument(
                         documentKey);
 
@@ -1025,7 +1169,6 @@ public class RentalAgreementServiceImpl
             String value) {
 
         if (value == null) {
-
             return null;
         }
 
@@ -1081,6 +1224,7 @@ public class RentalAgreementServiceImpl
          * Old local documents are not downloaded
          * through S3.
          */
+
         if (documentKey.startsWith("/uploads/")) {
 
             throw new EntityNotFoundException(

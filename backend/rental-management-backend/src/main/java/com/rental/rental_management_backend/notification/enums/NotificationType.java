@@ -3,21 +3,34 @@ package com.rental.rental_management_backend.notification.enums;
 public enum NotificationType {
 
     RENT_DUE,
+
     RENT_OVERDUE,
 
     PAYMENT_SUCCESS,
+
     PAYMENT_FAILED,
 
     NEW_APPLICATION,
+
     APPLICATION_APPROVED,
+
     APPLICATION_REJECTED,
 
     MAINTENANCE_CREATED,
+
     MAINTENANCE_ASSIGNED,
+
     MAINTENANCE_STATUS_UPDATED,
+
     MAINTENANCE_COMPLETED,
 
     AGREEMENT_EXPIRING,
+
+    AGREEMENT_ACTIVE,
+
+    AGREEMENT_EXPIRED,
+
+    AGREEMENT_TERMINATED,
 
     AI_ALERT
 }
