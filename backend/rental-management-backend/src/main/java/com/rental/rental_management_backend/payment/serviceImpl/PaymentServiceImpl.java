@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.payment.serviceImpl;
 
 import java.math.BigDecimal;
@@ -16,11 +17,9 @@ import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
 
-
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
-
 
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
@@ -32,6 +31,7 @@ import com.rental.rental_management_backend.payment.enums.PaymentMethod;
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
 import com.rental.rental_management_backend.payment.repository.PaymentRepository;
 import com.rental.rental_management_backend.payment.service.PaymentService;
+
 import com.rental.rental_management_backend.rental.entity.RentInvoice;
 import com.rental.rental_management_backend.rental.enums.InvoiceStatus;
 import com.rental.rental_management_backend.rental.repository.RentInvoiceRepository;
@@ -45,17 +45,32 @@ import com.rental.rental_management_backend.property.repository.UnitRepository;
 
 import com.rental.rental_management_backend.receipt.service.ReceiptService;
 
+// Notification imports
+import com.rental.rental_management_backend.notification.enums.NotificationPriority;
+import com.rental.rental_management_backend.notification.enums.NotificationType;
+import com.rental.rental_management_backend.notification.service.NotificationService;
+
+
 @Service
 @Transactional
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
+
     private final RentInvoiceRepository rentInvoiceRepository;
+
     private final UserRepository userRepository;
+
     private final TenantRepository tenantRepository;
+
     private final UnitRepository unitRepository;
+
     private final ReceiptService receiptService;
+
     private final RazorpayClient razorpayClient;
+
+    // Notification service
+    private final NotificationService notificationService;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -63,23 +78,42 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${razorpay.key.secret}")
     private String razorpayKeySecret;
 
+
     public PaymentServiceImpl(
+
             PaymentRepository paymentRepository,
+
             RentInvoiceRepository rentInvoiceRepository,
+
             UserRepository userRepository,
+
             TenantRepository tenantRepository,
+
             UnitRepository unitRepository,
+
             ReceiptService receiptService,
-            RazorpayClient razorpayClient) {
+
+            RazorpayClient razorpayClient,
+
+            NotificationService notificationService) {
 
         this.paymentRepository = paymentRepository;
+
         this.rentInvoiceRepository = rentInvoiceRepository;
+
         this.userRepository = userRepository;
+
         this.tenantRepository = tenantRepository;
+
         this.unitRepository = unitRepository;
+
         this.receiptService = receiptService;
+
         this.razorpayClient = razorpayClient;
+
+        this.notificationService = notificationService;
     }
+
 
     // ============================================================
     // EXISTING PAYMENT CREATION
@@ -190,6 +224,7 @@ public class PaymentServiceImpl implements PaymentService {
         return mapToResponse(savedPayment);
     }
 
+
     // ============================================================
     // CREATE RAZORPAY ORDER
     // ============================================================
@@ -282,8 +317,6 @@ public class PaymentServiceImpl implements PaymentService {
 
         // --------------------------------------------------------
         // Convert INR to paise
-        // Example:
-        // ₹25,000.00 -> 2500000 paise
         // --------------------------------------------------------
 
         long amountInPaise =
@@ -419,6 +452,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+
     // ============================================================
     // VERIFY RAZORPAY PAYMENT
     // ============================================================
@@ -479,8 +513,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         // --------------------------------------------------------
-        // Idempotency:
-        // If already SUCCESS, simply return it.
+        // Idempotency
         // --------------------------------------------------------
 
         if (payment.getPaymentStatus()
@@ -493,11 +526,6 @@ public class PaymentServiceImpl implements PaymentService {
 
             // ----------------------------------------------------
             // Verify Razorpay signature
-            //
-            // HMAC data:
-            // order_id + "|" + payment_id
-            //
-            // Razorpay SDK performs the verification.
             // ----------------------------------------------------
 
             JSONObject verificationData =
@@ -530,6 +558,14 @@ public class PaymentServiceImpl implements PaymentService {
 
                 paymentRepository.save(payment);
 
+                // ====================================================
+                // NOTIFICATION: PAYMENT FAILED
+                // ====================================================
+
+                notifyPaymentFailed(
+                        payment,
+                        "Payment verification failed because the Razorpay signature is invalid.");
+
                 throw new RuntimeException(
                         "Invalid Razorpay payment signature");
             }
@@ -543,7 +579,7 @@ public class PaymentServiceImpl implements PaymentService {
                             request.getRazorpayPaymentId());
 
             // ----------------------------------------------------
-            // Get actual payment method from Razorpay
+            // Get actual payment method
             // ----------------------------------------------------
 
             String razorpayMethod =
@@ -554,27 +590,37 @@ public class PaymentServiceImpl implements PaymentService {
                 switch (razorpayMethod.toLowerCase()) {
 
                     case "upi":
+
                         payment.setPaymentMethod(
                                 PaymentMethod.UPI);
+
                         break;
 
                     case "card":
+
                         payment.setPaymentMethod(
                                 PaymentMethod.CARD);
+
                         break;
 
                     case "netbanking":
+
                         payment.setPaymentMethod(
                                 PaymentMethod.NET_BANKING);
+
                         break;
 
                     case "wallet":
+
                         payment.setPaymentMethod(
                                 PaymentMethod.WALLET);
+
                         break;
 
                     default:
+
                         payment.setPaymentMethod(null);
+
                         break;
                 }
             }
@@ -653,8 +699,6 @@ public class PaymentServiceImpl implements PaymentService {
 
             // ----------------------------------------------------
             // Update RentInvoice
-            //
-            // SUCCESS payments are recalculated.
             // ----------------------------------------------------
 
             updateInvoiceStatus(
@@ -662,17 +706,37 @@ public class PaymentServiceImpl implements PaymentService {
 
             // ----------------------------------------------------
             // Create Receipt
-            //
-            // Receipt is created only after the payment
-            // has been successfully verified and saved.
             // ----------------------------------------------------
 
             receiptService.createReceipt(
                     payment.getPaymentId());
 
+            // ====================================================
+            // NOTIFICATION: PAYMENT SUCCESS
+            // ====================================================
+
+            notifyPaymentSuccess(payment);
+
             return mapToResponse(payment);
 
         } catch (RazorpayException e) {
+
+            /*
+             * Razorpay communication failed.
+             * Mark payment as FAILED and notify tenant.
+             */
+
+            payment.setPaymentStatus(
+                    PaymentStatus.FAILED);
+
+            payment.setUpdatedAt(
+                    LocalDateTime.now());
+
+            paymentRepository.save(payment);
+
+            notifyPaymentFailed(
+                    payment,
+                    "Payment verification failed because Razorpay could not be contacted.");
 
             throw new RuntimeException(
                     "Failed to verify Razorpay payment: "
@@ -680,6 +744,82 @@ public class PaymentServiceImpl implements PaymentService {
                     e);
         }
     }
+
+
+    // ============================================================
+    // NOTIFICATION: PAYMENT SUCCESS
+    // ============================================================
+
+    private void notifyPaymentSuccess(
+            Payment payment) {
+
+        if (payment == null ||
+                payment.getTenantId() == null) {
+
+            return;
+        }
+
+        Tenant tenant = tenantRepository
+                .findById(payment.getTenantId())
+                .orElse(null);
+
+        if (tenant == null ||
+                tenant.getUser() == null ||
+                tenant.getUser().getId() == null) {
+
+            return;
+        }
+
+        notificationService.notifyUser(
+                tenant.getUser().getId(),
+                NotificationType.PAYMENT_SUCCESS,
+                NotificationPriority.HIGH,
+                "Payment Successful",
+                "Your rent payment of ₹"
+                        + payment.getAmount()
+                        + " was successful.",
+                payment.getPaymentId(),
+                "PAYMENT"
+        );
+    }
+
+
+    // ============================================================
+    // NOTIFICATION: PAYMENT FAILED
+    // ============================================================
+
+    private void notifyPaymentFailed(
+            Payment payment,
+            String reason) {
+
+        if (payment == null ||
+                payment.getTenantId() == null) {
+
+            return;
+        }
+
+        Tenant tenant = tenantRepository
+                .findById(payment.getTenantId())
+                .orElse(null);
+
+        if (tenant == null ||
+                tenant.getUser() == null ||
+                tenant.getUser().getId() == null) {
+
+            return;
+        }
+
+        notificationService.notifyUser(
+                tenant.getUser().getId(),
+                NotificationType.PAYMENT_FAILED,
+                NotificationPriority.HIGH,
+                "Payment Failed",
+                reason,
+                payment.getPaymentId(),
+                "PAYMENT"
+        );
+    }
+
 
     // ============================================================
     // GET PAYMENT BY ID
@@ -706,6 +846,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         return mapToResponse(payment);
     }
+
 
     // ============================================================
     // GET PAYMENTS BY TENANT
@@ -786,6 +927,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
+
     // ============================================================
     // GET PAYMENTS BY INVOICE
     // ============================================================
@@ -816,6 +958,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
+
     // ============================================================
     // GET LOGGED-IN USER
     // ============================================================
@@ -830,6 +973,7 @@ public class PaymentServiceImpl implements PaymentService {
                                 "Authenticated user not found"));
     }
 
+
     // ============================================================
     // PAYMENT ACCESS VALIDATION
     // ============================================================
@@ -842,6 +986,7 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.getInvoice(),
                 user);
     }
+
 
     // ============================================================
     // INVOICE ACCESS VALIDATION
@@ -856,7 +1001,6 @@ public class PaymentServiceImpl implements PaymentService {
         // --------------------------------------------------------
 
         if (user.getRole() == RoleType.SUPER_ADMIN) {
-
             return;
         }
 
@@ -906,9 +1050,9 @@ public class PaymentServiceImpl implements PaymentService {
                 RoleType.PROPERTY_OWNER) {
 
             if (property.getOwner() == null ||
-                    property.getOwner()
+                    !property.getOwner()
                             .getId()
-                            .equals(user.getId()) == false) {
+                            .equals(user.getId())) {
 
                 throw new RuntimeException(
                         "You are not authorized to access this invoice");
@@ -943,6 +1087,7 @@ public class PaymentServiceImpl implements PaymentService {
                 "You are not authorized to access this invoice");
     }
 
+
     // ============================================================
     // GET TENANT ID
     // ============================================================
@@ -958,6 +1103,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         return tenant.getTenantId();
     }
+
 
     // ============================================================
     // CALCULATE SUCCESSFULLY PAID AMOUNT
@@ -977,6 +1123,7 @@ public class PaymentServiceImpl implements PaymentService {
                         BigDecimal.ZERO,
                         BigDecimal::add);
     }
+
 
     // ============================================================
     // UPDATE INVOICE STATUS
@@ -1012,6 +1159,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         rentInvoiceRepository.save(invoice);
     }
+
 
     // ============================================================
     // MAP ENTITY → RESPONSE

@@ -221,12 +221,23 @@ public class SecurityConfig {
                              "SUPER_ADMIN",
                              "PROPERTY_OWNER",
                              "PROPERTY_MANAGER")
+                     
+                     
+                  // =================================================
+                  // NOTIFICATION MODULE
+                  // =================================================
+
+                  .requestMatchers(
+                          "/api/notifications/**")
+                  .authenticated()
 
                         // -------------------------------------------------
                         // EVERYTHING ELSE
                         // -------------------------------------------------
 
                         .anyRequest().authenticated())
+                
+        
 
                 // =================================================
                 // JWT FILTER

@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.rental.serviceImpl;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
+
+import com.rental.rental_management_backend.notification.enums.NotificationPriority;
+import com.rental.rental_management_backend.notification.enums.NotificationType;
+import com.rental.rental_management_backend.notification.service.NotificationService;
+
 import com.rental.rental_management_backend.property.entity.Building;
 import com.rental.rental_management_backend.property.entity.Floor;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -19,6 +25,7 @@ import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.enums.UnitStatus;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
+
 import com.rental.rental_management_backend.rental.dto.RentalApplicationCreateRequest;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationResponse;
 import com.rental.rental_management_backend.rental.dto.RentalApplicationReviewRequest;
@@ -26,6 +33,7 @@ import com.rental.rental_management_backend.rental.entity.RentalApplication;
 import com.rental.rental_management_backend.rental.enums.RentalApplicationStatus;
 import com.rental.rental_management_backend.rental.repository.RentalApplicationRepository;
 import com.rental.rental_management_backend.rental.service.RentalApplicationService;
+
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 
@@ -44,12 +52,15 @@ public class RentalApplicationServiceImpl
 
     private final PropertyRepository propertyRepository;
 
+    private final NotificationService notificationService;
+
     public RentalApplicationServiceImpl(
             RentalApplicationRepository rentalApplicationRepository,
             TenantRepository tenantRepository,
             UserRepository userRepository,
             UnitRepository unitRepository,
-            PropertyRepository propertyRepository) {
+            PropertyRepository propertyRepository,
+            NotificationService notificationService) {
 
         this.rentalApplicationRepository =
                 rentalApplicationRepository;
@@ -65,6 +76,9 @@ public class RentalApplicationServiceImpl
 
         this.propertyRepository =
                 propertyRepository;
+
+        this.notificationService =
+                notificationService;
     }
 
     // ============================================================
@@ -144,9 +158,9 @@ public class RentalApplicationServiceImpl
 
         application.setPreferredMoveInDate(
                 request.getPreferredMoveInDate());
+
         application.setPreferredLeaseDurationMonths(
-                request.getPreferredLeaseDurationMonths()
-        );
+                request.getPreferredLeaseDurationMonths());
 
         application.setMessage(
                 cleanString(request.getMessage()));
@@ -156,6 +170,18 @@ public class RentalApplicationServiceImpl
 
         RentalApplication saved =
                 rentalApplicationRepository.save(application);
+
+        // --------------------------------------------------------
+        // NOTIFY PROPERTY OWNER
+        // --------------------------------------------------------
+
+        notifyOwnerAboutNewApplication(saved);
+
+        // --------------------------------------------------------
+        // NOTIFY PROPERTY MANAGER
+        // --------------------------------------------------------
+
+        notifyManagerAboutNewApplication(saved);
 
         return mapToResponse(saved);
     }
@@ -611,6 +637,13 @@ public class RentalApplicationServiceImpl
                 rentalApplicationRepository
                         .save(application);
 
+        // --------------------------------------------------------
+        // NOTIFY TENANT ABOUT APPROVAL / REJECTION
+        // --------------------------------------------------------
+
+        notifyTenantAboutApplicationReview(
+                updated);
+
         return mapToResponse(updated);
     }
 
@@ -713,9 +746,6 @@ public class RentalApplicationServiceImpl
 
         // --------------------------------------------------------
         // FIND PROPERTY FIRST
-        //
-        // This is important because a property can exist even
-        // when it has no rental applications yet.
         // --------------------------------------------------------
 
         Property property =
@@ -803,6 +833,169 @@ public class RentalApplicationServiceImpl
         throw new IllegalArgumentException(
                 "You are not authorized to view "
                         + "applications for this property");
+    }
+
+    // ============================================================
+    // NOTIFY PROPERTY OWNER ABOUT NEW APPLICATION
+    // ============================================================
+
+    private void notifyOwnerAboutNewApplication(
+            RentalApplication application) {
+
+        if (application == null
+                || application.getUnit() == null) {
+
+            return;
+        }
+
+        Property property =
+                getPropertyFromApplication(application);
+
+        if (property == null
+                || property.getOwner() == null
+                || property.getOwner().getId() == null) {
+
+            return;
+        }
+
+        notificationService.notifyUser(
+                property.getOwner().getId(),
+                NotificationType.NEW_APPLICATION,
+                NotificationPriority.MEDIUM,
+                "New Rental Application",
+                "A new rental application has been submitted for your property.",
+                application.getApplicationId(),
+                "RENTAL_APPLICATION"
+        );
+    }
+
+    // ============================================================
+    // NOTIFY PROPERTY MANAGER ABOUT NEW APPLICATION
+    // ============================================================
+
+    private void notifyManagerAboutNewApplication(
+            RentalApplication application) {
+
+        if (application == null
+                || application.getUnit() == null) {
+
+            return;
+        }
+
+        Property property =
+                getPropertyFromApplication(application);
+
+        if (property == null
+                || property.getPropertyManager() == null
+                || property.getPropertyManager().getUser() == null
+                || property.getPropertyManager()
+                        .getUser()
+                        .getId() == null) {
+
+            return;
+        }
+
+        Long managerUserId =
+                property.getPropertyManager()
+                        .getUser()
+                        .getId();
+
+        // --------------------------------------------------------
+        // AVOID DUPLICATE NOTIFICATION
+        // --------------------------------------------------------
+
+        if (property.getOwner() != null
+                && property.getOwner().getId() != null
+                && property.getOwner()
+                        .getId()
+                        .equals(managerUserId)) {
+
+            return;
+        }
+
+        notificationService.notifyUser(
+                managerUserId,
+                NotificationType.NEW_APPLICATION,
+                NotificationPriority.MEDIUM,
+                "New Rental Application",
+                "A new rental application has been submitted for a property assigned to you.",
+                application.getApplicationId(),
+                "RENTAL_APPLICATION"
+        );
+    }
+
+    // ============================================================
+    // NOTIFY TENANT ABOUT APPLICATION REVIEW
+    // ============================================================
+
+    private void notifyTenantAboutApplicationReview(
+            RentalApplication application) {
+
+        if (application == null
+                || application.getTenant() == null
+                || application.getTenant().getUser() == null
+                || application.getTenant()
+                        .getUser()
+                        .getId() == null) {
+
+            return;
+        }
+
+        Long tenantUserId =
+                application.getTenant()
+                        .getUser()
+                        .getId();
+
+        // --------------------------------------------------------
+        // APPLICATION APPROVED
+        // --------------------------------------------------------
+
+        if (application.getStatus()
+                == RentalApplicationStatus.APPROVED) {
+
+            notificationService.notifyUser(
+                    tenantUserId,
+                    NotificationType.APPLICATION_APPROVED,
+                    NotificationPriority.HIGH,
+                    "Rental Application Approved",
+                    "Your rental application has been approved.",
+                    application.getApplicationId(),
+                    "RENTAL_APPLICATION"
+            );
+        }
+
+        // --------------------------------------------------------
+        // APPLICATION REJECTED
+        // --------------------------------------------------------
+
+        else if (application.getStatus()
+                == RentalApplicationStatus.REJECTED) {
+
+            String rejectionReason =
+                    application.getRejectionReason();
+
+            String message =
+                    "Your rental application has been rejected.";
+
+            if (rejectionReason != null
+                    && !rejectionReason.isBlank()) {
+
+                message =
+                        "Your rental application has been rejected. "
+                                + "Reason: "
+                                + rejectionReason;
+            }
+
+            notificationService.notifyUser(
+                    tenantUserId,
+                    NotificationType.APPLICATION_REJECTED,
+                    NotificationPriority.HIGH,
+                    "Rental Application Rejected",
+                    message,
+                    application.getApplicationId(),
+                    "RENTAL_APPLICATION"
+            );
+        }
     }
 
     // ============================================================
@@ -1104,9 +1297,9 @@ public class RentalApplicationServiceImpl
 
         response.setPreferredMoveInDate(
                 application.getPreferredMoveInDate());
+
         response.setPreferredLeaseDurationMonths(
-                application.getPreferredLeaseDurationMonths()
-        );
+                application.getPreferredLeaseDurationMonths());
 
         response.setMessage(
                 application.getMessage());
