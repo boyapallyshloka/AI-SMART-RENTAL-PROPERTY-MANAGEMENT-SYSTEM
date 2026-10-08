@@ -9,6 +9,8 @@ import org.springframework.web.client.RestClient;
 
 import com.rental.rental_management_backend.ai.dto.RentPredictionRequestDTO;
 
+
+
 @Component
 public class FastApiRentPredictionClient {
 
@@ -47,8 +49,12 @@ public class FastApiRentPredictionClient {
 
         } catch (Exception e) {
 
+            e.printStackTrace();
+
             throw new RuntimeException(
                     "Failed to communicate with FastAPI rent prediction service: "
+                            + e.getClass().getSimpleName()
+                            + " - "
                             + e.getMessage(),
                     e);
         }

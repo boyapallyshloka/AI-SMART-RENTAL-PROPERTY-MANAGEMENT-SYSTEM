@@ -40,9 +40,9 @@ export const MANAGER_MENU = [
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
-  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
   { id: 'inspections', label: 'Inspections', icon: <ShieldCheck className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
+  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
 ]
 
 const OWNER_MENU = [
@@ -52,9 +52,9 @@ const OWNER_MENU = [
   { id: 'agreements', label: 'Agreements', icon: <FileText className="w-4 h-4" /> },
   { id: 'payments', label: 'Payments', icon: <CreditCard className="w-4 h-4" /> },
   { id: 'maintenance', label: 'Maintenance', icon: <Wrench className="w-4 h-4" /> },
-  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ai-insights', label: 'AI Insights', icon: <Sparkles className="w-4 h-4 text-[#315A7D]" /> },
+  { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" /> },
 ]
 
 const TENANT_MENU = [

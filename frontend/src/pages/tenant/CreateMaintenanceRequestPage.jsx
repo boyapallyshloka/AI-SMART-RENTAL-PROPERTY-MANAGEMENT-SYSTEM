@@ -507,14 +507,15 @@ export default function CreateMaintenanceRequestPage() {
                     }}
                     className="w-full p-2.5 rounded-md bg-white border border-[#D9E0E6] text-sm font-medium text-[#243447] focus:outline-hidden focus:border-[#315A7D]"
                   >
-                    {properties.map((prop) => (
-                      <option
-                        key={prop.propertyId || prop.id}
-                        value={prop.propertyId || prop.id}
-                      >
-                        {prop.propertyName || prop.name} (ID: {prop.propertyId || prop.id})
-                      </option>
-                    ))}
+                    {properties.map((prop) => {
+                      const propId = prop.propertyId ?? prop.id
+                      const name = prop.propertyName || prop.name || 'Property'
+                      return (
+                        <option key={propId} value={propId}>
+                          {name} (Property ID: {propId})
+                        </option>
+                      )
+                    })}
                   </select>
                 ) : (
                   <div className="space-y-1">
@@ -528,7 +529,6 @@ export default function CreateMaintenanceRequestPage() {
                         }
                       }}
                       error={errors.propertyId}
-                      helperText={propertyName ? `${propertyName}` : 'Backend Property ID'}
                       required
                     />
                   </div>

@@ -16,6 +16,7 @@ ARTIFACT_DIR = BASE_DIR / "artifacts"
 
 MODEL_PATH = ARTIFACT_DIR / "model_pipeline.joblib"
 FEATURE_LIST_PATH = ARTIFACT_DIR / "feature_list.joblib"
+METADATA_PATH = ARTIFACT_DIR / "model_metadata.json"
 
 
 class M4Inference:

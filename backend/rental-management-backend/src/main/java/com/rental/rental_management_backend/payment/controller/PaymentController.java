@@ -7,6 +7,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import com.rental.rental_management_backend.ai.dto.M4PaymentRiskResponse;
+import com.rental.rental_management_backend.ai.service.M4PaymentRiskService;
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
 import com.rental.rental_management_backend.payment.dto.RazorpayOrderRequestDTO;
@@ -21,9 +23,14 @@ import jakarta.validation.Valid;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final M4PaymentRiskService m4PaymentRiskService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(
+            PaymentService paymentService,
+            M4PaymentRiskService m4PaymentRiskService) {
+
         this.paymentService = paymentService;
+        this.m4PaymentRiskService = m4PaymentRiskService;
     }
 
     // Existing payment creation
@@ -124,4 +131,24 @@ public class PaymentController {
                         invoiceId,
                         authentication.getName()));
     }
+    
+    @GetMapping("/payment-risk/{tenantId}")
+    @PreAuthorize("""
+        hasAnyRole(
+            'SUPER_ADMIN',
+            'PROPERTY_OWNER',
+            'PROPERTY_MANAGER'
+        )
+    """)
+    public ResponseEntity<M4PaymentRiskResponse> getPaymentRisk(
+            @PathVariable Long tenantId,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                m4PaymentRiskService.predictPaymentRisk(
+                        tenantId,
+                        authentication.getName()));
+    }
+    
+
 }

@@ -13,6 +13,11 @@ import {
   getPriorityBadgeClass,
 } from '../../api/maintenanceApi'
 import {
+  getPublicProperties,
+  getPublicPropertyDetails,
+} from '../../api/propertyApi'
+import { getMyApplications } from '../../api/applicationApi'
+import {
   Button,
   Input,
   Select,
@@ -45,6 +50,7 @@ export default function TenantMaintenancePage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [selectedTicket, setSelectedTicket] = useState(null)
+  const [propertyMap, setPropertyMap] = useState({})
   const [successMessage, setSuccessMessage] = useState(
     location.state?.successMessage || ''
   )
@@ -55,12 +61,98 @@ export default function TenantMaintenancePage() {
     setFetchError('')
 
     try {
-      const allBackendRequests = await getMaintenanceRequests()
-      if (Array.isArray(allBackendRequests)) {
+      const [maintRes, publicPropsRes, appsRes] = await Promise.allSettled([
+        getMaintenanceRequests(),
+        getPublicProperties(),
+        getMyApplications(),
+      ])
+
+      let allBackendRequests = []
+      if (maintRes.status === 'fulfilled') {
+        const val = maintRes.value
+        allBackendRequests = Array.isArray(val)
+          ? val
+          : Array.isArray(val?.data)
+          ? val.data
+          : []
         setRequests(allBackendRequests)
       } else {
+        const err = maintRes.reason
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          'Unable to load maintenance requests from the server.'
+        setFetchError(msg)
         setRequests([])
       }
+
+      // Build property ID -> Property Name mapping
+      const mapping = {}
+
+      if (publicPropsRes.status === 'fulfilled') {
+        const props = Array.isArray(publicPropsRes.value)
+          ? publicPropsRes.value
+          : Array.isArray(publicPropsRes.value?.data)
+          ? publicPropsRes.value.data
+          : []
+        props.forEach((p) => {
+          const pId = p.propertyId ?? p.id
+          const pName = p.propertyName ?? p.name ?? p.title
+          if (pId != null && pName) {
+            mapping[String(pId)] = pName
+            mapping[Number(pId)] = pName
+          }
+        })
+      }
+
+      if (appsRes.status === 'fulfilled') {
+        const apps = Array.isArray(appsRes.value)
+          ? appsRes.value
+          : Array.isArray(appsRes.value?.data)
+          ? appsRes.value.data
+          : []
+        apps.forEach((a) => {
+          const pId = a.propertyId
+          const pName = a.propertyName
+          if (pId != null && pName) {
+            mapping[String(pId)] = pName
+            mapping[Number(pId)] = pName
+          }
+        })
+      }
+
+      // If any request has a propertyId not yet resolved in mapping, fetch its public property details
+      const missingPropIds = [
+        ...new Set(
+          allBackendRequests
+            .map((r) => r.propertyId)
+            .filter((id) => id != null && !mapping[String(id)])
+        ),
+      ]
+
+      if (missingPropIds.length > 0) {
+        await Promise.allSettled(
+          missingPropIds.map(async (id) => {
+            try {
+              const detailsRes = await getPublicPropertyDetails(id)
+              const details = detailsRes?.data || detailsRes
+              const name =
+                details?.property?.propertyName ||
+                details?.property?.name ||
+                details?.propertyName ||
+                details?.name
+              if (name) {
+                mapping[String(id)] = name
+                mapping[Number(id)] = name
+              }
+            } catch (err) {
+              // Silently ignore
+            }
+          })
+        )
+      }
+
+      setPropertyMap(mapping)
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -76,6 +168,54 @@ export default function TenantMaintenancePage() {
   useEffect(() => {
     loadTenantRequests()
   }, [])
+
+  // If selectedTicket has a propertyId not yet in propertyMap, resolve it dynamically
+  useEffect(() => {
+    if (
+      selectedTicket?.propertyId &&
+      !propertyMap[String(selectedTicket.propertyId)]
+    ) {
+      const pId = selectedTicket.propertyId
+      getPublicPropertyDetails(pId)
+        .then((detailsRes) => {
+          const details = detailsRes?.data || detailsRes
+          const name =
+            details?.property?.propertyName ||
+            details?.property?.name ||
+            details?.propertyName ||
+            details?.name
+          if (name) {
+            setPropertyMap((prev) => ({
+              ...prev,
+              [String(pId)]: name,
+              [Number(pId)]: name,
+            }))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [selectedTicket, propertyMap])
+
+  const getPropertyDisplayName = (ticket) => {
+    if (!ticket) return ''
+    const pId = ticket.propertyId
+    const name =
+      (pId != null ? propertyMap[String(pId)] || propertyMap[Number(pId)] : null) ||
+      ticket.propertyName ||
+      ticket.property?.propertyName ||
+      ticket.property?.name
+
+    if (name && pId != null) {
+      return `${name} (ID: ${pId})`
+    }
+    if (name) {
+      return name
+    }
+    if (pId != null) {
+      return `(ID: ${pId})`
+    }
+    return '—'
+  }
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
@@ -99,12 +239,19 @@ export default function TenantMaintenancePage() {
     const ticketIdStr = String(req.requestId || req.id || req.ticketNumber || '').toLowerCase()
     const desc = (req.description || '').toLowerCase()
     const cat = (req.category || '').toLowerCase()
+    const propName = String(
+      propertyMap[String(req.propertyId)] ||
+      propertyMap[Number(req.propertyId)] ||
+      req.propertyName ||
+      ''
+    ).toLowerCase()
 
     const matchesSearch =
       query === '' ||
       ticketIdStr.includes(query) ||
       desc.includes(query) ||
-      cat.includes(query)
+      cat.includes(query) ||
+      propName.includes(query)
 
     const reqStatus = String(req.status || '').toUpperCase()
     const matchesStatus =
@@ -411,15 +558,19 @@ export default function TenantMaintenancePage() {
                   </div>
                 </div>
 
-                {selectedTicket.propertyId && (
+                {(selectedTicket.propertyId != null || selectedTicket.propertyName) && (
                   <div className="grid grid-cols-2 gap-4 text-xs pt-2 border-t border-[#D9E0E6]">
                     <div>
-                      <span className="text-[#5B6875] block">Property ID:</span>
-                      <strong className="text-[#243447]">#{selectedTicket.propertyId}</strong>
+                      <span className="text-[#5B6875] block">Property:</span>
+                      <strong className="text-[#243447]">
+                        {getPropertyDisplayName(selectedTicket)}
+                      </strong>
                     </div>
                     <div>
                       <span className="text-[#5B6875] block">Unit ID:</span>
-                      <strong className="text-[#243447]">#{selectedTicket.unitId}</strong>
+                      <strong className="text-[#243447]">
+                        {selectedTicket.unitId != null ? `#${selectedTicket.unitId}` : '—'}
+                      </strong>
                     </div>
                   </div>
                 )}

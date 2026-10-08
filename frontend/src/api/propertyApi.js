@@ -988,4 +988,123 @@ export const getPublicPropertyDetails = async (propertyId) => {
   return axiosClient.get(`/properties/public/${propertyId}`)
 }
 
+/**
+ * Enriches a list of mapped PropertyResponse objects with full backend details
+ * (address, images, units) using GET /api/properties/public/{propertyId}.
+ *
+ * @param {Array<Object>} rawProperties
+ * @returns {Promise<Array<Object>>}
+ */
+export const enrichPublicPropertiesWithDetails = async (rawProperties = []) => {
+  if (!Array.isArray(rawProperties) || rawProperties.length === 0) {
+    return []
+  }
+
+  const enrichedResults = await Promise.allSettled(
+    rawProperties.map(async (prop) => {
+      const propId = prop.propertyId ?? prop.id
+      if (!propId) {
+        return prop
+      }
+
+      // If it already has valid images and imageUrl, no need to re-fetch
+      if (
+        Array.isArray(prop.images) &&
+        prop.images.length > 0 &&
+        prop.imageUrl &&
+        typeof prop.imageUrl === 'string' &&
+        prop.imageUrl.trim() !== ''
+      ) {
+        return prop
+      }
+
+      try {
+        const detailsRes = await getPublicPropertyDetails(propId)
+        const details = detailsRes?.data || detailsRes
+        if (details) {
+          const rawImages =
+            Array.isArray(details.images) && details.images.length > 0
+              ? details.images
+              : Array.isArray(details.property?.images) &&
+                details.property.images.length > 0
+              ? details.property.images
+              : Array.isArray(prop.images) && prop.images.length > 0
+              ? prop.images
+              : []
+
+          const validImages = rawImages
+            .map((img) => {
+              if (typeof img === 'string') {
+                const trimmed = img.trim()
+                return trimmed
+                  ? { imageUrl: resolveImageUrl(trimmed), isPrimary: false }
+                  : null
+              }
+              if (img && typeof img === 'object' && img.imageUrl) {
+                return {
+                  ...img,
+                  imageUrl: resolveImageUrl(img.imageUrl),
+                  isPrimary: Boolean(img.isPrimary),
+                }
+              }
+              return null
+            })
+            .filter(Boolean)
+
+          const primaryImageObj =
+            validImages.find((img) => img.isPrimary) || validImages[0] || null
+          const resolvedImageUrl = primaryImageObj?.imageUrl || ''
+
+          const addr = details.address || prop.address || {}
+          const city = addr.city || prop.city || ''
+          const location = addr.addressLine1
+            ? `${addr.addressLine1}${city ? ', ' + city : ''}`
+            : city || prop.location || ''
+
+          return {
+            ...prop,
+            images: validImages,
+            imageUrl: resolvedImageUrl,
+            city: city,
+            location: location,
+            address: addr.addressLine1 || prop.address || '',
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to enrich public property #${propId} details:`, err)
+      }
+
+      return prop
+    })
+  )
+
+  return enrichedResults.map((res, index) =>
+    res.status === 'fulfilled' && res.value ? res.value : rawProperties[index]
+  )
+}
+
+/**
+ * GET /api/properties/public (enriched with images & addresses)
+ * Used by tenants to browse properties with real previews.
+ * Role: TENANT
+ * @returns {Promise<Array<Object>>} List of enriched Property objects
+ */
+export const getPublicPropertiesWithDetails = async () => {
+  const properties = await getPublicProperties()
+  return enrichPublicPropertiesWithDetails(properties)
+}
+
+/**
+ * GET /api/properties/public/search (enriched with images & addresses)
+ * Used by tenants to search available properties with real previews.
+ * Role: TENANT
+ * @param {Object} [filters={}]
+ * @returns {Promise<Array<Object>>} List of enriched Property objects
+ */
+export const searchPublicPropertiesWithDetails = async (filters = {}) => {
+  const properties = await searchPublicProperties(filters)
+  return enrichPublicPropertiesWithDetails(properties)
+}
+
+
 

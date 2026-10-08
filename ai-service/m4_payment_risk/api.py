@@ -110,7 +110,6 @@ class PaymentRiskResponse(BaseModel):
     risk_status: str
     model: str
     model_version: str = "M4-v1.0"
-    modelVersion: str = "M4-v1.0"
 
 
 class ErrorResponse(BaseModel):
@@ -180,7 +179,6 @@ def predict_payment_risk_endpoint(
         return PaymentRiskResponse(
             success=True,
             module="M4_PAYMENT_RISK",
-            modelVersion=result.get("model_version", "M4-v1.0"),
             **result,
         )
 
