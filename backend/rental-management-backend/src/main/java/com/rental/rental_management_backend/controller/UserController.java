@@ -25,6 +25,7 @@ import com.rental.rental_management_backend.User.dto.RegisterRequest;
 import com.rental.rental_management_backend.User.dto.ResetPasswordRequest;
 import com.rental.rental_management_backend.User.dto.UpdateUserRequest;
 import com.rental.rental_management_backend.User.dto.UserResponse;
+import com.rental.rental_management_backend.User.dto.VerifyEmailOtpRequest;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.service.UserService;
@@ -37,41 +38,51 @@ public class UserController {
 
     private final UserService userService;
 
-    public UserController(
-            UserService userService) {
-
+    public UserController(UserService userService) {
         this.userService = userService;
     }
 
-    // =========================================================
     // PUBLIC AUTHENTICATION
-    // =========================================================
 
     @PostMapping("/auth/register")
     public ResponseEntity<UserResponse> registerUser(
             @Valid @RequestBody RegisterRequest request) {
 
-        UserResponse response =
-                userService.registerUser(request);
+        UserResponse response = userService.registerUser(request);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/auth/verify-email-otp")
+    public ResponseEntity<String> verifyEmailOtp(
+            @Valid @RequestBody VerifyEmailOtpRequest request) {
+
+        userService.verifyEmailOtp(request.getEmail(), request.getOtp());
+
+        return ResponseEntity.ok(
+                "Email verified successfully. You can log in if your account is active."
+        );
+    }
+
+    @PostMapping("/auth/resend-email-otp")
+    public ResponseEntity<String> resendEmailOtp(
+            @RequestParam String email) {
+
+        userService.resendEmailOtp(email);
+
+        return ResponseEntity.ok(
+                "If the account is eligible, a verification OTP has been sent."
+        );
     }
 
     @PostMapping("/auth/login")
     public ResponseEntity<LoginResponse> loginUser(
             @Valid @RequestBody LoginRequest request) {
 
-        LoginResponse response =
-                userService.loginUser(request);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(userService.loginUser(request));
     }
 
-    // =========================================================
     // CHANGE PASSWORD
-    // =========================================================
 
     @PreAuthorize("isAuthenticated()")
     @PutMapping("/auth/change-password")
@@ -79,56 +90,38 @@ public class UserController {
             Authentication authentication,
             @Valid @RequestBody ChangePasswordRequest request) {
 
-        // Get logged-in user's email from JWT
         String email = authentication.getName();
+        UserResponse user = userService.getMyProfile(email);
 
-        // Find logged-in user
-        UserResponse user =
-                userService.getMyProfile(email);
-
-        // Change password
         userService.changePassword(
                 user.getId(),
                 request.getCurrentPassword(),
                 request.getNewPassword()
         );
 
-        return ResponseEntity.ok(
-                "Password changed successfully"
-        );
+        return ResponseEntity.ok("Password changed successfully");
     }
 
-    // =========================================================
     // SUPER ADMIN - USER MANAGEMENT
-    // =========================================================
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
-
-        return ResponseEntity.ok(
-                userService.getAllUsers()
-        );
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users/{id}")
     public ResponseEntity<UserResponse> getUserById(
             @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                userService.getUserById(id)
-        );
+        return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users/email")
     public ResponseEntity<UserResponse> getUserByEmail(
             @RequestParam String email) {
-
-        return ResponseEntity.ok(
-                userService.getUserByEmail(email)
-        );
+        return ResponseEntity.ok(userService.getUserByEmail(email));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -136,133 +129,88 @@ public class UserController {
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request) {
-
-        return ResponseEntity.ok(
-                userService.updateUser(
-                        id,
-                        request
-                )
-        );
+        return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @DeleteMapping("/users/{id}")
     public ResponseEntity<String> deleteUser(
             @PathVariable Long id) {
-
         userService.deleteUser(id);
-
-        return ResponseEntity.ok(
-                "User deleted successfully"
-        );
+        return ResponseEntity.ok("User deleted successfully");
     }
 
-    // =========================================================
     // USER FILTERING - SUPER ADMIN
-    // =========================================================
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users/role/{role}")
     public ResponseEntity<List<UserResponse>> getUsersByRole(
             @PathVariable RoleType role) {
-
-        return ResponseEntity.ok(
-                userService.getUsersByRole(role)
-        );
+        return ResponseEntity.ok(userService.getUsersByRole(role));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users/status/{status}")
     public ResponseEntity<List<UserResponse>> getUsersByStatus(
             @PathVariable UserStatus status) {
-
-        return ResponseEntity.ok(
-                userService.getUsersByStatus(status)
-        );
+        return ResponseEntity.ok(userService.getUsersByStatus(status));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/users/filter")
-    public ResponseEntity<List<UserResponse>>
-    getUsersByRoleAndStatus(
+    public ResponseEntity<List<UserResponse>> getUsersByRoleAndStatus(
             @RequestParam RoleType role,
             @RequestParam UserStatus status) {
-
         return ResponseEntity.ok(
-                userService.getUsersByRoleAndStatus(
-                        role,
-                        status
-                )
+                userService.getUsersByRoleAndStatus(role, status)
         );
     }
 
-    // =========================================================
     // USER STATUS - SUPER ADMIN
-    // =========================================================
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PutMapping("/users/{id}/status")
     public ResponseEntity<UserResponse> updateUserStatus(
             @PathVariable Long id,
             @RequestParam UserStatus status) {
-
-        return ResponseEntity.ok(
-                userService.updateUserStatus(
-                        id,
-                        status
-                )
-        );
+        return ResponseEntity.ok(userService.updateUserStatus(id, status));
     }
 
-    // =========================================================
     // MY PROFILE
-    // =========================================================
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/users/me")
     public ResponseEntity<UserResponse> getMyProfile(
             Authentication authentication) {
-
-        String email = authentication.getName();
-
         return ResponseEntity.ok(
-                userService.getMyProfile(email)
+                userService.getMyProfile(authentication.getName())
         );
     }
-    
- // =========================================================
- // FORGOT PASSWORD
- // =========================================================
 
- @PostMapping("/auth/forgot-password")
- public ResponseEntity<String> forgotPassword(
-         @Valid @RequestBody ForgotPasswordRequest request) {
+    // FORGOT PASSWORD
 
-     userService.forgotPassword(request.getEmail());
+    @PostMapping("/auth/forgot-password")
+    public ResponseEntity<String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
 
-     return ResponseEntity.ok(
-             "Password reset token generated successfully"
-     );
- }
- 
-//=========================================================
-//RESET PASSWORD
-//=========================================================
+        userService.forgotPassword(request.getEmail());
 
-@PostMapping("/auth/reset-password")
-public ResponseEntity<String> resetPassword(
-      @Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(
+                "Password reset token generated successfully"
+        );
+    }
 
-  userService.resetPassword(
-          request.getToken(),
-          request.getNewPassword()
-  );
+    // RESET PASSWORD
 
-  return ResponseEntity.ok(
-          "Password reset successfully"
-  );
+    @PostMapping("/auth/reset-password")
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        userService.resetPassword(
+                request.getToken(),
+                request.getNewPassword()
+        );
+
+        return ResponseEntity.ok("Password reset successfully");
+    }
 }
-
- 
-}
-

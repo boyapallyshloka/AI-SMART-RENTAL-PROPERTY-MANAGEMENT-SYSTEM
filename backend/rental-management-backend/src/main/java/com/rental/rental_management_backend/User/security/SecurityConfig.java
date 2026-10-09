@@ -104,12 +104,16 @@ public class SecurityConfig {
                         // PUBLIC AUTHENTICATION APIs
                         // -------------------------------------------------
 
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login",
-                                "/api/auth/forgot-password",
-                                "/api/auth/reset-password")
-                        .permitAll()
+
+                  .requestMatchers(
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
+        "/api/auth/verify-email-otp",
+        "/api/auth/resend-email-otp"
+         )
+        .permitAll()
 
                         // -------------------------------------------------
                         // SWAGGER + UPLOADED FILES

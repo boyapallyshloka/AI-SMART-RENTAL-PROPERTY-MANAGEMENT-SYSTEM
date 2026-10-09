@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.User.service;
 
 import java.util.List;
@@ -12,42 +13,31 @@ import com.rental.rental_management_backend.User.enums.UserStatus;
 
 public interface UserService {
 
-    // Authentication
-	// Authentication
+    void changePassword(
+            Long id,
+            String currentPassword,
+            String newPassword
+    );
 
-	
+    void forgotPassword(String email);
 
-	void changePassword(
-	        Long id,
-	        String currentPassword,
-	        String newPassword
-	);
-
-	void forgotPassword(String email);
-
-	void resetPassword(
-	        String token,
-	        String newPassword
-	);
+    void resetPassword(String token, String newPassword);
 
     UserResponse registerUser(RegisterRequest request);
 
     LoginResponse loginUser(LoginRequest request);
 
-    // User operations
+    void verifyEmailOtp(String email, String otp);
+
+    void resendEmailOtp(String email);
 
     UserResponse getUserById(Long id);
 
     UserResponse getUserByEmail(String email);
 
-    UserResponse updateUser(
-            Long id,
-            UpdateUserRequest request
-    );
+    UserResponse updateUser(Long id, UpdateUserRequest request);
 
     List<UserResponse> getAllUsers();
-
-    // Filter operations
 
     List<UserResponse> getUsersByRole(RoleType role);
 
@@ -58,15 +48,9 @@ public interface UserService {
             UserStatus status
     );
 
-    // Status
-
-    UserResponse updateUserStatus(
-            Long id,
-            UserStatus status
-    );
-
-    // Delete
+    UserResponse updateUserStatus(Long id, UserStatus status);
 
     void deleteUser(Long id);
+
     UserResponse getMyProfile(String email);
 }

@@ -22,67 +22,71 @@ import com.rental.rental_management_backend.property.enums.PropertyType;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyService;
-
+import com.rental.rental_management_backend.email.EmailService;
 @Service
 @Transactional
 public class PropertyServiceImpl implements PropertyService {
 
-    private final PropertyRepository propertyRepository;
+	private final PropertyRepository propertyRepository;
+	private final UserRepository userRepository;
+	private final PropertyManagerRepository propertyManagerRepository;
+	private final EmailService emailService;
 
-    private final UserRepository userRepository;
-    private final PropertyManagerRepository propertyManagerRepository;
+	public PropertyServiceImpl(
+	        PropertyRepository propertyRepository,
+	        UserRepository userRepository,
+	        PropertyManagerRepository propertyManagerRepository,
+	        EmailService emailService) {
 
-    public PropertyServiceImpl(
-            PropertyRepository propertyRepository,
-            UserRepository userRepository,
-            PropertyManagerRepository propertyManagerRepository) {
+	    this.propertyRepository = propertyRepository;
+	    this.userRepository = userRepository;
+	    this.propertyManagerRepository = propertyManagerRepository;
+	    this.emailService = emailService;
+	}
+	@Override
+	public PropertyResponse createProperty(PropertyRequest request) {
 
-        this.propertyRepository = propertyRepository;
-        this.userRepository = userRepository;
-        this.propertyManagerRepository = propertyManagerRepository;
-    }
+	    User owner = getLoggedInUser();
 
-    @Override 
-    public PropertyResponse createProperty(PropertyRequest request) {
+	    validateOwner(owner);
 
-        User owner = getLoggedInUser();
+	    Property property = new Property();
 
-        validateOwner(owner);
+	    property.setPropertyName(request.getPropertyName());
+	    property.setPropertyType(request.getPropertyType());
+	    property.setDescription(request.getDescription());
+	    property.setTotalArea(request.getTotalArea());
+	    property.setFurnishingStatus(request.getFurnishingStatus());
+	    property.setParkingAvailable(request.getParkingAvailable());
+	    property.setYearBuilt(request.getYearBuilt());
 
-        Property property = new Property();
+	    // Owner comes from the authenticated JWT user.
+	    property.setOwner(owner);
 
-        property.setPropertyName(request.getPropertyName());
+	    // Newly created properties start as DRAFT.
+	    property.setStatus(PropertyStatus.DRAFT);
 
-        property.setPropertyType(request.getPropertyType());
+	    Property savedProperty = propertyRepository.save(property);
 
-        property.setDescription(request.getDescription());
+	    // Notify the owner after saving the property.
+	    try {
+	        emailService.sendPropertyCreatedEmail(
+	                owner.getEmail(),
+	                savedProperty.getPropertyName()
+	        );
+	    } catch (org.springframework.mail.MailException ex) {
+	        // Email failure should not disrupt property creation.
+	        // Log the failure for troubleshooting.
+	        org.slf4j.LoggerFactory
+	                .getLogger(PropertyServiceImpl.class)
+	                .error(
+	                        "Property was created, but notification email could not be sent.",
+	                        ex
+	                );
+	    }
 
-        property.setTotalArea(request.getTotalArea());
-
-        property.setFurnishingStatus(request.getFurnishingStatus());
-
-        property.setParkingAvailable(request.getParkingAvailable());
-
-        property.setYearBuilt(request.getYearBuilt());
-
-        /*
-         * Owner is taken from the authenticated JWT user.
-         * Client cannot choose  ownerId.
-         */
-
-        property.setOwner(owner);
-
-        /*
-         * Every newly created property starts as DRAFT.
-         */
-
-        property.setStatus(PropertyStatus.DRAFT);
-
-        Property savedProperty =
-                propertyRepository.save(property);
-
-        return convertToResponse(savedProperty);
-    }
+	    return convertToResponse(savedProperty);
+	}
 
     @Override
     @Transactional(readOnly = true)
