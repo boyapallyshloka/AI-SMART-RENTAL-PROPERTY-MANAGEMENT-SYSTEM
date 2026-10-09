@@ -1,5 +1,5 @@
 from scout.intent import ScoutOperation, ScoutIntent, detect_intent
-from scout.m4_client import predict_payment_risk_for_tenant
+
 from M2_Property_Recommendation.service import generate_recommendations
 
 
