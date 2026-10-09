@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.notification.service;
 
 import java.util.List;
@@ -9,28 +10,53 @@ import com.rental.rental_management_backend.notification.enums.NotificationType;
 
 public interface NotificationService {
 
-    // Create notification
+    // =========================================================
+    // CREATE NOTIFICATION
+    // =========================================================
+
     NotificationResponse createNotification(
             NotificationCreateRequest request
     );
 
-    // Get notifications of logged-in user
+    // =========================================================
+    // GET NOTIFICATIONS OF LOGGED-IN USER
+    // =========================================================
+
     List<NotificationResponse> getMyNotifications();
 
-    // Get unread notifications of logged-in user
+    // =========================================================
+    // GET UNREAD NOTIFICATIONS OF LOGGED-IN USER
+    // =========================================================
+
     List<NotificationResponse> getMyUnreadNotifications();
 
-    // Get unread notification count
+    // =========================================================
+    // GET UNREAD NOTIFICATION COUNT
+    // =========================================================
+
     long getMyUnreadCount();
 
-    // Mark one notification as read
+    // =========================================================
+    // MARK ONE NOTIFICATION AS READ
+    // =========================================================
+
     void markAsRead(Long notificationId);
 
-    // Mark all notifications as read
+    // =========================================================
+    // MARK ALL NOTIFICATIONS AS READ
+    // =========================================================
+
     void markAllAsRead();
 
-    // Internal method used by other modules
-    // such as Maintenance, Rent Payment, Agreement, etc.
+    // =========================================================
+    // SEND NOTIFICATION TO A SPECIFIC USER
+    // Used by Maintenance, Rent Payment, Rental Agreement,
+    // and other application modules.
+    //
+    // The implementation should save the notification for
+    // the specified user and send it through SSE if connected.
+    // =========================================================
+
     void notifyUser(
             Long userId,
             NotificationType type,
@@ -41,3 +67,4 @@ public interface NotificationService {
             String referenceType
     );
 }
+

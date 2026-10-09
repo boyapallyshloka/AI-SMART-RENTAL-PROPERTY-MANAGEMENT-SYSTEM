@@ -1,7 +1,10 @@
+
 package com.rental.rental_management_backend.notification.serviceImpl;
 
 import java.util.List;
+import java.util.Objects;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,14 +25,8 @@ import com.rental.rental_management_backend.notification.service.NotificationSse
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
-
     private final UserRepository userRepository;
-
     private final NotificationSseService notificationSseService;
-
-    // ============================================================
-    // CONSTRUCTOR
-    // ============================================================
 
     public NotificationServiceImpl(
             NotificationRepository notificationRepository,
@@ -41,21 +38,47 @@ public class NotificationServiceImpl implements NotificationService {
         this.notificationSseService = notificationSseService;
     }
 
-    // ============================================================
     // CREATE NOTIFICATION
-    // ============================================================
-
     @Override
     public NotificationResponse createNotification(
             NotificationCreateRequest request) {
 
-        User user = userRepository
-                .findById(request.getUserId())
-                .orElseThrow(
-                        () -> new RuntimeException(
-                                "User not found"
-                        )
-                );
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "Notification request cannot be null");
+        }
+
+        if (request.getUserId() == null) {
+            throw new IllegalArgumentException(
+                    "Notification user ID is required");
+        }
+
+        if (request.getType() == null) {
+            throw new IllegalArgumentException(
+                    "Notification type is required");
+        }
+
+        if (request.getPriority() == null) {
+            throw new IllegalArgumentException(
+                    "Notification priority is required");
+        }
+
+        if (request.getTitle() == null
+                || request.getTitle().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Notification title is required");
+        }
+
+        if (request.getMessage() == null
+                || request.getMessage().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Notification message is required");
+        }
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException(
+                        "User not found with ID: "
+                                + request.getUserId()));
 
         Notification notification = new Notification(
                 user,
@@ -74,10 +97,8 @@ public class NotificationServiceImpl implements NotificationService {
         NotificationResponse response =
                 mapToResponse(savedNotification);
 
-        /*
-         * Send the notification immediately to the
-         * connected frontend through SSE.
-         */
+        // Deliver the notification immediately if the user
+        // has an active SSE connection.
         notificationSseService.sendNotification(
                 user.getId(),
                 response
@@ -86,10 +107,7 @@ public class NotificationServiceImpl implements NotificationService {
         return response;
     }
 
-    // ============================================================
     // GET ALL NOTIFICATIONS OF LOGGED-IN USER
-    // ============================================================
-
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications() {
@@ -97,18 +115,13 @@ public class NotificationServiceImpl implements NotificationService {
         User user = getLoggedInUser();
 
         return notificationRepository
-                .findByUser_IdOrderByCreatedAtDesc(
-                        user.getId()
-                )
+                .findByUser_IdOrderByCreatedAtDesc(user.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    // ============================================================
     // GET UNREAD NOTIFICATIONS OF LOGGED-IN USER
-    // ============================================================
-
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyUnreadNotifications() {
@@ -117,17 +130,13 @@ public class NotificationServiceImpl implements NotificationService {
 
         return notificationRepository
                 .findByUser_IdAndReadFalseOrderByCreatedAtDesc(
-                        user.getId()
-                )
+                        user.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    // ============================================================
     // GET UNREAD NOTIFICATION COUNT
-    // ============================================================
-
     @Override
     @Transactional(readOnly = true)
     public long getMyUnreadCount() {
@@ -135,53 +144,42 @@ public class NotificationServiceImpl implements NotificationService {
         User user = getLoggedInUser();
 
         return notificationRepository
-                .countByUser_IdAndReadFalse(
-                        user.getId()
-                );
+                .countByUser_IdAndReadFalse(user.getId());
     }
 
-    // ============================================================
     // MARK ONE NOTIFICATION AS READ
-    // ============================================================
-
+    // A user can mark only their own notification as read.
     @Override
     public void markAsRead(Long notificationId) {
 
+        if (notificationId == null) {
+            throw new IllegalArgumentException(
+                    "Notification ID is required");
+        }
+
         User user = getLoggedInUser();
 
-        Notification notification =
-                notificationRepository
-                        .findById(notificationId)
-                        .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Notification not found"
-                                )
-                        );
+        Notification notification = notificationRepository
+                .findById(notificationId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Notification not found with ID: "
+                                + notificationId));
 
-        /*
-         * IMPORTANT:
-         *
-         * A user can only mark their own notification
-         * as read.
-         */
-        if (!notification.getUser()
-                .getId()
-                .equals(user.getId())) {
+        // Return 403 when the notification belongs to another user.
+        if (!Objects.equals(
+                notification.getUser().getId(),
+                user.getId())) {
 
-            throw new RuntimeException(
-                    "You are not authorized to access this notification"
-            );
+            throw new AccessDeniedException(
+                    "You are not authorized to access this notification");
         }
 
         notification.setRead(true);
-
         notificationRepository.save(notification);
     }
 
-    // ============================================================
     // MARK ALL NOTIFICATIONS AS READ
-    // ============================================================
-
+    // Only notifications belonging to the logged-in user are updated.
     @Override
     public void markAllAsRead() {
 
@@ -190,20 +188,16 @@ public class NotificationServiceImpl implements NotificationService {
         List<Notification> notifications =
                 notificationRepository
                         .findByUser_IdOrderByCreatedAtDesc(
-                                user.getId()
-                        );
+                                user.getId());
 
-        notifications.forEach(
-                notification -> notification.setRead(true)
-        );
+        notifications.forEach(notification ->
+                notification.setRead(true));
 
         notificationRepository.saveAll(notifications);
     }
 
-    // ============================================================
-    // SEND NOTIFICATION TO SPECIFIC USER
-    // ============================================================
-
+    // SEND NOTIFICATION TO A SPECIFIC USER
+    // Used by Rental Agreement, Rent/Payment, Maintenance, etc.
     @Override
     public void notifyUser(
             Long userId,
@@ -213,6 +207,11 @@ public class NotificationServiceImpl implements NotificationService {
             String message,
             Long referenceId,
             String referenceType) {
+
+        if (userId == null) {
+            throw new IllegalArgumentException(
+                    "Recipient user ID is required");
+        }
 
         NotificationCreateRequest request =
                 new NotificationCreateRequest();
@@ -228,31 +227,26 @@ public class NotificationServiceImpl implements NotificationService {
         createNotification(request);
     }
 
-    // ============================================================
     // GET LOGGED-IN USER
-    // ============================================================
-
     private User getLoggedInUser() {
 
-        String email =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication()
-                        .getName();
+        if (SecurityContextHolder.getContext()
+                .getAuthentication() == null) {
 
-        return userRepository
-                .findByEmail(email)
-                .orElseThrow(
-                        () -> new RuntimeException(
-                                "Logged-in user not found"
-                        )
-                );
+            throw new AccessDeniedException(
+                    "No authenticated user found");
+        }
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException(
+                        "Logged-in user not found"));
     }
 
-    // ============================================================
-    // CONVERT ENTITY TO RESPONSE DTO
-    // ============================================================
-
+    // CONVERT NOTIFICATION ENTITY TO RESPONSE DTO
     private NotificationResponse mapToResponse(
             Notification notification) {
 
