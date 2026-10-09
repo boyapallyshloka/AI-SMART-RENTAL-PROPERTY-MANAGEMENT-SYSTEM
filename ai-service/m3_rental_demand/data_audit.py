@@ -1,9 +1,10 @@
 import pandas as pd
 
-DATA_PATH = "data/ml/M3_Rental_Demand.csv"
+DATA_PATH = "../data/ml/M3_Rental_Demand_Data.csv"
 
 def run_audit():
     df = pd.read_csv(DATA_PATH)
+    print(df.columns.tolist())
 
     print("Shape:", df.shape)
     print("\nMissing values:\n", df.isnull().sum())

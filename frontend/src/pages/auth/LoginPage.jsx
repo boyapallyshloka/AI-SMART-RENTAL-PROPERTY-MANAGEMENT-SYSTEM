@@ -3,9 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 import { Button, Input } from '../../components/ui'
-import { Mail, Lock, LogIn } from 'lucide-react'
 import { getDashboardPath, ROLES, normalizeRole } from '../../utils/roles'
-
+import { Eye, EyeOff, Lock, Mail, LogIn } from 'lucide-react'
 /**
  * Validates whether a saved redirect destination path is authorized for the given role.
  * Prevents cross-role navigation leakage (e.g. manager redirected to owner routes).
@@ -51,6 +50,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -144,40 +144,57 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          <Input
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value)
-              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }))
-            }}
-            error={errors.password}
-            leftIcon={<Lock className="w-4 h-4" />}
-            required
-          />
-        </div>
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: '' }))
+                }
+              }}
+              error={errors.password}
+              leftIcon={<Lock className="w-4 h-4" />}
+              required
+            />
 
-        <Button
-          type="submit"
-          variant="primary"
-          className="w-full mt-2"
-          isLoading={isLoading}
-          leftIcon={<LogIn className="w-4 h-4" />}
-        >
-          Sign In
-        </Button>
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-[#5B6875] hover:text-[#315A7D]"
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          </div>
 
-        <div className="pt-2 text-center text-xs text-[#5B6875]">
-          Don't have an account?{' '}
-          <Link
-            to="/register"
-            className="font-semibold text-[#315A7D] hover:underline"
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full mt-2"
+            isLoading={isLoading}
+            leftIcon={<LogIn className="w-4 h-4" />}
           >
-            Create an account
-          </Link>
+            Sign In
+          </Button>
+
+          <div className="pt-2 text-center text-xs text-[#5B6875]">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="font-semibold text-[#315A7D] hover:underline"
+            >
+              Create an account
+            </Link>
+          </div>
         </div>
       </form>
     </AuthLayout>

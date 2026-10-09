@@ -1,6 +1,6 @@
 import pandas as pd
 
-DATA_PATH = "data/ml/M3_Rental_Demand.csv"
+DATA_PATH = "../data/ml/M3_Rental_Demand_Data.csv"
 
 def run_eda():
     df = pd.read_csv(DATA_PATH)

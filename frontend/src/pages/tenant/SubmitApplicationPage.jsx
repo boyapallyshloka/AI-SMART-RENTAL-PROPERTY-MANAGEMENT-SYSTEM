@@ -70,6 +70,9 @@ export default function SubmitApplicationPage() {
   const [moveInDate, setMoveInDate] = useState(
     new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
   )
+
+  const [preferredLeaseDurationMonths, setPreferredLeaseDurationMonths] = useState('12')
+
   const [message, setMessage] = useState('')
 
   // Real Supporting Documents state (Spring Boot TenantDocumentController /api/tenants/me/documents)
@@ -387,20 +390,47 @@ export default function SubmitApplicationPage() {
 
   const validate = () => {
     const errs = {}
-    if (!selectedPropertyId) errs.property = 'Please select a property'
-    if (!selectedUnitId) errs.unit = 'Please select a specific unit to apply for'
-    if (!applicantName.trim()) errs.applicantName = 'Applicant name is required'
-    if (!applicantEmail.trim()) errs.applicantEmail = 'Email address is required'
-    if (!phone.trim()) errs.phone = 'Phone number is required'
+
+    if (!selectedPropertyId) {
+      errs.property = 'Please select a property'
+    }
+
+    if (!selectedUnitId) {
+      errs.unit = 'Please select a specific unit to apply for'
+    }
+
+    if (!applicantName.trim()) {
+      errs.applicantName = 'Applicant name is required'
+    }
+
+    if (!applicantEmail.trim()) {
+      errs.applicantEmail = 'Email address is required'
+    }
+
+    if (!phone.trim()) {
+      errs.phone = 'Phone number is required'
+    }
+
     if (!moveInDate) {
       errs.moveInDate = 'Preferred move-in date is required'
     } else {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+
       const selectedDate = new Date(moveInDate)
+
       if (selectedDate < today) {
-        errs.moveInDate = 'Preferred move-in date cannot be in the past'
+        errs.moveInDate =
+          'Preferred move-in date cannot be in the past'
       }
+    }
+
+    if (
+      !preferredLeaseDurationMonths ||
+      Number(preferredLeaseDurationMonths) < 1
+    ) {
+      errs.preferredLeaseDurationMonths =
+        'Preferred lease duration is required and must be at least 1 month'
     }
 
     if (message && message.length > 1000) {
@@ -409,12 +439,15 @@ export default function SubmitApplicationPage() {
 
     if (selectedUnitObj && selectedUnitObj.status) {
       const st = String(selectedUnitObj.status).toUpperCase()
+
       if (st !== 'VACANT' && st !== 'AVAILABLE') {
-        errs.unit = `Selected Unit ${selectedUnitObj.unitNumber || ''} is currently ${st}. Only vacant units are available for application.`
+        errs.unit =
+          `Selected Unit ${selectedUnitObj.unitNumber || ''} is currently ${st}. Only vacant units are available for application.`
       }
     }
 
     setErrors(errs)
+
     return Object.keys(errs).length === 0
   }
 
@@ -457,7 +490,12 @@ export default function SubmitApplicationPage() {
       const payload = {
         unitId: Number(selectedUnitId),
         preferredMoveInDate: moveInDate || null,
-        message: message && message.trim() ? message.trim() : null,
+        preferredLeaseDurationMonths: Number(
+          preferredLeaseDurationMonths
+        ),
+        message: message && message.trim()
+          ? message.trim()
+          : null,
       }
 
       const result = await createApplication(payload)
@@ -466,8 +504,7 @@ export default function SubmitApplicationPage() {
       const appStatus = result?.status || 'PENDING'
 
       setSuccessMessage(
-        `Your rental application ${appId} for Unit ${selectedUnitObj?.unitNumber || ''} at ${
-          selectedProperty?.propertyName || 'the property'
+        `Your rental application ${appId} for Unit ${selectedUnitObj?.unitNumber || ''} at ${selectedProperty?.propertyName || 'the property'
         } has been submitted successfully! Status: ${appStatus}. Redirecting to your applications...`
       )
 
@@ -664,6 +701,7 @@ export default function SubmitApplicationPage() {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
               <div>
                 <Input
                   label="Full Legal Name"
@@ -671,7 +709,9 @@ export default function SubmitApplicationPage() {
                   value={applicantName}
                   onChange={(e) => setApplicantName(e.target.value)}
                   error={errors.applicantName}
-                  leftIcon={<User className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={
+                    <User className="w-4 h-4 text-[#5B6875]" />
+                  }
                   required
                 />
               </div>
@@ -684,7 +724,9 @@ export default function SubmitApplicationPage() {
                   value={applicantEmail}
                   onChange={(e) => setApplicantEmail(e.target.value)}
                   error={errors.applicantEmail}
-                  leftIcon={<Mail className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={
+                    <Mail className="w-4 h-4 text-[#5B6875]" />
+                  }
                   required
                 />
               </div>
@@ -697,7 +739,9 @@ export default function SubmitApplicationPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   error={errors.phone}
-                  leftIcon={<Phone className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={
+                    <Phone className="w-4 h-4 text-[#5B6875]" />
+                  }
                   required
                 />
               </div>
@@ -709,394 +753,412 @@ export default function SubmitApplicationPage() {
                   value={moveInDate}
                   onChange={(e) => setMoveInDate(e.target.value)}
                   error={errors.moveInDate}
-                  leftIcon={<Calendar className="w-4 h-4 text-[#5B6875]" />}
+                  leftIcon={
+                    <Calendar className="w-4 h-4 text-[#5B6875]" />
+                  }
                   required
                 />
               </div>
-            </div>
-          </div>
 
-          {/* Section 3: Financial & Employment Information */}
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
-              <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
-              3. Employment & Monthly Income
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Monthly Gross Income (₹)"
+                  label="Preferred Lease Duration (Months)"
                   type="number"
-                  placeholder="e.g. 85000"
-                  value={monthlyIncome}
-                  onChange={(e) => setMonthlyIncome(e.target.value)}
-                  leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
-                  helperText="Verified in tenant profile"
+                  min="1"
+                  placeholder="e.g. 12"
+                  value={preferredLeaseDurationMonths}
+                  onChange={(e) =>
+                    setPreferredLeaseDurationMonths(e.target.value)
+                  }
+                  error={errors.preferredLeaseDurationMonths}
+                  required
                 />
+              </div>
+
+            </div>
+
+            {/* Section 3: Financial & Employment Information */}
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+              <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2 border-b border-[#D9E0E6] pb-3">
+                <IndianRupee className="w-4 h-4 text-[#3F7D58]" />
+                3. Employment & Monthly Income
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Input
+                    label="Monthly Gross Income (₹)"
+                    type="number"
+                    placeholder="e.g. 85000"
+                    value={monthlyIncome}
+                    onChange={(e) => setMonthlyIncome(e.target.value)}
+                    leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
+                    helperText="Verified in tenant profile"
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    label="Employer / Occupation"
+                    placeholder="e.g. Software Engineer at Tech Corp"
+                    value={employer}
+                    onChange={(e) => setEmployer(e.target.value)}
+                    leftIcon={<Briefcase className="w-4 h-4 text-[#5B6875]" />}
+                  />
+                </div>
               </div>
 
               <div>
-                <Input
-                  label="Employer / Occupation"
-                  placeholder="e.g. Software Engineer at Tech Corp"
-                  value={employer}
-                  onChange={(e) => setEmployer(e.target.value)}
-                  leftIcon={<Briefcase className="w-4 h-4 text-[#5B6875]" />}
+                <Textarea
+                  label="Optional Message or Notes for Property Manager"
+                  placeholder="Include details about preferred lease term, co-occupants, references, or specific questions..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  error={errors.message}
+                  maxLength={1000}
+                  helperText={`${message ? message.length : 0}/1000 characters`}
+                  rows={3}
                 />
               </div>
             </div>
 
-            <div>
-              <Textarea
-                label="Optional Message or Notes for Property Manager"
-                placeholder="Include details about preferred lease term, co-occupants, references, or specific questions..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                error={errors.message}
-                maxLength={1000}
-                helperText={`${message ? message.length : 0}/1000 characters`}
-                rows={3}
-              />
-            </div>
-          </div>
+            {/* Section 4: Document Uploads (Real Multipart Upload) */}
+            <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
+                <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#315A7D]" />
+                  4. Supporting Documents (Verification)
+                </h2>
+                <span className="text-[11px] text-[#5B6875]">Verified Tenant Documents</span>
+              </div>
 
-          {/* Section 4: Document Uploads (Real Multipart Upload) */}
-          <div className="bg-white rounded-lg border border-[#D9E0E6] p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between border-b border-[#D9E0E6] pb-3">
-              <h2 className="text-base font-semibold text-[#243447] flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#315A7D]" />
-                4. Supporting Documents (Verification)
-              </h2>
-              <span className="text-[11px] text-[#5B6875]">Verified Tenant Documents</span>
-            </div>
+              <p className="text-xs text-[#5B6875]">
+                Upload verified documents stored under your tenant profile. Supported formats: PDF, JPG, JPEG, PNG (max 10 MB per file).
+              </p>
 
-            <p className="text-xs text-[#5B6875]">
-              Upload verified documents stored under your tenant profile. Supported formats: PDF, JPG, JPEG, PNG (max 10 MB per file).
-            </p>
-
-            <div className="space-y-4">
-              {/* Document 1: Government Photo ID */}
-              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[#243447]">Government Photo ID</span>
-                    <select
-                      value={photoIdType}
-                      onChange={(e) => setPhotoIdType(e.target.value)}
-                      className="text-[11px] font-medium py-0.5 px-2 rounded border border-[#D9E0E6] bg-white text-[#243447] focus:outline-none focus:border-[#315A7D]"
-                    >
-                      <option value="DRIVING_LICENSE">Driving License</option>
-                      <option value="AADHAAR">Aadhaar Card</option>
-                      <option value="PAN">PAN Card</option>
-                      <option value="PASSPORT">Passport</option>
-                    </select>
+              <div className="space-y-4">
+                {/* Document 1: Government Photo ID */}
+                <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#243447]">Government Photo ID</span>
+                      <select
+                        value={photoIdType}
+                        onChange={(e) => setPhotoIdType(e.target.value)}
+                        className="text-[11px] font-medium py-0.5 px-2 rounded border border-[#D9E0E6] bg-white text-[#243447] focus:outline-none focus:border-[#315A7D]"
+                      >
+                        <option value="DRIVING_LICENSE">Driving License</option>
+                        <option value="AADHAAR">Aadhaar Card</option>
+                        <option value="PAN">PAN Card</option>
+                        <option value="PASSPORT">Passport</option>
+                      </select>
+                    </div>
+                    {uploadedPhotoId ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                        Uploaded ({uploadedPhotoId.verificationStatus || 'PENDING'})
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-[#5B6875]">Required for identity check</span>
+                    )}
                   </div>
-                  {uploadedPhotoId ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                      Uploaded ({uploadedPhotoId.verificationStatus || 'PENDING'})
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-[#5B6875]">Required for identity check</span>
+
+                  {uploadedPhotoId && !selectedPhotoIdFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-medium text-[#243447] truncate">{uploadedPhotoId.fileName}</span>
+                      </div>
+                      <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                        <span>Replace</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedPhotoIdFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-semibold text-[#243447] truncate">{selectedPhotoIdFile.name}</span>
+                        <span className="text-[11px] text-[#5B6875]">({(selectedPhotoIdFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isUploadingPhotoId}
+                          onClick={handleUploadPhotoId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploadingPhotoId ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3 h-3" />
+                              <span>Upload</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isUploadingPhotoId}
+                          onClick={() => { setSelectedPhotoIdFile(null); setPhotoIdError(null) }}
+                          className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!uploadedPhotoId && !selectedPhotoIdFile && (
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                        <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
+                        />
+                      </label>
+                      <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                    </div>
+                  )}
+
+                  {photoIdError && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{photoIdError}</span>
+                    </div>
                   )}
                 </div>
 
-                {uploadedPhotoId && !selectedPhotoIdFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-medium text-[#243447] truncate">{uploadedPhotoId.fileName}</span>
+                {/* Document 2: Proof of Income */}
+                <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-semibold text-[#243447]">Proof of Income</span>
+                      <span className="text-[11px] text-[#5B6875] ml-2">(Salary slips / Bank statement)</span>
                     </div>
-                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
-                      <span>Replace</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
-                      />
-                    </label>
+                    {uploadedIncomeProof ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                        Uploaded ({uploadedIncomeProof.verificationStatus || 'PENDING'})
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-[#5B6875]">Income verification</span>
+                    )}
                   </div>
-                )}
 
-                {selectedPhotoIdFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-semibold text-[#243447] truncate">{selectedPhotoIdFile.name}</span>
-                      <span className="text-[11px] text-[#5B6875]">({(selectedPhotoIdFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  {uploadedIncomeProof && !selectedIncomeFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-medium text-[#243447] truncate">{uploadedIncomeProof.fileName}</span>
+                      </div>
+                      <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                        <span>Replace</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('income', e.target.files[0])}
+                        />
+                      </label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        disabled={isUploadingPhotoId}
-                        onClick={handleUploadPhotoId}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {isUploadingPhotoId ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Uploading...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3 h-3" />
-                            <span>Upload</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUploadingPhotoId}
-                        onClick={() => { setSelectedPhotoIdFile(null); setPhotoIdError(null) }}
-                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
-                        title="Cancel"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                  )}
+
+                  {selectedIncomeFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-semibold text-[#243447] truncate">{selectedIncomeFile.name}</span>
+                        <span className="text-[11px] text-[#5B6875]">({(selectedIncomeFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isUploadingIncome}
+                          onClick={handleUploadIncome}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploadingIncome ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3 h-3" />
+                              <span>Upload</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isUploadingIncome}
+                          onClick={() => { setSelectedIncomeFile(null); setIncomeError(null) }}
+                          className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!uploadedPhotoId && !selectedPhotoIdFile && (
-                  <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
-                      <span>Choose File</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('photoId', e.target.files[0])}
-                      />
-                    </label>
-                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
-                  </div>
-                )}
+                  {!uploadedIncomeProof && !selectedIncomeFile && (
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                        <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('income', e.target.files[0])}
+                        />
+                      </label>
+                      <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                    </div>
+                  )}
 
-                {photoIdError && (
-                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{photoIdError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Document 2: Proof of Income */}
-              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="text-xs font-semibold text-[#243447]">Proof of Income</span>
-                    <span className="text-[11px] text-[#5B6875] ml-2">(Salary slips / Bank statement)</span>
-                  </div>
-                  {uploadedIncomeProof ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                      Uploaded ({uploadedIncomeProof.verificationStatus || 'PENDING'})
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-[#5B6875]">Income verification</span>
+                  {incomeError && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{incomeError}</span>
+                    </div>
                   )}
                 </div>
 
-                {uploadedIncomeProof && !selectedIncomeFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-medium text-[#243447] truncate">{uploadedIncomeProof.fileName}</span>
+                {/* Document 3: Rental Reference / Other Supporting Document */}
+                <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-semibold text-[#243447]">Rental Reference / Additional Document</span>
+                      <span className="text-[11px] text-[#5B6875] ml-2">(Optional)</span>
                     </div>
-                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
-                      <span>Replace</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('income', e.target.files[0])}
-                      />
-                    </label>
+                    {uploadedOtherDoc ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
+                        Uploaded ({uploadedOtherDoc.verificationStatus || 'PENDING'})
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-[#5B6875]">Reference or history</span>
+                    )}
                   </div>
-                )}
 
-                {selectedIncomeFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-semibold text-[#243447] truncate">{selectedIncomeFile.name}</span>
-                      <span className="text-[11px] text-[#5B6875]">({(selectedIncomeFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  {uploadedOtherDoc && !selectedOtherFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-medium text-[#243447] truncate">{uploadedOtherDoc.fileName}</span>
+                      </div>
+                      <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
+                        <span>Replace</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('other', e.target.files[0])}
+                        />
+                      </label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        disabled={isUploadingIncome}
-                        onClick={handleUploadIncome}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {isUploadingIncome ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Uploading...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3 h-3" />
-                            <span>Upload</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUploadingIncome}
-                        onClick={() => { setSelectedIncomeFile(null); setIncomeError(null) }}
-                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
-                        title="Cancel"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                  )}
+
+                  {selectedOtherFile && (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
+                        <span className="font-semibold text-[#243447] truncate">{selectedOtherFile.name}</span>
+                        <span className="text-[11px] text-[#5B6875]">({(selectedOtherFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isUploadingOther}
+                          onClick={handleUploadOther}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploadingOther ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3 h-3" />
+                              <span>Upload</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isUploadingOther}
+                          onClick={() => { setSelectedOtherFile(null); setOtherError(null) }}
+                          className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!uploadedIncomeProof && !selectedIncomeFile && (
-                  <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
-                      <span>Choose File</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('income', e.target.files[0])}
-                      />
-                    </label>
-                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
-                  </div>
-                )}
+                  {!uploadedOtherDoc && !selectedOtherFile && (
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
+                        <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleFileSelect('other', e.target.files[0])}
+                        />
+                      </label>
+                      <span className="text-xs text-[#5B6875] italic">No file chosen</span>
+                    </div>
+                  )}
 
-                {incomeError && (
-                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{incomeError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Document 3: Rental Reference / Other Supporting Document */}
-              <div className="rounded-lg border border-[#D9E0E6] bg-[#F7F8FA] p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="text-xs font-semibold text-[#243447]">Rental Reference / Additional Document</span>
-                    <span className="text-[11px] text-[#5B6875] ml-2">(Optional)</span>
-                  </div>
-                  {uploadedOtherDoc ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                      Uploaded ({uploadedOtherDoc.verificationStatus || 'PENDING'})
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-[#5B6875]">Reference or history</span>
+                  {otherError && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{otherError}</span>
+                    </div>
                   )}
                 </div>
-
-                {uploadedOtherDoc && !selectedOtherFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#D9E0E6] text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileCheck className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-medium text-[#243447] truncate">{uploadedOtherDoc.fileName}</span>
-                    </div>
-                    <label className="text-xs font-semibold text-[#315A7D] hover:underline cursor-pointer ml-3 shrink-0">
-                      <span>Replace</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('other', e.target.files[0])}
-                      />
-                    </label>
-                  </div>
-                )}
-
-                {selectedOtherFile && (
-                  <div className="flex items-center justify-between bg-white p-2.5 rounded-md border border-[#315A7D]/30 text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-4 h-4 text-[#315A7D] shrink-0" />
-                      <span className="font-semibold text-[#243447] truncate">{selectedOtherFile.name}</span>
-                      <span className="text-[11px] text-[#5B6875]">({(selectedOtherFile.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        disabled={isUploadingOther}
-                        onClick={handleUploadOther}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#315A7D] hover:bg-[#274B68] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {isUploadingOther ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                            <span>Uploading...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3 h-3" />
-                            <span>Upload</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUploadingOther}
-                        onClick={() => { setSelectedOtherFile(null); setOtherError(null) }}
-                        className="p-1 text-[#5B6875] hover:text-[#9B1C1C] cursor-pointer"
-                        title="Cancel"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!uploadedOtherDoc && !selectedOtherFile && (
-                  <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white hover:bg-[#F7F8FA] text-xs font-semibold text-[#243447] shadow-2xs transition-colors cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-[#315A7D]" />
-                      <span>Choose File</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect('other', e.target.files[0])}
-                      />
-                    </label>
-                    <span className="text-xs text-[#5B6875] italic">No file chosen</span>
-                  </div>
-                )}
-
-                {otherError && (
-                  <div className="flex items-center gap-1.5 text-xs text-[#E02424]">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{otherError}</span>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
 
-          {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Link to="/tenant/applications">
-              <Button variant="outline" type="button">
-                Cancel
+            {/* Form Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Link to="/tenant/applications">
+                <Button variant="outline" type="button">
+                  Cancel
+                </Button>
+              </Link>
+
+              <Button
+                variant="primary"
+                type="submit"
+                isLoading={isSubmitting}
+                leftIcon={<CheckCircle2 className="w-4 h-4" />}
+              >
+                Submit Application
               </Button>
-            </Link>
-
-            <Button
-              variant="primary"
-              type="submit"
-              isLoading={isSubmitting}
-              leftIcon={<CheckCircle2 className="w-4 h-4" />}
-            >
-              Submit Application
-            </Button>
+            </div>
           </div>
         </form>
       </div>

@@ -28,12 +28,19 @@ export const APPLICATION_STATUSES = {
  * @param {string} [applicationData.message]
  * @returns {Promise<Object>} RentalApplicationResponse
  */
-export const createApplication = async ({ unitId, preferredMoveInDate, message }) => {
+export const createApplication = async ({
+  unitId,
+  preferredMoveInDate,
+  preferredLeaseDurationMonths,
+  message
+}) => {
   const payload = {
     unitId: Number(unitId),
     preferredMoveInDate: preferredMoveInDate || null,
+    preferredLeaseDurationMonths: Number(preferredLeaseDurationMonths),
     message: message && message.trim() ? message.trim() : null,
   }
+
   return await axiosClient.post('/rental-applications', payload)
 }
 

@@ -1,47 +1,44 @@
-import pandas as pd
+import os
+import sys
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.metrics import f1_score, mean_absolute_error, recall_score, precision_score
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
 from preprocessing import load_and_prepare, FEATURES, TARGET
+from pipeline import RentalDemandPipeline
+
 
 def run_cross_validation(n_splits=5):
     df = load_and_prepare()
     df = df.sort_values("year_month").reset_index(drop=True)
 
-    X = df[FEATURES]
-    y = df[TARGET]
-    y_bin = (y > 0).astype(int)
-
     tscv = TimeSeriesSplit(n_splits=n_splits)
-
     fold_results = []
 
-    for fold_num, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
-        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-        y_train_bin, y_test_bin = y_bin.iloc[train_idx], y_bin.iloc[test_idx]
+    for fold_num, (train_idx, test_idx) in enumerate(tscv.split(df), start=1):
+        train_fold = df.iloc[train_idx].copy()
+        test_fold = df.iloc[test_idx].copy()
 
-        # Skip folds where the test set has no real demand (like our earlier all-zero problem)
+        y_test = test_fold[TARGET]
+        y_test_bin = (y_test > 0).astype(int)
+
+        # Skip folds where the test set has no real demand (placeholder data)
         if y_test_bin.sum() == 0:
             print(f"Fold {fold_num}: SKIPPED - test fold has 0% nonzero demand (likely placeholder data)")
             continue
 
-        sample_weights = compute_sample_weight(class_weight="balanced", y=y_train_bin)
-        classifier = GradientBoostingClassifier(n_estimators=200, random_state=42)
-        classifier.fit(X_train, y_train_bin, sample_weight=sample_weights)
+        pipeline = RentalDemandPipeline(n_estimators=200, random_state=42, threshold=0.5)
+        pipeline.fit(train_fold, val_df=test_fold)
 
-        probs = classifier.predict_proba(X_test)[:, 1]
-        class_preds = (probs >= 0.5).astype(int)
-
-        nonzero_mask = y_train > 0
-        regressor = GradientBoostingRegressor(n_estimators=200, random_state=42)
-        regressor.fit(X_train[nonzero_mask], y_train[nonzero_mask])
-
-        reg_preds = regressor.predict(X_test).clip(min=0)
-        final_preds = class_preds * reg_preds
+        final_preds = pipeline.predict(test_fold)
+        X_test_encoded = pipeline.preprocessor_.transform(test_fold[pipeline.features_])
+        probs = pipeline.classifier_.predict_proba(X_test_encoded)[:, 1]
+        class_preds = (probs >= pipeline.threshold_).astype(int)
 
         mae = mean_absolute_error(y_test, final_preds)
         f1 = f1_score(y_test_bin, class_preds, zero_division=0)
@@ -65,5 +62,6 @@ def run_cross_validation(n_splits=5):
     else:
         print("No valid folds found - all test folds had 0% nonzero demand.")
 
+
 if __name__ == "__main__":
-    run_cross_validation(n_splits=5)
+    run_cross_validation(n_splits=5)

@@ -86,8 +86,8 @@ export default function ManagerMaintenancePage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('active') // 'active' | 'history' | 'all'
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
@@ -745,47 +745,69 @@ export default function ManagerMaintenancePage() {
             </span>
           </button>
         </div>
+
         {/* Filters */}
-        <div className='rounded-xl border border-[#D9E0E6] p-4 bg-white'>
-          <div className='flex flex-col lg:flex-row gap-3'>
-            <div className='flex-1'>
+        <div className="rounded-xl border border-[#D9E0E6] p-4 bg-white shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch">
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748B]" />
+
               <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="search maintenance requests....."
+                placeholder="Search by ticket number, category, description..."
+                className="w-full h-12 pl-11 pr-4 rounded-lg border border-[#D9E0E6] bg-white text-sm text-[#243447] placeholder:text-[#8A9AAF] outline-none focus:ring-2 focus:ring-[#3157AD]/20 focus:border-[#3157AD]"
               />
             </div>
-            <div className="w-48">
+
+            {/* Status */}
+            <div className="w-full lg:w-[280px] shrink-0">
               <Select
-
-                options={statusOptions}
-                value={statusFilter}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  ...MAINTENANCE_STATUSES.map((st) => ({
+                    value: st,
+                    label: formatStatusLabel(st),
+                  })),
+                ]}
+                value={statusFilter || 'all'}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                placeholder="Status"
-
+                className="w-full h-12"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-48">
-                <Select
 
-                  options={priorityOptions}
-                  value={priorityFilter}
+            {/* Priority + Reset */}
+            <div className="flex gap-3 w-full lg:w-[352px] shrink-0">
+              <div className="flex-1 min-w-0">
+                <Select
+                  options={[
+                    { value: 'all', label: 'All Priorities' },
+                    ...MAINTENANCE_PRIORITIES.map((pr) => ({
+                      value: pr,
+                      label: formatPriorityLabel(pr),
+                    })),
+                  ]}
+                  value={priorityFilter || 'all'}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  placeholder="Priority"
+                  className="w-full h-12"
                 />
               </div>
+
               <button
                 type="button"
                 onClick={resetFilters}
                 title="Reset filters"
-                className="p-2.5 rounded-lg border border-[#D9E0E6] text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0"
+                aria-label="Reset filters"
+                className="h-12 w-12 rounded-lg border border-[#D9E0E6] text-[#64748B] hover:text-[#243447] hover:bg-[#F7F8FA] transition-colors shrink-0 flex items-center justify-center"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
+
 
         {/* Table / Results */}
         {loading ? (
