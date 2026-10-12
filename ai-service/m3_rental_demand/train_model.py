@@ -63,7 +63,7 @@ def train_and_evaluate():
 
     df = load_and_prepare()
 
-    train, test = time_based_split(df)
+    train, validation, test = time_based_split(df)
 
     print(f"Training rows: {len(train)}")
     print(f"Testing rows : {len(test)}")
@@ -85,8 +85,7 @@ def train_and_evaluate():
         random_state=42,
         threshold=0.5,
     )
-
-    production_pipeline.fit(train, val_df=test)
+    production_pipeline.fit(train, val_df=validation)
 
     print("Production pipeline fitted successfully.")
 

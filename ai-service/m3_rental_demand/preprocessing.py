@@ -46,12 +46,39 @@ def load_and_prepare():
     return df
 
 
+
 def time_based_split(df):
-    # Exclude 2025-12 onward - it's a placeholder/incomplete zone with 0% real demand
+    # Exclude incomplete data from December 2025 onward
     valid_df = df[df["year_month"] < "2025-12"].copy()
-    train = valid_df[valid_df["year_month"] <= "2025-06"].copy()
-    test = valid_df[valid_df["year_month"] >= "2025-07"].copy()
-    return train, test
+
+    # Training data: January to March 2025 and earlier
+    train = valid_df[
+        valid_df["year_month"] <= "2025-03"
+    ].copy()
+
+    # Validation data: April to June 2025
+    validation = valid_df[
+        (valid_df["year_month"] >= "2025-04")
+        & (valid_df["year_month"] <= "2025-06")
+    ].copy()
+
+    # Test data: July 2025 onward
+    test = valid_df[
+        valid_df["year_month"] >= "2025-07"
+    ].copy()
+
+    if train.empty or validation.empty or test.empty:
+        raise ValueError(
+            "Training, validation, or test dataset is empty. "
+            "Check the year_month values in the dataset."
+        )
+
+    print("Training rows:", len(train))
+    print("Validation rows:", len(validation))
+    print("Test rows:", len(test))
+
+    return train, validation, test
+
 
 
 def save_processed(train, test):
