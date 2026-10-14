@@ -3,6 +3,7 @@ package com.rental.rental_management_backend.User.service;
 
 import java.util.List;
 
+import com.rental.rental_management_backend.User.security.RentalUserDetails;
 import com.rental.rental_management_backend.User.dto.LoginRequest;
 import com.rental.rental_management_backend.User.dto.LoginResponse;
 import com.rental.rental_management_backend.User.dto.RegisterRequest;
@@ -15,6 +16,12 @@ public interface UserService {
 
     void changePassword(
             Long id,
+            String currentPassword,
+            String newPassword
+    );
+
+    void changePassword(
+            String email,
             String currentPassword,
             String newPassword
     );
@@ -53,4 +60,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     UserResponse getMyProfile(String email);
+
+    UserResponse getMyProfile(RentalUserDetails userDetails);
 }

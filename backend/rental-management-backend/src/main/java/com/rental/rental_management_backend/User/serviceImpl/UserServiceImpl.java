@@ -8,13 +8,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.mail.MailException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rental.rental_management_backend.User.Repository.EmailVerificationOtpRepository;
 import com.rental.rental_management_backend.User.Repository.PasswordResetTokenRepository;
@@ -31,6 +30,7 @@ import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
 import com.rental.rental_management_backend.User.exception.UserAlreadyExistsException;
 import com.rental.rental_management_backend.User.security.JwtService;
+import com.rental.rental_management_backend.User.security.RentalUserDetails;
 import com.rental.rental_management_backend.User.service.UserService;
 import com.rental.rental_management_backend.email.EmailService;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
@@ -42,9 +42,6 @@ import com.rental.rental_management_backend.tenant.repository.TenantRepository;
 @Service
 @Transactional
 public class UserServiceImpl implements UserService {
-
-    private static final Logger logger =
-            LoggerFactory.getLogger(UserServiceImpl.class);
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int OTP_EXPIRY_MINUTES = 10;
@@ -58,6 +55,7 @@ public class UserServiceImpl implements UserService {
     private final PropertyManagerRepository propertyManagerRepository;
     private final TenantRepository tenantRepository;
     private final EmailService emailService;
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
     private final EmailVerificationOtpRepository emailVerificationOtpRepository;
 
     public UserServiceImpl(
@@ -68,6 +66,7 @@ public class UserServiceImpl implements UserService {
             PropertyManagerRepository propertyManagerRepository,
             TenantRepository tenantRepository,
             EmailService emailService,
+            UserAuthEmailDispatcher userAuthEmailDispatcher,
             EmailVerificationOtpRepository emailVerificationOtpRepository) {
 
         this.userRepository = userRepository;
@@ -77,6 +76,7 @@ public class UserServiceImpl implements UserService {
         this.propertyManagerRepository = propertyManagerRepository;
         this.tenantRepository = tenantRepository;
         this.emailService = emailService;
+        this.userAuthEmailDispatcher = userAuthEmailDispatcher;
         this.emailVerificationOtpRepository = emailVerificationOtpRepository;
     }
 
@@ -125,8 +125,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         // Preserve automatic tenant profile creation.
-        if (savedUser.getRole() == RoleType.TENANT
-                && !tenantRepository.existsByUser_Id(savedUser.getId())) {
+        if (savedUser.getRole() == RoleType.TENANT) {
 
             Tenant tenant = new Tenant();
             tenant.setUser(savedUser);
@@ -134,7 +133,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // Send OTP instead of sending the welcome email immediately.
-        issueOtp(savedUser);
+        issueOtp(savedUser, false);
 
         return mapToResponse(savedUser);
     }
@@ -178,15 +177,13 @@ public class UserServiceImpl implements UserService {
 
         String token = jwtService.generateToken(userDetails);
 
-        try {
-            emailService.sendLoginNotificationEmail(
-                    user.getEmail(),
-                    user.getFirstName());
-        } catch (MailException ex) {
-            logger.error(
-                    "Login succeeded, but login notification email could not be sent.",
-                    ex);
-        }
+        String userEmail = user.getEmail();
+        String firstName = user.getFirstName();
+        dispatchEmail(
+                "Login notification",
+                () -> emailService.sendLoginNotificationEmail(
+                        userEmail,
+                        firstName));
 
         LoginResponse response = new LoginResponse();
         response.setToken(token);
@@ -298,9 +295,14 @@ public class UserServiceImpl implements UserService {
     // =========================================================
 
     private void issueOtp(User user) {
+        issueOtp(user, true);
+    }
 
-        emailVerificationOtpRepository.deleteByUser_Id(user.getId());
-        emailVerificationOtpRepository.flush();
+    private void issueOtp(User user, boolean replaceExistingOtp) {
+        if (replaceExistingOtp) {
+            emailVerificationOtpRepository.deleteByUser_Id(user.getId());
+            emailVerificationOtpRepository.flush();
+        }
 
         String otp = String.format(
                 "%06d",
@@ -317,17 +319,14 @@ public class UserServiceImpl implements UserService {
 
         emailVerificationOtpRepository.save(otpRecord);
 
-        try {
-            emailService.sendEmailVerificationOtp(
-                    user.getEmail(),
-                    user.getFirstName(),
-                    otp);
-        } catch (MailException ex) {
-            logger.error(
-                    "OTP email could not be sent to {}. User can request a resend.",
-                    user.getEmail(),
-                    ex);
-        }
+        String userEmail = user.getEmail();
+        String firstName = user.getFirstName();
+        dispatchEmail(
+                "Email verification OTP",
+                () -> emailService.sendEmailVerificationOtp(
+                        userEmail,
+                        firstName,
+                        otp));
     }
 
     // =========================================================
@@ -336,20 +335,24 @@ public class UserServiceImpl implements UserService {
 
     private void sendWelcomeEmail(User user) {
 
-        try {
-            switch (user.getRole()) {
+        String email = user.getEmail();
+        String firstName = user.getFirstName();
+        RoleType role = user.getRole();
+
+        dispatchEmail("Welcome", () -> {
+            switch (role) {
 
                 case TENANT:
                     emailService.sendTenantWelcomeEmail(
-                            user.getEmail(),
-                            user.getFirstName());
+                            email,
+                            firstName);
                     break;
 
                 case PROPERTY_OWNER:
                     emailService.sendEmail(
-                            user.getEmail(),
+                            email,
                             "Welcome to AI Smart Rental",
-                            "Hello " + user.getFirstName() + ",\n\n"
+                            "Hello " + firstName + ",\n\n"
                                     + "Welcome to AI Smart Rental!\n"
                                     + "Your property owner account has been created.\n"
                                     + "Your account will be available after admin approval.\n\n"
@@ -358,9 +361,9 @@ public class UserServiceImpl implements UserService {
 
                 case PROPERTY_MANAGER:
                     emailService.sendEmail(
-                            user.getEmail(),
+                            email,
                             "Welcome to AI Smart Rental",
-                            "Hello " + user.getFirstName() + ",\n\n"
+                            "Hello " + firstName + ",\n\n"
                                     + "Welcome to AI Smart Rental!\n"
                                     + "Your property manager account has been created.\n"
                                     + "Your account will be available after admin approval.\n\n"
@@ -369,19 +372,15 @@ public class UserServiceImpl implements UserService {
 
                 default:
                     emailService.sendEmail(
-                            user.getEmail(),
+                            email,
                             "Welcome to AI Smart Rental",
-                            "Hello " + user.getFirstName() + ",\n\n"
+                            "Hello " + firstName + ",\n\n"
                                     + "Welcome to AI Smart Rental!\n"
                                     + "Thank you for registering with us.\n\n"
                                     + "AI Smart Rental Team");
                     break;
             }
-        } catch (MailException ex) {
-            logger.error(
-                    "Email verified, but welcome email could not be sent.",
-                    ex);
-        }
+        });
     }
 
     // =========================================================
@@ -618,6 +617,29 @@ public class UserServiceImpl implements UserService {
         return mapToResponse(user);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getMyProfile(RentalUserDetails userDetails) {
+        return userDetails.getUserResponse();
+    }
+
+    private void dispatchEmail(String notificationType, Runnable sendEmail) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
+    }
+
     // =========================================================
     // CHANGE PASSWORD
     // =========================================================
@@ -630,6 +652,23 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found with id: " + id));
+
+        changePassword(user, currentPassword, newPassword);
+    }
+
+    @Override
+    public void changePassword(
+            String email, String currentPassword, String newPassword) {
+
+        User user = userRepository.findByEmail(email.toLowerCase().trim())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found with email: " + email));
+
+        changePassword(user, currentPassword, newPassword);
+    }
+
+    private void changePassword(
+            User user, String currentPassword, String newPassword) {
 
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
             throw new IllegalArgumentException(
@@ -644,15 +683,13 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        try {
-            emailService.sendPasswordChangedEmail(
-                    user.getEmail(),
-                    user.getFirstName());
-        } catch (MailException ex) {
-            logger.error(
-                    "Password changed, but confirmation email could not be sent.",
-                    ex);
-        }
+        String userEmail = user.getEmail();
+        String firstName = user.getFirstName();
+        dispatchEmail(
+                "Password changed",
+                () -> emailService.sendPasswordChangedEmail(
+                        userEmail,
+                        firstName));
     }
     
 
@@ -688,17 +725,14 @@ public class UserServiceImpl implements UserService {
 
         passwordResetTokenRepository.save(resetToken);
 
-        // Send the reset token to the user's registered email.
-        try {
-            emailService.sendPasswordResetEmail(
-                    user.getEmail(),
-                    user.getFirstName(),
-                    token);
-        } catch (MailException ex) {
-            logger.error(
-                    "Password reset token was created, but the email could not be sent.",
-                    ex);
-        }
+        String userEmail = user.getEmail();
+        String firstName = user.getFirstName();
+        dispatchEmail(
+                "Password reset",
+                () -> emailService.sendPasswordResetEmail(
+                        userEmail,
+                        firstName,
+                        token));
     }
     
     
@@ -735,15 +769,13 @@ public class UserServiceImpl implements UserService {
 
         passwordResetTokenRepository.deleteByToken(token);
 
-        try {
-            emailService.sendPasswordResetSuccessEmail(
-                    user.getEmail(),
-                    user.getFirstName());
-        } catch (MailException ex) {
-            logger.error(
-                    "Password reset succeeded, but confirmation email could not be sent.",
-                    ex);
-        }
+        String userEmail = user.getEmail();
+        String firstName = user.getFirstName();
+        dispatchEmail(
+                "Password reset success",
+                () -> emailService.sendPasswordResetSuccessEmail(
+                        userEmail,
+                        firstName));
     }
     
 }

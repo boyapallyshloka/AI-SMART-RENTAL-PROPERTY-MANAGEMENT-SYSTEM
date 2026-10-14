@@ -7,7 +7,11 @@ import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.rental.rental_management_backend.User.serviceImpl.UserAuthEmailDispatcher;
+import com.rental.rental_management_backend.email.EmailService;
 import com.rental.rental_management_backend.notification.enums.NotificationPriority;
 import com.rental.rental_management_backend.notification.enums.NotificationType;
 import com.rental.rental_management_backend.notification.service.NotificationService;
@@ -28,10 +32,16 @@ public class RentNotificationSchedulerServiceImpl
 
     private final NotificationService notificationService;
 
+    private final EmailService emailService;
+
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
+
     public RentNotificationSchedulerServiceImpl(
             RentInvoiceRepository rentInvoiceRepository,
             TenantRepository tenantRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            EmailService emailService,
+            UserAuthEmailDispatcher userAuthEmailDispatcher) {
 
         this.rentInvoiceRepository =
                 rentInvoiceRepository;
@@ -41,6 +51,12 @@ public class RentNotificationSchedulerServiceImpl
 
         this.notificationService =
                 notificationService;
+
+        this.emailService =
+                emailService;
+
+        this.userAuthEmailDispatcher =
+                userAuthEmailDispatcher;
     }
 
     // =========================================================
@@ -268,6 +284,51 @@ public class RentNotificationSchedulerServiceImpl
                 invoice.getInvoiceId(),
                 "RENT_INVOICE"
         );
+
+        String recipientEmail = tenant.getUser().getEmail();
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            String tenantName = ((tenant.getUser().getFirstName() == null
+                    ? ""
+                    : tenant.getUser().getFirstName())
+                    + " "
+                    + (tenant.getUser().getLastName() == null
+                            ? ""
+                            : tenant.getUser().getLastName())).trim();
+            String invoiceNumber = invoice.getInvoiceNumber();
+            Long invoiceId = invoice.getInvoiceId();
+            String totalAmount = invoice.getTotalAmount() == null
+                    ? "Not specified"
+                    : invoice.getTotalAmount().toString();
+            String dueDate = invoice.getDueDate() == null
+                    ? "Not specified"
+                    : invoice.getDueDate().toString();
+
+            dispatchEmail(
+                    "rent invoice overdue",
+                    () -> emailService.sendRentInvoiceOverdueEmail(
+                            recipientEmail,
+                            tenantName,
+                            invoiceNumber,
+                            invoiceId,
+                            totalAmount,
+                            dueDate));
+        }
+    }
+
+    private void dispatchEmail(String notificationType, Runnable sendEmail) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
     }
 }
-

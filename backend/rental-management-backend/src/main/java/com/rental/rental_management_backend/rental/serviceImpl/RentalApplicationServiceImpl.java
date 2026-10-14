@@ -4,6 +4,8 @@ package com.rental.rental_management_backend.rental.serviceImpl;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.serviceImpl.UserAuthEmailDispatcher;
+import com.rental.rental_management_backend.email.EmailService;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 
 import com.rental.rental_management_backend.notification.enums.NotificationPriority;
@@ -54,13 +58,19 @@ public class RentalApplicationServiceImpl
 
     private final NotificationService notificationService;
 
+    private final EmailService emailService;
+
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
+
     public RentalApplicationServiceImpl(
             RentalApplicationRepository rentalApplicationRepository,
             TenantRepository tenantRepository,
             UserRepository userRepository,
             UnitRepository unitRepository,
             PropertyRepository propertyRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            EmailService emailService,
+            UserAuthEmailDispatcher userAuthEmailDispatcher) {
 
         this.rentalApplicationRepository =
                 rentalApplicationRepository;
@@ -79,6 +89,10 @@ public class RentalApplicationServiceImpl
 
         this.notificationService =
                 notificationService;
+
+        this.emailService = emailService;
+
+        this.userAuthEmailDispatcher = userAuthEmailDispatcher;
     }
 
     // ============================================================
@@ -182,6 +196,8 @@ public class RentalApplicationServiceImpl
         // --------------------------------------------------------
 
         notifyManagerAboutNewApplication(saved);
+
+        notifyPropertyContactsAboutApplicationSubmitted(saved);
 
         return mapToResponse(saved);
     }
@@ -628,6 +644,9 @@ public class RentalApplicationServiceImpl
             application.setRejectionReason(null);
         }
 
+        RentalApplicationStatus previousStatus =
+                application.getStatus();
+
         application.setStatus(newStatus);
 
         application.setReviewedAt(
@@ -643,6 +662,10 @@ public class RentalApplicationServiceImpl
 
         notifyTenantAboutApplicationReview(
                 updated);
+
+        if (previousStatus != newStatus) {
+            notifyTenantByEmailAboutApplicationReview(updated);
+        }
 
         return mapToResponse(updated);
     }
@@ -711,6 +734,9 @@ public class RentalApplicationServiceImpl
                 RentalApplicationStatus.WITHDRAWN);
 
         rentalApplicationRepository.save(application);
+
+        notifyPropertyContactsAboutApplicationWithdrawn(
+                application);
     }
 
     // ============================================================
@@ -869,6 +895,70 @@ public class RentalApplicationServiceImpl
         );
     }
 
+    private void notifyPropertyContactsAboutApplicationSubmitted(
+            RentalApplication application) {
+
+        Property property = getPropertyFromApplication(application);
+        Tenant tenant = application.getTenant();
+        User tenantUser = tenant != null ? tenant.getUser() : null;
+        Unit unit = application.getUnit();
+
+        if (property == null || tenantUser == null || unit == null) {
+            return;
+        }
+
+        String tenantName = getUserDisplayName(tenantUser);
+        String propertyName = property.getPropertyName();
+        String unitNumber = unit.getUnitNumber();
+        Long applicationId = application.getApplicationId();
+        String moveInDate = application.getPreferredMoveInDate() == null
+                ? "Not specified"
+                : application.getPreferredMoveInDate().toString();
+        Integer leaseDurationMonths =
+                application.getPreferredLeaseDurationMonths();
+        String applicationMessage = application.getMessage() == null
+                ? "Not provided"
+                : application.getMessage();
+
+        User owner = property.getOwner();
+        if (owner != null && owner.getEmail() != null) {
+            String recipientEmail = owner.getEmail();
+            dispatchEmail(
+                    "rental application submitted",
+                    () -> emailService.sendRentalApplicationSubmittedEmail(
+                            recipientEmail,
+                            tenantName,
+                            propertyName,
+                            unitNumber,
+                            applicationId,
+                            moveInDate,
+                            leaseDurationMonths,
+                            applicationMessage));
+        }
+
+        if (property.getPropertyManager() != null
+                && property.getPropertyManager().getUser() != null) {
+            User manager = property.getPropertyManager().getUser();
+            if (manager.getEmail() != null
+                    && manager.getId() != null
+                    && (owner == null
+                            || !manager.getId().equals(owner.getId()))) {
+                String recipientEmail = manager.getEmail();
+                dispatchEmail(
+                        "rental application submitted",
+                        () -> emailService.sendRentalApplicationSubmittedEmail(
+                                recipientEmail,
+                                tenantName,
+                                propertyName,
+                                unitNumber,
+                                applicationId,
+                                moveInDate,
+                                leaseDurationMonths,
+                                applicationMessage));
+            }
+        }
+    }
+
     // ============================================================
     // NOTIFY PROPERTY MANAGER ABOUT NEW APPLICATION
     // ============================================================
@@ -996,6 +1086,116 @@ public class RentalApplicationServiceImpl
                     "RENTAL_APPLICATION"
             );
         }
+    }
+
+    private void notifyTenantByEmailAboutApplicationReview(
+            RentalApplication application) {
+
+        Tenant tenant = application.getTenant();
+        User tenantUser = tenant != null ? tenant.getUser() : null;
+        Property property = getPropertyFromApplication(application);
+        Unit unit = application.getUnit();
+
+        if (tenantUser == null || tenantUser.getEmail() == null
+                || unit == null) {
+            return;
+        }
+
+        String recipientEmail = tenantUser.getEmail();
+        String tenantName = getUserDisplayName(tenantUser);
+        String propertyName = property.getPropertyName();
+        String unitNumber = unit.getUnitNumber();
+        Long applicationId = application.getApplicationId();
+        String status = application.getStatus().name();
+        String rejectionReason = application.getRejectionReason();
+
+        dispatchEmail(
+                "rental application " + status.toLowerCase(),
+                () -> emailService.sendRentalApplicationReviewEmail(
+                        recipientEmail,
+                        tenantName,
+                        propertyName,
+                        unitNumber,
+                        applicationId,
+                        status,
+                        rejectionReason));
+    }
+
+    private void notifyPropertyContactsAboutApplicationWithdrawn(
+            RentalApplication application) {
+
+        Property property = getPropertyFromApplication(application);
+        Tenant tenant = application.getTenant();
+        User tenantUser = tenant != null ? tenant.getUser() : null;
+        Unit unit = application.getUnit();
+
+        if (property == null || tenantUser == null || unit == null) {
+            return;
+        }
+
+        String tenantName = getUserDisplayName(tenantUser);
+        String propertyName = property.getPropertyName();
+        String unitNumber = unit.getUnitNumber();
+        Long applicationId = application.getApplicationId();
+
+        User owner = property.getOwner();
+        if (owner != null && owner.getEmail() != null) {
+            String recipientEmail = owner.getEmail();
+            dispatchEmail(
+                    "rental application withdrawn",
+                    () -> emailService.sendRentalApplicationWithdrawnEmail(
+                            recipientEmail,
+                            tenantName,
+                            propertyName,
+                            unitNumber,
+                            applicationId));
+        }
+
+        if (property.getPropertyManager() != null
+                && property.getPropertyManager().getUser() != null) {
+            User manager = property.getPropertyManager().getUser();
+            if (manager.getEmail() != null
+                    && manager.getId() != null
+                    && (owner == null
+                            || !manager.getId().equals(owner.getId()))) {
+                String recipientEmail = manager.getEmail();
+                dispatchEmail(
+                        "rental application withdrawn",
+                        () -> emailService.sendRentalApplicationWithdrawnEmail(
+                                recipientEmail,
+                                tenantName,
+                                propertyName,
+                                unitNumber,
+                                applicationId));
+            }
+        }
+    }
+
+    private String getUserDisplayName(User user) {
+        String firstName = user.getFirstName() == null
+                ? ""
+                : user.getFirstName();
+        String lastName = user.getLastName() == null
+                ? ""
+                : user.getLastName();
+        return (firstName + " " + lastName).trim();
+    }
+
+    private void dispatchEmail(String notificationType, Runnable sendEmail) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
     }
 
     // ============================================================
@@ -1344,4 +1544,3 @@ public class RentalApplicationServiceImpl
         return cleaned;
     }
 }
-

@@ -4,10 +4,12 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.PropertyManager;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
@@ -16,18 +18,41 @@ import com.rental.rental_management_backend.property.enums.PropertyType;
 
 public interface PropertyRepository extends JpaRepository<Property, Long> {
 
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
+    @Query("SELECT p FROM Property p WHERE p.propertyId = :propertyId")
+    Optional<Property> findDetailsById(
+            @Param("propertyId") Long propertyId);
+
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     List<Property> findByOwner(User owner);
 
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     Optional<Property> findByPropertyIdAndOwner(
             Long propertyId,
             User owner
     );
 
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
+    @Query("""
+        SELECT p
+        FROM Property p
+        WHERE p.propertyId = :propertyId
+          AND p.owner.email = :ownerEmail
+          AND p.owner.role = :ownerRole
+        """)
+    Optional<Property> findOwnedPropertyByIdAndOwnerEmail(
+            @Param("propertyId") Long propertyId,
+            @Param("ownerEmail") String ownerEmail,
+            @Param("ownerRole") RoleType ownerRole);
+
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     List<Property> findByStatus(PropertyStatus status);
 
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     List<Property> findByPropertyManager(PropertyManager propertyManager);
 
     // Get all properties assigned using PropertyManager ID
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     List<Property> findByPropertyManager_PropertyManagerId(
             Long propertyManagerId
     );
@@ -143,6 +168,7 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             )
         )
         """)
+    @EntityGraph(attributePaths = {"owner", "propertyManager.user"})
     List<Property> searchAvailableProperties(
 
             @Param("status")

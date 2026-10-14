@@ -186,21 +186,7 @@ public class AmenityServiceImpl implements AmenityService {
                                 new RuntimeException(
                                         "Amenity not found"));
 
-        List<PropertyAmenity> propertyAmenities =
-                propertyAmenityRepository
-                        .findAll()
-                        .stream()
-                        .filter(pa ->
-                                pa.getAmenity()
-                                  .getAmenityId()
-                                  .equals(amenityId))
-                        .collect(Collectors.toList());
-
-        if (!propertyAmenities.isEmpty()) {
-
-            propertyAmenityRepository
-                    .deleteAll(propertyAmenities);
-        }
+        propertyAmenityRepository.deleteByAmenityId(amenityId);
 
         amenityRepository.delete(amenity);
     }

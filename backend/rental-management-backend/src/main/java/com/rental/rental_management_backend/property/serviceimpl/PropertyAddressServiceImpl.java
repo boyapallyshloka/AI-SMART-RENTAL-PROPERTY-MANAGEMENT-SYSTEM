@@ -70,15 +70,8 @@ public class PropertyAddressServiceImpl
     public PropertyAddressResponse getAddressByPropertyId(
             Long propertyId) {
 
-        Property property = getOwnedProperty(propertyId);
-
         PropertyAddress address =
-                addressRepository.findByProperty(property)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Address not found for this property"
-                                )
-                        );
+                getOwnedAddress(propertyId);
 
         return convertToResponse(address);
     }
@@ -88,15 +81,8 @@ public class PropertyAddressServiceImpl
             Long propertyId,
             PropertyAddressRequest request) {
 
-        Property property = getOwnedProperty(propertyId);
-
         PropertyAddress address =
-                addressRepository.findByProperty(property)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Address not found for this property"
-                                )
-                        );
+                getOwnedAddress(propertyId);
 
         mapRequestToEntity(request, address);
 
@@ -109,17 +95,33 @@ public class PropertyAddressServiceImpl
     @Override
     public void deleteAddress(Long propertyId) {
 
-        Property property = getOwnedProperty(propertyId);
-
         PropertyAddress address =
-                addressRepository.findByProperty(property)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Address not found for this property"
-                                )
-                        );
+                getOwnedAddress(propertyId);
 
         addressRepository.delete(address);
+    }
+
+    private PropertyAddress getOwnedAddress(Long propertyId) {
+        User loggedInUser = getLoggedInUser();
+        validateOwner(loggedInUser);
+
+        return addressRepository
+                .findByPropertyIdAndOwner(propertyId, loggedInUser)
+                .orElseGet(() -> {
+                    Property property =
+                            propertyRepository
+                                    .findByPropertyIdAndOwner(
+                                            propertyId,
+                                            loggedInUser)
+                                    .orElseThrow(() ->
+                                            new ResourceNotFoundException(
+                                                    "Property not found or you do not have permission"));
+
+                    return addressRepository.findByProperty(property)
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Address not found for this property"));
+                });
     }
 
     /*
@@ -202,30 +204,32 @@ public class PropertyAddressServiceImpl
     public PropertyAddressResponse getPublicAddressByPropertyId(
             Long propertyId) {
 
-        Property property =
-                propertyRepository
-                        .findById(propertyId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Property not found with id: "
-                                                + propertyId
-                                )
-                        );
-
-        if (property.getStatus() != PropertyStatus.AVAILABLE) {
-
-            throw new RuntimeException(
-                    "Property is not available for tenants"
-            );
-        }
-
         PropertyAddress address =
-                addressRepository.findByProperty(property)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Address not found for this property"
-                                )
-                        );
+                addressRepository
+                        .findByPropertyIdAndStatus(
+                                propertyId,
+                                PropertyStatus.AVAILABLE)
+                        .orElseGet(() -> {
+                            Property property =
+                                    propertyRepository
+                                            .findById(propertyId)
+                                            .orElseThrow(() ->
+                                                    new RuntimeException(
+                                                            "Property not found with id: "
+                                                                    + propertyId));
+
+                            if (property.getStatus()
+                                    != PropertyStatus.AVAILABLE) {
+                                throw new RuntimeException(
+                                        "Property is not available for tenants");
+                            }
+
+                            return addressRepository
+                                    .findByProperty(property)
+                                    .orElseThrow(() ->
+                                            new RuntimeException(
+                                                    "Address not found for this property"));
+                        });
 
         return convertToResponse(address);
     }

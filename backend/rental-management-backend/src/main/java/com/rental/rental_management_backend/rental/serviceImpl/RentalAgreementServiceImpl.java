@@ -10,10 +10,14 @@ import java.util.stream.Collectors;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.serviceImpl.UserAuthEmailDispatcher;
+import com.rental.rental_management_backend.email.EmailService;
 import com.rental.rental_management_backend.notification.enums.NotificationPriority;
 import com.rental.rental_management_backend.notification.enums.NotificationType;
 import com.rental.rental_management_backend.notification.service.NotificationService;
@@ -42,6 +46,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
     private final RentalAgreementPdfService rentalAgreementPdfService;
     private final S3Service s3Service;
     private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
 
     public RentalAgreementServiceImpl(
             RentalAgreementRepository rentalAgreementRepository,
@@ -49,7 +55,9 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             UserRepository userRepository,
             RentalAgreementPdfService rentalAgreementPdfService,
             S3Service s3Service,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            EmailService emailService,
+            UserAuthEmailDispatcher userAuthEmailDispatcher) {
 
         this.rentalAgreementRepository = rentalAgreementRepository;
         this.rentalApplicationRepository = rentalApplicationRepository;
@@ -57,6 +65,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         this.rentalAgreementPdfService = rentalAgreementPdfService;
         this.s3Service = s3Service;
         this.notificationService = notificationService;
+        this.emailService = emailService;
+        this.userAuthEmailDispatcher = userAuthEmailDispatcher;
     }
 
     // =========================================================
@@ -188,6 +198,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
 
         savedAgreement = rentalAgreementRepository.save(savedAgreement);
 
+        sendAgreementCreatedEmail(savedAgreement);
+
         return mapToResponse(savedAgreement);
     }
 
@@ -258,13 +270,13 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         }
 
         if (user.getRole() == RoleType.SUPER_ADMIN) {
-            return rentalAgreementRepository.findAll()
+            return rentalAgreementRepository.findAllForAdminResponse()
                     .stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
         }
 
-        return rentalAgreementRepository.findAll()
+        return rentalAgreementRepository.findAllForManagementResponse()
                 .stream()
                 .filter(agreement -> hasAccess(agreement, user))
                 .map(this::mapToResponse)
@@ -357,6 +369,9 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                 rentalAgreementRepository.save(agreement);
 
         sendAgreementStatusNotification(updatedAgreement);
+        sendAgreementStatusChangedEmail(
+                updatedAgreement,
+                currentStatus);
 
         return mapToResponse(updatedAgreement);
     }
@@ -418,7 +433,160 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
             sendAgreementStatusNotification(updatedAgreement);
         }
 
+        if (moveOutDateChanged || agreementTerminated) {
+            sendAgreementMoveOutEmail(updatedAgreement);
+        }
+
         return mapToResponse(updatedAgreement);
+    }
+
+    private void sendAgreementCreatedEmail(RentalAgreement agreement) {
+        AgreementEmailDetails details = getAgreementEmailDetails(agreement);
+        if (details == null) {
+            return;
+        }
+
+        dispatchEmail(
+                "rental agreement created",
+                () -> emailService.sendAgreementCreatedEmail(
+                        details.tenantEmail(),
+                        details.tenantName(),
+                        details.agreementId(),
+                        details.propertyName(),
+                        details.unitNumber(),
+                        details.startDate(),
+                        details.endDate(),
+                        details.monthlyRent(),
+                        details.status()));
+    }
+
+    private void sendAgreementStatusChangedEmail(
+            RentalAgreement agreement,
+            AgreementStatus previousStatus) {
+
+        AgreementEmailDetails details = getAgreementEmailDetails(agreement);
+        if (details == null) {
+            return;
+        }
+
+        String previousStatusName = previousStatus == null
+                ? "Not specified"
+                : previousStatus.name();
+
+        dispatchEmail(
+                "rental agreement status changed",
+                () -> emailService.sendAgreementStatusChangedEmail(
+                        details.tenantEmail(),
+                        details.tenantName(),
+                        details.agreementId(),
+                        details.propertyName(),
+                        details.unitNumber(),
+                        previousStatusName,
+                        details.status(),
+                        details.startDate(),
+                        details.endDate(),
+                        details.monthlyRent()));
+    }
+
+    private void sendAgreementMoveOutEmail(RentalAgreement agreement) {
+        AgreementEmailDetails details = getAgreementEmailDetails(agreement);
+        if (details == null) {
+            return;
+        }
+
+        dispatchEmail(
+                "rental agreement move-out updated",
+                () -> emailService.sendAgreementMoveOutEmail(
+                        details.tenantEmail(),
+                        details.tenantName(),
+                        details.agreementId(),
+                        details.propertyName(),
+                        details.unitNumber(),
+                        details.status(),
+                        details.moveOutDate(),
+                        details.startDate(),
+                        details.endDate(),
+                        details.monthlyRent()));
+    }
+
+    private AgreementEmailDetails getAgreementEmailDetails(
+            RentalAgreement agreement) {
+
+        if (agreement == null
+                || agreement.getTenant() == null
+                || agreement.getTenant().getUser() == null) {
+            return null;
+        }
+
+        User tenantUser = agreement.getTenant().getUser();
+        String tenantEmail = tenantUser.getEmail();
+        if (tenantEmail == null || tenantEmail.isBlank()) {
+            return null;
+        }
+
+        Unit unit = agreement.getUnit();
+        var property = unit != null
+                && unit.getFloor() != null
+                && unit.getFloor().getBuilding() != null
+                ? unit.getFloor().getBuilding().getProperty()
+                : null;
+        String tenantName = ((tenantUser.getFirstName() == null
+                ? ""
+                : tenantUser.getFirstName())
+                + " "
+                + (tenantUser.getLastName() == null
+                        ? ""
+                        : tenantUser.getLastName())).trim();
+
+        return new AgreementEmailDetails(
+                tenantEmail,
+                tenantName,
+                agreement.getAgreementId(),
+                property == null || property.getPropertyName() == null
+                        ? "Not specified"
+                        : property.getPropertyName(),
+                unit == null || unit.getUnitNumber() == null
+                        ? "Not specified"
+                        : unit.getUnitNumber(),
+                formatEmailValue(agreement.getStartDate()),
+                formatEmailValue(agreement.getEndDate()),
+                formatEmailValue(agreement.getMonthlyRent()),
+                formatEmailValue(agreement.getStatus()),
+                formatEmailValue(agreement.getMoveOutDate()));
+    }
+
+    private String formatEmailValue(Object value) {
+        return value == null ? "Not specified" : value.toString();
+    }
+
+    private void dispatchEmail(String notificationType, Runnable sendEmail) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
+    }
+
+    private record AgreementEmailDetails(
+            String tenantEmail,
+            String tenantName,
+            Long agreementId,
+            String propertyName,
+            String unitNumber,
+            String startDate,
+            String endDate,
+            String monthlyRent,
+            String status,
+            String moveOutDate) {
     }
 
     // =========================================================
@@ -662,7 +830,8 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
                     "Agreement ID is required");
         }
 
-        return rentalAgreementRepository.findById(agreementId)
+        return rentalAgreementRepository
+                .findForAccessByAgreementId(agreementId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Rental agreement not found with ID: " + agreementId));
     }
@@ -909,4 +1078,3 @@ public class RentalAgreementServiceImpl implements RentalAgreementService {
         return s3Service.downloadFile(documentKey);
     }
 }
-

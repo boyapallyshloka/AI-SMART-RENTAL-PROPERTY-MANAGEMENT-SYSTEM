@@ -11,6 +11,8 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
@@ -20,6 +22,8 @@ import com.razorpay.Utils;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.User.serviceImpl.UserAuthEmailDispatcher;
+import com.rental.rental_management_backend.email.EmailService;
 
 import com.rental.rental_management_backend.payment.dto.PaymentCreateDTO;
 import com.rental.rental_management_backend.payment.dto.PaymentResponse;
@@ -72,6 +76,10 @@ public class PaymentServiceImpl implements PaymentService {
     // Notification service
     private final NotificationService notificationService;
 
+    private final EmailService emailService;
+
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
+
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
 
@@ -95,7 +103,11 @@ public class PaymentServiceImpl implements PaymentService {
 
             RazorpayClient razorpayClient,
 
-            NotificationService notificationService) {
+            NotificationService notificationService,
+
+            EmailService emailService,
+
+            UserAuthEmailDispatcher userAuthEmailDispatcher) {
 
         this.paymentRepository = paymentRepository;
 
@@ -112,6 +124,10 @@ public class PaymentServiceImpl implements PaymentService {
         this.razorpayClient = razorpayClient;
 
         this.notificationService = notificationService;
+
+        this.emailService = emailService;
+
+        this.userAuthEmailDispatcher = userAuthEmailDispatcher;
     }
 
 
@@ -564,6 +580,7 @@ public class PaymentServiceImpl implements PaymentService {
 
                 notifyPaymentFailed(
                         payment,
+                        tenant,
                         "Payment verification failed because the Razorpay signature is invalid.");
 
                 throw new RuntimeException(
@@ -715,7 +732,7 @@ public class PaymentServiceImpl implements PaymentService {
             // NOTIFICATION: PAYMENT SUCCESS
             // ====================================================
 
-            notifyPaymentSuccess(payment);
+            notifyPaymentSuccess(payment, tenant);
 
             return mapToResponse(payment);
 
@@ -736,6 +753,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             notifyPaymentFailed(
                     payment,
+                    tenant,
                     "Payment verification failed because Razorpay could not be contacted.");
 
             throw new RuntimeException(
@@ -751,21 +769,14 @@ public class PaymentServiceImpl implements PaymentService {
     // ============================================================
 
     private void notifyPaymentSuccess(
-            Payment payment) {
+            Payment payment,
+            Tenant tenant) {
 
         if (payment == null ||
-                payment.getTenantId() == null) {
-
-            return;
-        }
-
-        Tenant tenant = tenantRepository
-                .findById(payment.getTenantId())
-                .orElse(null);
-
-        if (tenant == null ||
-                tenant.getUser() == null ||
-                tenant.getUser().getId() == null) {
+                payment.getTenantId() == null
+                || tenant == null
+                || tenant.getUser() == null
+                || tenant.getUser().getId() == null) {
 
             return;
         }
@@ -781,6 +792,27 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.getPaymentId(),
                 "PAYMENT"
         );
+
+        String tenantEmail = tenant.getUser().getEmail();
+        if (tenantEmail == null || tenantEmail.isBlank()) {
+            return;
+        }
+
+        String tenantName = getTenantDisplayName(tenant);
+        String amount = payment.getAmount() == null
+                ? "Not specified"
+                : payment.getAmount().toString();
+        String invoiceNumber = payment.getInvoice() == null
+                ? "Not specified"
+                : payment.getInvoice().getInvoiceNumber();
+
+        dispatchEmailAfterCommit(
+                "payment successful",
+                () -> emailService.sendPaymentSuccessEmail(
+                        tenantEmail,
+                        tenantName,
+                        amount,
+                        invoiceNumber));
     }
 
 
@@ -790,21 +822,14 @@ public class PaymentServiceImpl implements PaymentService {
 
     private void notifyPaymentFailed(
             Payment payment,
+            Tenant tenant,
             String reason) {
 
         if (payment == null ||
-                payment.getTenantId() == null) {
-
-            return;
-        }
-
-        Tenant tenant = tenantRepository
-                .findById(payment.getTenantId())
-                .orElse(null);
-
-        if (tenant == null ||
-                tenant.getUser() == null ||
-                tenant.getUser().getId() == null) {
+                payment.getTenantId() == null
+                || tenant == null
+                || tenant.getUser() == null
+                || tenant.getUser().getId() == null) {
 
             return;
         }
@@ -818,6 +843,54 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.getPaymentId(),
                 "PAYMENT"
         );
+
+        String tenantEmail = tenant.getUser().getEmail();
+        if (tenantEmail == null || tenantEmail.isBlank()) {
+            return;
+        }
+
+        String tenantName = getTenantDisplayName(tenant);
+        String invoiceNumber = payment.getInvoice() == null
+                ? "Not specified"
+                : payment.getInvoice().getInvoiceNumber();
+
+        userAuthEmailDispatcher.dispatch(
+                "payment failed",
+                () -> emailService.sendPaymentFailureEmail(
+                        tenantEmail,
+                        tenantName,
+                        invoiceNumber));
+    }
+
+    private String getTenantDisplayName(Tenant tenant) {
+        User tenantUser = tenant.getUser();
+        String firstName = tenantUser.getFirstName() == null
+                ? ""
+                : tenantUser.getFirstName();
+        String lastName = tenantUser.getLastName() == null
+                ? ""
+                : tenantUser.getLastName();
+        return (firstName + " " + lastName).trim();
+    }
+
+    private void dispatchEmailAfterCommit(
+            String notificationType,
+            Runnable sendEmail) {
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
     }
 
 
@@ -876,17 +949,13 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        List<Payment> payments =
-                paymentRepository
-                        .findByTenantId(tenantId);
-
         /*
          * SUPER_ADMIN can access all payments.
          */
 
         if (user.getRole() == RoleType.SUPER_ADMIN) {
 
-            return payments.stream()
+            return paymentRepository.findByTenantId(tenantId).stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
         }
@@ -897,17 +966,37 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (user.getRole() == RoleType.TENANT) {
 
-            return payments.stream()
+            return paymentRepository.findByTenantId(tenantId).stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        }
+
+        if (user.getRole() == RoleType.PROPERTY_OWNER) {
+            return paymentRepository
+                    .findByTenantIdAndPropertyOwnerId(
+                            tenantId,
+                            user.getId())
+                    .stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        }
+
+        if (user.getRole() == RoleType.PROPERTY_MANAGER) {
+            return paymentRepository
+                    .findByTenantIdAndPropertyManagerUserId(
+                            tenantId,
+                            user.getId())
+                    .stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
         }
 
         /*
-         * OWNER/MANAGER:
-         * Return only payments they are authorized to access.
+         * Retain the existing behavior for any other role: include only
+         * payments that pass the existing access validator.
          */
 
-        return payments.stream()
+        return paymentRepository.findByTenantId(tenantId).stream()
                 .filter(payment -> {
 
                     try {
@@ -1112,16 +1201,12 @@ public class PaymentServiceImpl implements PaymentService {
     private BigDecimal getSuccessfullyPaidAmount(
             Long invoiceId) {
 
-        return paymentRepository
-                .findByInvoice_InvoiceId(invoiceId)
-                .stream()
-                .filter(payment ->
-                        payment.getPaymentStatus()
-                                == PaymentStatus.SUCCESS)
-                .map(Payment::getAmount)
-                .reduce(
-                        BigDecimal.ZERO,
-                        BigDecimal::add);
+        BigDecimal paidAmount =
+                paymentRepository.sumAmountByInvoiceIdAndPaymentStatus(
+                        invoiceId,
+                        PaymentStatus.SUCCESS);
+
+        return paidAmount == null ? BigDecimal.ZERO : paidAmount;
     }
 
 
@@ -1208,4 +1293,3 @@ public class PaymentServiceImpl implements PaymentService {
         return response;
     }
 }
-

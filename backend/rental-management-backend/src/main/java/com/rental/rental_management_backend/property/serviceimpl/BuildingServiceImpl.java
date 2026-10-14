@@ -308,13 +308,44 @@ public class BuildingServiceImpl implements BuildingService {
                     "Building is not associated with a property");
         }
 
-        // Reuse the same property-level authorization
-        // for both PROPERTY_OWNER and PROPERTY_MANAGER.
-        getAccessibleProperty(
-                property.getPropertyId(),
-                authenticatedUser);
+        validatePropertyAccess(property, authenticatedUser);
 
         return building;
+    }
+
+    private void validatePropertyAccess(
+            Property property,
+            User authenticatedUser) {
+
+        if (authenticatedUser.getRole() == RoleType.PROPERTY_OWNER) {
+            if (property.getOwner() == null
+                    || property.getOwner().getId() == null
+                    || !property.getOwner().getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Property not found or you do not have permission");
+            }
+
+            return;
+        }
+
+        if (authenticatedUser.getRole() == RoleType.PROPERTY_MANAGER) {
+            if (property.getPropertyManager() == null
+                    || property.getPropertyManager().getUser() == null
+                    || property.getPropertyManager().getUser().getId() == null
+                    || !property.getPropertyManager().getUser().getId()
+                            .equals(authenticatedUser.getId())) {
+
+                throw new ResourceNotFoundException(
+                        "Property not found or you do not have permission");
+            }
+
+            return;
+        }
+
+        throw new ResourceNotFoundException(
+                "Property not found or you do not have permission");
     }
 
     // ============================================================

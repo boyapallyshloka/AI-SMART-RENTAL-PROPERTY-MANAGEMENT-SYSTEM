@@ -54,6 +54,10 @@ public class JwtService {
         );
     }
 
+    public Claims extractClaims(String token) {
+        return extractAllClaims(token);
+    }
+
     // Extract any claim
     public <T> T extractClaim(
             String token,
@@ -69,26 +73,19 @@ public class JwtService {
             String token,
             UserDetails userDetails) {
 
-        String username = extractUsername(token);
-
-        return username.equals(userDetails.getUsername())
-                && !isTokenExpired(token);
+        return isTokenValid(extractAllClaims(token), userDetails);
     }
 
-    // Check token expiration
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenValid(
+            Claims claims,
+            UserDetails userDetails) {
 
-        return extractExpiration(token)
-                .before(new Date());
-    }
+        Date expiration = claims.getExpiration();
 
-    // Extract expiration date
-    private Date extractExpiration(String token) {
-
-        return extractClaim(
-                token,
-                Claims::getExpiration
-        );
+        return claims.getSubject() != null
+                && claims.getSubject().equals(userDetails.getUsername())
+                && expiration != null
+                && !expiration.before(new Date());
     }
 
     // Parse JWT and extract all claims
@@ -110,4 +107,3 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
-

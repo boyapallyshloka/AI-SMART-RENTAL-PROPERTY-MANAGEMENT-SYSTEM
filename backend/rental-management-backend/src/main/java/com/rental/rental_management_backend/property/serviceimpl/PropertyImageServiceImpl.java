@@ -124,7 +124,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
-                .findById(imageId)
+                .findByImageId(imageId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Image not found with ID: " + imageId));
@@ -150,7 +150,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
-                .findById(imageId)
+                .findByImageId(imageId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Image not found with ID: " + imageId));
@@ -221,7 +221,7 @@ public class PropertyImageServiceImpl implements PropertyImageService {
         User authenticatedUser = getAuthenticatedUser();
 
         PropertyImage image = propertyImageRepository
-                .findById(imageId)
+                .findByImageId(imageId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Image not found with ID: " + imageId));

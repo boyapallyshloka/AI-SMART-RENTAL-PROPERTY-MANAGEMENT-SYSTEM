@@ -2,9 +2,13 @@ package com.rental.rental_management_backend.User.security;
 
 import java.io.IOException;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,106 +41,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        String jwt = null;
-        String userEmail = null;
+        if (authHeader != null
+                && authHeader.startsWith("Bearer ")
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        // ---------------------------------------------------------
-        // READ JWT FROM AUTHORIZATION HEADER
-        // ---------------------------------------------------------
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-
-            jwt = authHeader.substring(7);
+            String jwt = authHeader.substring(7);
+            Claims claims;
 
             try {
-
-                userEmail = jwtService.extractUsername(jwt);
-
-                System.out.println("=================================================");
-                System.out.println("JWT EMAIL : " + userEmail);
-                System.out.println("REQUEST   : " + request.getRequestURI());
-                System.out.println("=================================================");
-
-            } catch (Exception e) {
-
-                System.out.println(
-                        "Invalid JWT token: " + e.getMessage()
-                );
+                claims = jwtService.extractClaims(jwt);
+            } catch (JwtException | IllegalArgumentException ex) {
+                filterChain.doFilter(request, response);
+                return;
             }
-        }
 
-        // ---------------------------------------------------------
-        // LOAD USER AND SET AUTHENTICATION
-        // ---------------------------------------------------------
+            String userEmail = claims.getSubject();
+            if (userEmail != null) {
+                try {
+                    UserDetails userDetails =
+                            userDetailsService.loadUserByUsername(userEmail);
 
-        if (userEmail != null &&
-                SecurityContextHolder.getContext().getAuthentication() == null) {
+                    if (jwtService.isTokenValid(claims, userDetails)
+                            && userDetails.isEnabled()
+                            && userDetails.isAccountNonLocked()) {
 
-            try {
+                        UsernamePasswordAuthenticationToken authenticationToken =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities());
 
-                UserDetails userDetails =
-                        userDetailsService.loadUserByUsername(userEmail);
+                        authenticationToken.setDetails(
+                                new WebAuthenticationDetailsSource()
+                                        .buildDetails(request));
 
-                if (jwtService.isTokenValid(jwt, userDetails)) {
-
-                    UsernamePasswordAuthenticationToken authenticationToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-
-                    authenticationToken.setDetails(
-                            new WebAuthenticationDetailsSource()
-                                    .buildDetails(request)
-                    );
-
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authenticationToken);
-
-                    // -------------------------------------------------
-                    // DEBUG - CHECK ACTUAL SPRING SECURITY AUTHORITY
-                    // -------------------------------------------------
-
-                    System.out.println(
-                            "================================================="
-                    );
-
-                    System.out.println(
-                            "AUTHENTICATED USER : "
-                                    + userDetails.getUsername()
-                    );
-
-                    System.out.println(
-                            "AUTHORITIES        : "
-                                    + userDetails.getAuthorities()
-                    );
-
-                    System.out.println(
-                            "AUTHENTICATION     : "
-                                    + SecurityContextHolder
-                                            .getContext()
-                                            .getAuthentication()
-                    );
-
-                    System.out.println(
-                            "================================================="
-                    );
-
-                } else {
-
-                    System.out.println(
-                            "JWT TOKEN IS NOT VALID"
-                    );
+                        SecurityContextHolder.getContext()
+                                .setAuthentication(authenticationToken);
+                    }
+                } catch (UsernameNotFoundException ex) {
+                    SecurityContextHolder.clearContext();
                 }
-
-            } catch (Exception e) {
-
-                System.out.println(
-                        "JWT authentication failed: "
-                                + e.getMessage()
-                );
             }
         }
 

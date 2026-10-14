@@ -7,6 +7,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
@@ -22,7 +24,7 @@ import com.rental.rental_management_backend.property.enums.PropertyType;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyService;
-import com.rental.rental_management_backend.email.EmailService;
+
 @Service
 @Transactional
 public class PropertyServiceImpl implements PropertyService {
@@ -30,18 +32,18 @@ public class PropertyServiceImpl implements PropertyService {
 	private final PropertyRepository propertyRepository;
 	private final UserRepository userRepository;
 	private final PropertyManagerRepository propertyManagerRepository;
-	private final EmailService emailService;
+	private final PropertyNotificationDispatcher notificationDispatcher;
 
 	public PropertyServiceImpl(
 	        PropertyRepository propertyRepository,
 	        UserRepository userRepository,
 	        PropertyManagerRepository propertyManagerRepository,
-	        EmailService emailService) {
+	        PropertyNotificationDispatcher notificationDispatcher) {
 
 	    this.propertyRepository = propertyRepository;
 	    this.userRepository = userRepository;
 	    this.propertyManagerRepository = propertyManagerRepository;
-	    this.emailService = emailService;
+	    this.notificationDispatcher = notificationDispatcher;
 	}
 	@Override
 	public PropertyResponse createProperty(PropertyRequest request) {
@@ -68,21 +70,23 @@ public class PropertyServiceImpl implements PropertyService {
 
 	    Property savedProperty = propertyRepository.save(property);
 
-	    // Notify the owner after saving the property.
-	    try {
-	        emailService.sendPropertyCreatedEmail(
-	                owner.getEmail(),
-	                savedProperty.getPropertyName()
-	        );
-	    } catch (org.springframework.mail.MailException ex) {
-	        // Email failure should not disrupt property creation.
-	        // Log the failure for troubleshooting.
-	        org.slf4j.LoggerFactory
-	                .getLogger(PropertyServiceImpl.class)
-	                .error(
-	                        "Property was created, but notification email could not be sent.",
-	                        ex
-	                );
+	    String ownerEmail = owner.getEmail();
+	    String propertyName = savedProperty.getPropertyName();
+	    Runnable notification = () ->
+	            notificationDispatcher.sendPropertyCreatedEmail(
+	                    ownerEmail,
+	                    propertyName);
+
+	    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+	        TransactionSynchronizationManager.registerSynchronization(
+	                new TransactionSynchronization() {
+	                    @Override
+	                    public void afterCommit() {
+	                        notification.run();
+	                    }
+	                });
+	    } else {
+	        notification.run();
 	    }
 
 	    return convertToResponse(savedProperty);
@@ -117,13 +121,26 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     public PropertyResponse getMyPropertyById(Long id) {
 
-        User owner = getLoggedInUser();
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
 
-        validateOwner(owner);
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("User is not authenticated");
+        }
+
+        if (authentication.getAuthorities().stream()
+                .noneMatch(authority ->
+                        authority.getAuthority().equals("ROLE_PROPERTY_OWNER"))) {
+            throw new RuntimeException(
+                    "Only PROPERTY_OWNER can manage properties");
+        }
 
         Property property =
                 propertyRepository
-                        .findByPropertyIdAndOwner(id, owner)
+                        .findOwnedPropertyByIdAndOwnerEmail(
+                                id,
+                                authentication.getName(),
+                                RoleType.PROPERTY_OWNER)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Property not found or you do not have permission"

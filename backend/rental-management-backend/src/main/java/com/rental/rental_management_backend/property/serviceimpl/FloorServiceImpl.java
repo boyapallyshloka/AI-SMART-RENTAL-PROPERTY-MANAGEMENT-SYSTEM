@@ -119,7 +119,7 @@ public class FloorServiceImpl implements FloorService {
 
         Floor floor =
                 floorRepository
-                        .findById(floorId)
+                        .findFloorWithAccessDetailsByFloorId(floorId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Floor not found with ID: "
@@ -146,7 +146,7 @@ public class FloorServiceImpl implements FloorService {
 
         Floor floor =
                 floorRepository
-                        .findById(floorId)
+                        .findFloorWithAccessDetailsByFloorId(floorId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Floor not found with ID: "
@@ -156,8 +156,11 @@ public class FloorServiceImpl implements FloorService {
                 floor,
                 authenticatedUser);
 
-        Building newBuilding =
-                getAccessibleBuilding(
+        Building newBuilding = floor.getBuilding()
+                        .getBuildingId()
+                        .equals(request.getBuildingId())
+                ? floor.getBuilding()
+                : getAccessibleBuilding(
                         request.getBuildingId(),
                         authenticatedUser);
 
@@ -212,7 +215,7 @@ public class FloorServiceImpl implements FloorService {
 
         Floor floor =
                 floorRepository
-                        .findById(floorId)
+                        .findFloorWithAccessDetailsByFloorId(floorId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Floor not found with ID: "
@@ -288,6 +291,16 @@ public class FloorServiceImpl implements FloorService {
                     "Building is not associated with a property");
         }
 
+        validateBuildingAccess(building, property, authenticatedUser);
+
+        return building;
+    }
+
+    private void validateBuildingAccess(
+            Building building,
+            Property property,
+            User authenticatedUser) {
+
         // --------------------------------------------------------
         // PROPERTY OWNER ACCESS
         // --------------------------------------------------------
@@ -303,10 +316,10 @@ public class FloorServiceImpl implements FloorService {
 
                 throw new ResourceNotFoundException(
                         "Building not found with ID: "
-                                + buildingId);
+                                + building.getBuildingId());
             }
 
-            return building;
+            return;
         }
 
         // --------------------------------------------------------
@@ -328,15 +341,15 @@ public class FloorServiceImpl implements FloorService {
 
                 throw new ResourceNotFoundException(
                         "Building not found with ID: "
-                                + buildingId);
+                                + building.getBuildingId());
             }
 
-            return building;
+            return;
         }
 
         throw new ResourceNotFoundException(
                 "Building not found with ID: "
-                        + buildingId);
+                        + building.getBuildingId());
     }
 
     // ============================================================
@@ -356,10 +369,13 @@ public class FloorServiceImpl implements FloorService {
                     "Floor is not associated with a building");
         }
 
-        // Reuse the same building/property authorization.
-        getAccessibleBuilding(
-                building.getBuildingId(),
-                authenticatedUser);
+        Property property = building.getProperty();
+        if (property == null) {
+            throw new RuntimeException(
+                    "Building is not associated with a property");
+        }
+
+        validateBuildingAccess(building, property, authenticatedUser);
     }
 
     // ============================================================

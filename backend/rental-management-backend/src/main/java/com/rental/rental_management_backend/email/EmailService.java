@@ -86,6 +86,209 @@ public class EmailService {
         sendEmail(tenantEmail, subject, body);
     }
 
+    public void sendAgreementCreatedEmail(
+            String tenantEmail,
+            String tenantName,
+            Long agreementId,
+            String propertyName,
+            String unitNumber,
+            String startDate,
+            String endDate,
+            String monthlyRent,
+            String status) {
+
+        String subject = "Rental Agreement Created";
+        String body = "Hello " + tenantName + ",\n\n"
+                + "A rental agreement has been created for you.\n\n"
+                + "Agreement ID: " + agreementId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n"
+                + "Status: " + status + "\n"
+                + "Start date: " + startDate + "\n"
+                + "End date: " + endDate + "\n"
+                + "Monthly rent: " + monthlyRent + "\n\n"
+                + "Please log in to the platform to review the agreement.\n\n"
+                + "Thank you,\nAI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendAgreementStatusChangedEmail(
+            String tenantEmail,
+            String tenantName,
+            Long agreementId,
+            String propertyName,
+            String unitNumber,
+            String previousStatus,
+            String newStatus,
+            String startDate,
+            String endDate,
+            String monthlyRent) {
+
+        String subject = "Rental Agreement Status Updated: " + newStatus;
+        String body = "Hello " + tenantName + ",\n\n"
+                + "The status of your rental agreement has changed.\n\n"
+                + "Agreement ID: " + agreementId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n"
+                + "Previous status: " + previousStatus + "\n"
+                + "New status: " + newStatus + "\n"
+                + "Start date: " + startDate + "\n"
+                + "End date: " + endDate + "\n"
+                + "Monthly rent: " + monthlyRent + "\n\n"
+                + "Please log in to the platform to review the agreement.\n\n"
+                + "Thank you,\nAI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendAgreementMoveOutEmail(
+            String tenantEmail,
+            String tenantName,
+            Long agreementId,
+            String propertyName,
+            String unitNumber,
+            String status,
+            String moveOutDate,
+            String startDate,
+            String endDate,
+            String monthlyRent) {
+
+        String subject = "Rental Agreement Move-Out Updated";
+        String body = "Hello " + tenantName + ",\n\n"
+                + "The move-out details for your rental agreement have been updated.\n\n"
+                + "Agreement ID: " + agreementId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n"
+                + "Move-out date: " + moveOutDate + "\n"
+                + "Current status: " + status + "\n"
+                + "Start date: " + startDate + "\n"
+                + "End date: " + endDate + "\n"
+                + "Monthly rent: " + monthlyRent + "\n\n"
+                + "Please log in to the platform to review the agreement.\n\n"
+                + "Thank you,\nAI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendRentInvoiceGeneratedEmail(
+            String tenantEmail,
+            String tenantName,
+            String invoiceNumber,
+            Long invoiceId,
+            Long agreementId,
+            Integer billingMonth,
+            Integer billingYear,
+            String totalAmount,
+            String dueDate) {
+
+        String subject = "Rent Invoice Generated: " + invoiceNumber;
+        String body = "Hello " + tenantName + ",\n\n"
+                + "Your rent invoice has been generated.\n\n"
+                + "Invoice number: " + invoiceNumber + "\n"
+                + "Invoice ID: " + invoiceId + "\n"
+                + "Agreement ID: " + agreementId + "\n"
+                + "Billing period: " + billingMonth + "/" + billingYear + "\n"
+                + "Total amount: " + totalAmount + "\n"
+                + "Due date: " + dueDate + "\n\n"
+                + "Please log in to the platform to review your invoice "
+                + "and payment options.\n\n"
+                + "Thank you,\nAI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendRentInvoiceOverdueEmail(
+            String tenantEmail,
+            String tenantName,
+            String invoiceNumber,
+            Long invoiceId,
+            String totalAmount,
+            String dueDate) {
+
+        String subject = "Rent Invoice Overdue: " + invoiceNumber;
+        String body = "Hello " + tenantName + ",\n\n"
+                + "Your rent invoice is now overdue.\n\n"
+                + "Invoice number: " + invoiceNumber + "\n"
+                + "Invoice ID: " + invoiceId + "\n"
+                + "Amount due: " + totalAmount + "\n"
+                + "Due date: " + dueDate + "\n\n"
+                + "Please log in to the platform to review your invoice "
+                + "and payment options.\n\n"
+                + "Thank you,\nAI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendRentalApplicationSubmittedEmail(
+            String recipientEmail,
+            String tenantName,
+            String propertyName,
+            String unitNumber,
+            Long applicationId,
+            String moveInDate,
+            Integer leaseDurationMonths,
+            String applicationMessage) {
+
+        String subject = "New Rental Application Submitted";
+        String body = "Hello,\n\n"
+                + tenantName + " has submitted a rental application.\n\n"
+                + "Application ID: " + applicationId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n"
+                + "Preferred move-in date: " + moveInDate + "\n"
+                + "Preferred lease duration: " + leaseDurationMonths
+                + " months\n"
+                + "Message: " + applicationMessage + "\n\n"
+                + "Please log in to review the application.\n\n"
+                + "AI Smart Rental Team";
+
+        sendEmail(recipientEmail, subject, body);
+    }
+
+    public void sendRentalApplicationReviewEmail(
+            String tenantEmail,
+            String tenantName,
+            String propertyName,
+            String unitNumber,
+            Long applicationId,
+            String status,
+            String rejectionReason) {
+
+        String subject = "Rental Application " + status;
+        String body = "Hello " + tenantName + ",\n\n"
+                + "Your rental application has been " + status + ".\n\n"
+                + "Application ID: " + applicationId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n"
+                + (rejectionReason == null || rejectionReason.isBlank()
+                        ? ""
+                        : "Reason: " + rejectionReason + "\n")
+                + "\nPlease log in to the platform for details.\n\n"
+                + "AI Smart Rental Team";
+
+        sendEmail(tenantEmail, subject, body);
+    }
+
+    public void sendRentalApplicationWithdrawnEmail(
+            String recipientEmail,
+            String tenantName,
+            String propertyName,
+            String unitNumber,
+            Long applicationId) {
+
+        String subject = "Rental Application Withdrawn";
+        String body = "Hello,\n\n"
+                + tenantName + " has withdrawn a rental application.\n\n"
+                + "Application ID: " + applicationId + "\n"
+                + "Property: " + propertyName + "\n"
+                + "Unit: " + unitNumber + "\n\n"
+                + "Please log in to the platform to review your applications.\n\n"
+                + "AI Smart Rental Team";
+
+        sendEmail(recipientEmail, subject, body);
+    }
+
     public void sendPaymentSuccessEmail(
             String tenantEmail,
             String tenantName,

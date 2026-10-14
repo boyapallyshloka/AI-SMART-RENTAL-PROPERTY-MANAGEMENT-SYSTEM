@@ -28,6 +28,7 @@ import com.rental.rental_management_backend.User.dto.UserResponse;
 import com.rental.rental_management_backend.User.dto.VerifyEmailOtpRequest;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.User.enums.UserStatus;
+import com.rental.rental_management_backend.User.security.RentalUserDetails;
 import com.rental.rental_management_backend.User.service.UserService;
 
 import jakarta.validation.Valid;
@@ -90,11 +91,8 @@ public class UserController {
             Authentication authentication,
             @Valid @RequestBody ChangePasswordRequest request) {
 
-        String email = authentication.getName();
-        UserResponse user = userService.getMyProfile(email);
-
         userService.changePassword(
-                user.getId(),
+                authentication.getName(),
                 request.getCurrentPassword(),
                 request.getNewPassword()
         );
@@ -182,6 +180,11 @@ public class UserController {
     @GetMapping("/users/me")
     public ResponseEntity<UserResponse> getMyProfile(
             Authentication authentication) {
+
+        if (authentication.getPrincipal() instanceof RentalUserDetails userDetails) {
+            return ResponseEntity.ok(userService.getMyProfile(userDetails));
+        }
+
         return ResponseEntity.ok(
                 userService.getMyProfile(authentication.getName())
         );

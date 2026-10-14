@@ -2,6 +2,7 @@ package com.rental.rental_management_backend.maintenance.repository;
 
 import java.util.List;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +19,11 @@ public interface MaintenanceRequestRepository extends JpaRepository<MaintenanceR
 
     List<MaintenanceRequest> findByPriority(MaintenancePriority priority);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "property.owner",
+            "unit.floor.building.property"
+    })
     List<MaintenanceRequest> findByTenant_TenantId(Long tenantId);
 
     // Spring Data property-path methods
@@ -29,12 +35,42 @@ public interface MaintenanceRequestRepository extends JpaRepository<MaintenanceR
     @Query("SELECT m FROM MaintenanceRequest m WHERE m.property.propertyId = :propertyId")
     List<MaintenanceRequest> findByPropertyId(@Param("propertyId") Long propertyId);
 
+    @Query("""
+            SELECT m.requestedDate AS requestedDate,
+                   m.cost AS cost,
+                   m.status AS status,
+                   m.completedDate AS completedDate,
+                   m.category AS category
+            FROM MaintenanceRequest m
+            WHERE m.property.propertyId = :propertyId
+            """)
+    List<MaintenanceHistoryProjection> findHistoryValuesByPropertyId(
+            @Param("propertyId") Long propertyId);
+
     @Query("SELECT m FROM MaintenanceRequest m WHERE m.unit.unitId = :unitId")
     List<MaintenanceRequest> findByUnitId(@Param("unitId") Long unitId);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "property.owner",
+            "unit.floor.building.property"
+    })
     @Query("SELECT m FROM MaintenanceRequest m WHERE m.property.owner.id = :ownerId")
     List<MaintenanceRequest> findByPropertyOwnerId(@Param("ownerId") Long ownerId);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "property.owner",
+            "unit.floor.building.property"
+    })
     @Query("SELECT m FROM MaintenanceRequest m WHERE m.property.propertyManager.user.id = :managerUserId")
     List<MaintenanceRequest> findByPropertyManagerUserId(@Param("managerUserId") Long managerUserId);
+
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "property.owner",
+            "unit.floor.building.property"
+    })
+    @Override
+    List<MaintenanceRequest> findAll();
 }

@@ -3,6 +3,8 @@ package com.rental.rental_management_backend.maintenance.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.rental.rental_management_backend.maintenance.entity.Equipment;
@@ -11,6 +13,14 @@ import com.rental.rental_management_backend.maintenance.entity.Equipment;
 public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
 
     List<Equipment> findByProperty_PropertyId(Long propertyId);
+
+    @Query("""
+            SELECT e.installationDate AS installationDate
+            FROM Equipment e
+            WHERE e.property.propertyId = :propertyId
+            """)
+    List<EquipmentInstallationDateProjection> findInstallationDatesByPropertyId(
+            @Param("propertyId") Long propertyId);
 
     long countByProperty_PropertyId(Long propertyId);
 

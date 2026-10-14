@@ -1,12 +1,16 @@
 package com.rental.rental_management_backend.property.serviceimpl;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
 import com.rental.rental_management_backend.property.dto.AmenityResponse;
@@ -35,33 +39,14 @@ import com.rental.rental_management_backend.property.repository.PropertyAmenityR
 import com.rental.rental_management_backend.property.repository.PropertyImageRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
-import com.rental.rental_management_backend.property.service.AmenityService;
-import com.rental.rental_management_backend.property.service.BuildingService;
-import com.rental.rental_management_backend.property.service.FloorService;
-import com.rental.rental_management_backend.property.service.PropertyAddressService;
 import com.rental.rental_management_backend.property.service.PropertyDetailsService;
-import com.rental.rental_management_backend.property.service.PropertyImageService;
 import com.rental.rental_management_backend.property.service.PropertyService;
-import com.rental.rental_management_backend.property.service.UnitService;
 import com.rental.rental_management_backend.s3.service.S3Service;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
     private final PropertyService propertyService;
-
-    private final PropertyAddressService propertyAddressService;
-
-    private final BuildingService buildingService;
-
-    private final FloorService floorService;
-
-    private final UnitService unitService;
-
-    private final AmenityService amenityService;
-
-    private final PropertyImageService propertyImageService;
 
     private final PropertyRepository propertyRepository;
 
@@ -84,18 +69,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
             PropertyService propertyService,
 
-            PropertyAddressService propertyAddressService,
-
-            BuildingService buildingService,
-
-            FloorService floorService,
-
-            UnitService unitService,
-
-            AmenityService amenityService,
-
-            PropertyImageService propertyImageService,
-
             PropertyRepository propertyRepository,
 
             PropertyAddressRepository propertyAddressRepository,
@@ -113,18 +86,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
             @Autowired(required = false) S3Service s3Service) {
 
         this.propertyService = propertyService;
-
-        this.propertyAddressService = propertyAddressService;
-
-        this.buildingService = buildingService;
-
-        this.floorService = floorService;
-
-        this.unitService = unitService;
-
-        this.amenityService = amenityService;
-
-        this.propertyImageService = propertyImageService;
 
         this.propertyRepository = propertyRepository;
 
@@ -148,18 +109,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
             PropertyService propertyService,
 
-            PropertyAddressService propertyAddressService,
-
-            BuildingService buildingService,
-
-            FloorService floorService,
-
-            UnitService unitService,
-
-            AmenityService amenityService,
-
-            PropertyImageService propertyImageService,
-
             PropertyRepository propertyRepository,
 
             PropertyAddressRepository propertyAddressRepository,
@@ -176,12 +125,6 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
 
         this(
                 propertyService,
-                propertyAddressService,
-                buildingService,
-                floorService,
-                unitService,
-                amenityService,
-                propertyImageService,
                 propertyRepository,
                 propertyAddressRepository,
                 buildingRepository,
@@ -226,126 +169,13 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
      */
     private PropertyDetailsResponse getPropertyDetailsForOwner(Long propertyId) {
 
-        /*
-         * 1. PROPERTY
-         */
         PropertyResponse property =
                 propertyService.getMyPropertyById(propertyId);
 
-        /*
-         * 2. ADDRESS
-         */
-        PropertyAddressResponse address = null;
+        Property propertyEntity =
+                propertyRepository.getReferenceById(propertyId);
 
-        try {
-
-            address =
-                    propertyAddressService.getAddressByPropertyId(propertyId);
-
-        } catch (ResourceNotFoundException ex) {
-
-            address = null;
-        }
-
-        /*
-         * 3. BUILDINGS
-         */
-        List<BuildingResponse> buildingResponses =
-                buildingService.getBuildingsByProperty(propertyId);
-
-        List<BuildingDetailsResponse> buildings =
-                new ArrayList<>();
-
-        if (buildingResponses != null) {
-
-            for (BuildingResponse building : buildingResponses) {
-
-                if (building == null) {
-                    continue;
-                }
-
-                BuildingDetailsResponse buildingDetails =
-                        new BuildingDetailsResponse();
-
-                buildingDetails.setBuilding(building);
-
-                /*
-                 * FLOORS
-                 */
-                List<FloorResponse> floorResponses =
-                        floorService.getFloorsByBuilding(
-                                building.getBuildingId());
-
-                List<FloorDetailsResponse> floors =
-                        new ArrayList<>();
-
-                if (floorResponses != null) {
-
-                    for (FloorResponse floor : floorResponses) {
-
-                        if (floor == null) {
-                            continue;
-                        }
-
-                        FloorDetailsResponse floorDetails =
-                                new FloorDetailsResponse();
-
-                        floorDetails.setFloor(floor);
-
-                        /*
-                         * UNITS
-                         */
-                        List<UnitResponse> units =
-                                unitService.getUnitsByFloor(
-                                        floor.getFloorId());
-
-                        floorDetails.setUnits(
-                                units != null
-                                        ? units
-                                        : new ArrayList<>());
-
-                        floors.add(floorDetails);
-                    }
-                }
-
-                buildingDetails.setFloors(floors);
-
-                buildings.add(buildingDetails);
-            }
-        }
-
-        /*
-         * 6. AMENITIES
-         */
-        List<AmenityResponse> amenities =
-                amenityService.getPropertyAmenities(propertyId);
-
-        if (amenities == null) {
-
-            amenities = new ArrayList<>();
-        }
-
-        /*
-         * 7. IMAGES
-         */
-        List<PropertyImageResponse> images =
-                propertyImageService.getImagesByProperty(propertyId);
-
-        if (images == null) {
-
-            images = new ArrayList<>();
-        }
-
-        /*
-         * 8. BUILD FINAL RESPONSE
-         */
-        return buildPropertyDetailsResponse(
-                propertyId,
-                property,
-                address,
-                buildings,
-                amenities,
-                images);
+        return buildPropertyDetailsResponse(propertyId, property, propertyEntity);
     }
 
     /**
@@ -357,7 +187,7 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
             Long propertyId) {
 
         Property property =
-                propertyRepository.findById(propertyId)
+                propertyRepository.findDetailsById(propertyId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Property not found with ID: "
@@ -373,94 +203,10 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
         PropertyResponse propertyResponse =
                 convertPropertyToResponse(property);
 
-        PropertyAddressResponse address =
-                propertyAddressRepository.findByProperty(property)
-                        .map(this::convertAddressToResponse)
-                        .orElse(null);
-
-        List<BuildingDetailsResponse> buildings =
-                new ArrayList<>();
-
-        List<Building> buildingEntities =
-                buildingRepository.findByProperty(property);
-
-        if (buildingEntities != null) {
-
-            for (Building building : buildingEntities) {
-
-                if (building == null) {
-                    continue;
-                }
-
-                BuildingDetailsResponse buildingDetails =
-                        new BuildingDetailsResponse();
-
-                buildingDetails.setBuilding(
-                        convertBuildingToResponse(building));
-
-                List<FloorDetailsResponse> floors =
-                        new ArrayList<>();
-
-                List<Floor> floorEntities =
-                        floorRepository.findByBuilding(building);
-
-                if (floorEntities != null) {
-
-                    for (Floor floor : floorEntities) {
-
-                        if (floor == null) {
-                            continue;
-                        }
-
-                        FloorDetailsResponse floorDetails =
-                                new FloorDetailsResponse();
-
-                        floorDetails.setFloor(
-                                convertFloorToResponse(floor));
-
-                        List<Unit> unitEntities =
-                                unitRepository.findByFloor(floor);
-
-                        List<UnitResponse> unitResponses =
-                                unitEntities != null
-                                        ? unitEntities.stream()
-                                                .map(this::convertUnitToResponse)
-                                                .toList()
-                                        : new ArrayList<>();
-
-                        floorDetails.setUnits(unitResponses);
-
-                        floors.add(floorDetails);
-                    }
-                }
-
-                buildingDetails.setFloors(floors);
-
-                buildings.add(buildingDetails);
-            }
-        }
-
-        List<AmenityResponse> amenities =
-                propertyAmenityRepository.findByProperty(property)
-                        .stream()
-                        .map(PropertyAmenity::getAmenity)
-                        .filter(a -> a != null)
-                        .map(this::convertAmenityToResponse)
-                        .toList();
-
-        List<PropertyImageResponse> images =
-                propertyImageRepository.findByProperty(property)
-                        .stream()
-                        .map(this::convertImageToResponse)
-                        .toList();
-
         return buildPropertyDetailsResponse(
                 propertyId,
                 propertyResponse,
-                address,
-                buildings,
-                amenities,
-                images);
+                property);
     }
 
     /**
@@ -483,7 +229,7 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          * PROPERTY
          */
         Property propertyEntity =
-                propertyRepository.findById(propertyId)
+                propertyRepository.findDetailsById(propertyId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Property not found with ID: "
@@ -496,115 +242,108 @@ public class PropertyDetailsServiceImpl implements PropertyDetailsService {
          * We intentionally do not call PropertyAddressService here
          * because that service is restricted to PROPERTY_OWNER.
          */
+        return buildPropertyDetailsResponse(
+                propertyId,
+                property,
+                propertyEntity);
+    }
+
+    private PropertyDetailsResponse buildPropertyDetailsResponse(
+            Long propertyId,
+            PropertyResponse propertyResponse,
+            Property property) {
+
         PropertyAddressResponse address =
-                propertyAddressRepository
-                        .findByProperty(propertyEntity)
+                propertyAddressRepository.findByProperty(property)
                         .map(this::convertAddressToResponse)
                         .orElse(null);
 
-        /*
-         * BUILDINGS
-         */
         List<BuildingDetailsResponse> buildings =
-                new ArrayList<>();
+                buildBuildingDetails(buildingRepository.findByProperty(property));
 
-        List<Building> buildingEntities =
-                buildingRepository.findByProperty(propertyEntity);
-
-        if (buildingEntities != null) {
-
-            for (Building building : buildingEntities) {
-
-                if (building == null) {
-                    continue;
-                }
-
-                BuildingDetailsResponse buildingDetails =
-                        new BuildingDetailsResponse();
-
-                buildingDetails.setBuilding(
-                        convertBuildingToResponse(building));
-
-                /*
-                 * FLOORS
-                 */
-                List<FloorDetailsResponse> floors =
-                        new ArrayList<>();
-
-                List<Floor> floorEntities =
-                        floorRepository.findByBuilding(building);
-
-                if (floorEntities != null) {
-
-                    for (Floor floor : floorEntities) {
-
-                        if (floor == null) {
-                            continue;
-                        }
-
-                        FloorDetailsResponse floorDetails =
-                                new FloorDetailsResponse();
-
-                        floorDetails.setFloor(
-                                convertFloorToResponse(floor));
-
-                        /*
-                         * UNITS
-                         */
-                        List<Unit> unitEntities =
-                                unitRepository.findByFloor(floor);
-
-                        List<UnitResponse> unitResponses =
-                                unitEntities != null
-                                        ? unitEntities.stream()
-                                                .map(this::convertUnitToResponse)
-                                                .toList()
-                                        : new ArrayList<>();
-
-                        floorDetails.setUnits(unitResponses);
-
-                        floors.add(floorDetails);
-                    }
-                }
-
-                buildingDetails.setFloors(floors);
-
-                buildings.add(buildingDetails);
-            }
-        }
-
-        /*
-         * AMENITIES
-         */
         List<AmenityResponse> amenities =
-                propertyAmenityRepository
-                        .findByProperty(propertyEntity)
+                propertyAmenityRepository.findByProperty(property)
                         .stream()
                         .map(PropertyAmenity::getAmenity)
-                        .filter(a -> a != null)
+                        .filter(amenity -> amenity != null)
                         .map(this::convertAmenityToResponse)
                         .toList();
 
-        /*
-         * IMAGES
-         */
         List<PropertyImageResponse> images =
-                propertyImageRepository
-                        .findByProperty(propertyEntity)
+                propertyImageRepository.findByProperty(property)
                         .stream()
                         .map(this::convertImageToResponse)
                         .toList();
 
-        /*
-         * FINAL RESPONSE
-         */
         return buildPropertyDetailsResponse(
                 propertyId,
-                property,
+                propertyResponse,
                 address,
                 buildings,
                 amenities,
                 images);
+    }
+
+    private List<BuildingDetailsResponse> buildBuildingDetails(
+            List<Building> buildingEntities) {
+
+        if (buildingEntities.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Floor> floorEntities =
+                floorRepository.findByBuildingIn(buildingEntities);
+
+        Map<Long, List<Floor>> floorsByBuildingId =
+                floorEntities.stream().collect(Collectors.groupingBy(
+                        floor -> floor.getBuilding().getBuildingId(),
+                        HashMap::new,
+                        Collectors.toList()));
+
+        List<Unit> unitEntities = floorEntities.isEmpty()
+                ? List.of()
+                : unitRepository.findByFloorIn(floorEntities);
+
+        Map<Long, List<Unit>> unitsByFloorId =
+                unitEntities.stream().collect(Collectors.groupingBy(
+                        unit -> unit.getFloor().getFloorId(),
+                        HashMap::new,
+                        Collectors.toList()));
+
+        List<BuildingDetailsResponse> buildings =
+                new ArrayList<>(buildingEntities.size());
+
+        for (Building building : buildingEntities) {
+            List<Floor> floors = floorsByBuildingId.getOrDefault(
+                    building.getBuildingId(),
+                    List.of());
+
+            List<FloorDetailsResponse> floorDetails =
+                    new ArrayList<>(floors.size());
+
+            for (Floor floor : floors) {
+                List<UnitResponse> units =
+                        unitsByFloorId.getOrDefault(
+                                        floor.getFloorId(),
+                                        List.of())
+                                .stream()
+                                .map(this::convertUnitToResponse)
+                                .toList();
+
+                FloorDetailsResponse response = new FloorDetailsResponse();
+                response.setFloor(convertFloorToResponse(floor));
+                response.setUnits(units);
+                floorDetails.add(response);
+            }
+
+            BuildingDetailsResponse response =
+                    new BuildingDetailsResponse();
+            response.setBuilding(convertBuildingToResponse(building));
+            response.setFloors(floorDetails);
+            buildings.add(response);
+        }
+
+        return buildings;
     }
 
     /**

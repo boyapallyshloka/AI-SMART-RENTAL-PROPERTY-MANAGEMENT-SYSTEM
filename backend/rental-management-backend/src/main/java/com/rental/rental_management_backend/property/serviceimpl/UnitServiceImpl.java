@@ -129,7 +129,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit =
                 unitRepository
-                        .findById(unitId)
+                        .findUnitWithAccessDetailsByUnitId(unitId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Unit not found with ID: "
@@ -156,7 +156,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit =
                 unitRepository
-                        .findById(unitId)
+                        .findUnitWithAccessDetailsByUnitId(unitId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Unit not found with ID: "
@@ -167,9 +167,11 @@ public class UnitServiceImpl implements UnitService {
                 authenticatedUser);
 
         Floor newFloor =
-                getAccessibleFloor(
-                        request.getFloorId(),
-                        authenticatedUser);
+                unit.getFloor().getFloorId().equals(request.getFloorId())
+                        ? unit.getFloor()
+                        : getAccessibleFloor(
+                                request.getFloorId(),
+                                authenticatedUser);
 
         boolean floorChanged =
                 !unit.getFloor()
@@ -227,7 +229,7 @@ public class UnitServiceImpl implements UnitService {
 
         Unit unit =
                 unitRepository
-                        .findById(unitId)
+                        .findUnitWithAccessDetailsByUnitId(unitId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Unit not found with ID: "
@@ -288,7 +290,7 @@ public class UnitServiceImpl implements UnitService {
 
         Floor floor =
                 floorRepository
-                        .findById(floorId)
+                        .findFloorWithAccessDetailsByFloorId(floorId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Floor not found with ID: "

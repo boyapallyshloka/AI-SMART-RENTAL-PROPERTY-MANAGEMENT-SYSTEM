@@ -14,11 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.rental.rental_management_backend.maintenance.dto.M5PredictionRequest;
-import com.rental.rental_management_backend.maintenance.entity.Equipment;
-import com.rental.rental_management_backend.maintenance.entity.MaintenanceRequest;
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus;
+import com.rental.rental_management_backend.maintenance.repository.EquipmentInstallationDateProjection;
 import com.rental.rental_management_backend.maintenance.repository.EquipmentRepository;
 import com.rental.rental_management_backend.maintenance.repository.InspectionRepository;
+import com.rental.rental_management_backend.maintenance.repository.MaintenanceHistoryProjection;
 import com.rental.rental_management_backend.maintenance.repository.MaintenanceRequestRepository;
 import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
@@ -115,11 +115,11 @@ public class M5AggregationService {
 
         // 5. Fetch maintenance history
         // Always use property-scoped maintenance data for M5.
-        List<MaintenanceRequest> requests;
+        List<MaintenanceHistoryProjection> requests;
 
         if (propertyId > 0) {
             requests =
-                    maintenanceRepo.findByProperty_PropertyId(propertyId);
+                    maintenanceRepo.findHistoryValuesByPropertyId(propertyId);
         } else {
             requests = List.of();
         }
@@ -137,8 +137,7 @@ public class M5AggregationService {
 
         if (requests != null) {
             countLast90d = (int) requests.stream()
-                    .filter(r ->
-                            r.getRequestedDate() != null
+                    .filter(r -> r.getRequestedDate() != null
                             && r.getRequestedDate().isAfter(ninetyDaysAgo))
                     .count();
         }
@@ -149,8 +148,7 @@ public class M5AggregationService {
         if (requests != null) {
             totalCost = requests.stream()
                     .filter(r -> r.getCost() != null)
-                    .mapToDouble(r ->
-                            ((Number) r.getCost()).doubleValue())
+                    .mapToDouble(r -> r.getCost().doubleValue())
                     .sum();
         }
 
@@ -167,10 +165,9 @@ public class M5AggregationService {
 
             Optional<LocalDateTime> lastCompleted =
                     requests.stream()
-                            .filter(r ->
-                                    r.getStatus() == MaintenanceStatus.COMPLETED
+                            .filter(r -> r.getStatus() == MaintenanceStatus.COMPLETED
                                     && r.getCompletedDate() != null)
-                            .map(MaintenanceRequest::getCompletedDate)
+                            .map(MaintenanceHistoryProjection::getCompletedDate)
                             .max(LocalDateTime::compareTo);
 
             if (lastCompleted.isPresent()) {
@@ -225,8 +222,8 @@ public class M5AggregationService {
                 eqAttention + inspAttention;
 
         // 14. equipment_count
-        List<Equipment> equipmentList =
-                equipmentRepo.findByProperty_PropertyId(propertyId);
+        List<EquipmentInstallationDateProjection> equipmentList =
+                equipmentRepo.findInstallationDatesByPropertyId(propertyId);
 
         int equipmentCount =
                 (equipmentList != null)

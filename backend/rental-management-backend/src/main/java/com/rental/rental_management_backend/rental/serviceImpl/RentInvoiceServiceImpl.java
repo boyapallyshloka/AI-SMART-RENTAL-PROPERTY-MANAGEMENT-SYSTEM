@@ -4,14 +4,20 @@ package com.rental.rental_management_backend.rental.serviceImpl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
+import com.rental.rental_management_backend.User.serviceImpl.UserAuthEmailDispatcher;
+import com.rental.rental_management_backend.email.EmailService;
 import com.rental.rental_management_backend.notification.enums.NotificationPriority;
 import com.rental.rental_management_backend.notification.enums.NotificationType;
 import com.rental.rental_management_backend.notification.service.NotificationService;
@@ -30,8 +36,6 @@ import com.rental.rental_management_backend.rental.service.RentInvoiceService;
 import com.rental.rental_management_backend.s3.service.S3Service;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
-
-import org.springframework.stereotype.Service;
 
 @Service
 public class RentInvoiceServiceImpl implements RentInvoiceService {
@@ -52,6 +56,10 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
     private final NotificationService notificationService;
 
+    private final EmailService emailService;
+
+    private final UserAuthEmailDispatcher userAuthEmailDispatcher;
+
     public RentInvoiceServiceImpl(
 
             RentInvoiceRepository rentInvoiceRepository,
@@ -68,7 +76,11 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
             S3Service s3Service,
 
-            NotificationService notificationService) {
+            NotificationService notificationService,
+
+            EmailService emailService,
+
+            UserAuthEmailDispatcher userAuthEmailDispatcher) {
 
         this.rentInvoiceRepository =
                 rentInvoiceRepository;
@@ -93,6 +105,12 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
         this.notificationService =
                 notificationService;
+
+        this.emailService =
+                emailService;
+
+        this.userAuthEmailDispatcher =
+                userAuthEmailDispatcher;
     }
 
     // =========================================================
@@ -381,6 +399,44 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
                 invoice.getInvoiceId(),
                 "RENT_INVOICE"
         );
+
+        User tenantUser = tenant.getUser();
+        String recipientEmail = tenantUser.getEmail();
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            String tenantName = ((tenantUser.getFirstName() == null
+                    ? ""
+                    : tenantUser.getFirstName())
+                    + " "
+                    + (tenantUser.getLastName() == null
+                            ? ""
+                            : tenantUser.getLastName())).trim();
+            String invoiceNumber = invoice.getInvoiceNumber();
+            Long invoiceId = invoice.getInvoiceId();
+            Long agreementId = invoice.getRentalAgreement() == null
+                    ? null
+                    : invoice.getRentalAgreement().getAgreementId();
+            Integer billingMonth = invoice.getBillingMonth();
+            Integer billingYear = invoice.getBillingYear();
+            String totalAmount = invoice.getTotalAmount() == null
+                    ? "Not specified"
+                    : invoice.getTotalAmount().toString();
+            String dueDate = invoice.getDueDate() == null
+                    ? "Not specified"
+                    : invoice.getDueDate().toString();
+
+            dispatchEmail(
+                    "rent invoice generated",
+                    () -> emailService.sendRentInvoiceGeneratedEmail(
+                            recipientEmail,
+                            tenantName,
+                            invoiceNumber,
+                            invoiceId,
+                            agreementId,
+                            billingMonth,
+                            billingYear,
+                            totalAmount,
+                            dueDate));
+        }
     }
 
     // =========================================================
@@ -412,11 +468,7 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
     @Override
     public List<RentInvoiceResponse> getAllInvoices() {
 
-        return rentInvoiceRepository
-                .findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return mapInvoicesToResponses(rentInvoiceRepository.findAll());
     }
 
     // =========================================================
@@ -438,48 +490,25 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         String email =
                 authentication.getName();
 
-        // -----------------------------------------------------
-        // 2. Find logged-in User
-        // -----------------------------------------------------
-
-        User user =
-                userRepository
-                        .findByEmail(email)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Logged-in user not found"
-                                )
-                        );
+        Long tenantId = rentInvoiceRepository
+                .findTenantIdByUserEmail(email)
+                .orElseGet(() -> {
+                    if (userRepository.findByEmail(email).isEmpty()) {
+                        throw new RuntimeException(
+                                "Logged-in user not found");
+                    }
+                    throw new RuntimeException(
+                            "Tenant profile not found for logged-in user");
+                });
 
         // -----------------------------------------------------
-        // 3. Find Tenant using User
+        // 2. Find invoices belonging to this tenant
         // -----------------------------------------------------
 
-        Tenant tenant =
-                tenantRepository
-                        .findByUser(user)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Tenant profile not found for logged-in user"
-                                )
-                        );
+        List<RentInvoice> invoices =
+                rentInvoiceRepository.findByTenantId(tenantId);
 
-        // -----------------------------------------------------
-        // 4. Get tenant ID
-        // -----------------------------------------------------
-
-        Long tenantId =
-                tenant.getTenantId();
-
-        // -----------------------------------------------------
-        // 5. Find invoices belonging to this tenant
-        // -----------------------------------------------------
-
-        return rentInvoiceRepository
-                .findByTenantId(tenantId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return mapInvoicesToResponses(invoices);
     }
 
     // =========================================================
@@ -502,52 +531,12 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         // Find latest invoice for this agreement
         // -----------------------------------------------------
 
-        List<RentInvoice> existingInvoices =
-                rentInvoiceRepository
-                        .findAll()
-                        .stream()
-                        .filter(invoice ->
-                                invoice
-                                        .getRentalAgreement()
-                                        .getAgreementId()
-                                        .equals(
-                                                agreement
-                                                        .getAgreementId()
-                                        )
-                        )
-                        .toList();
+        RentInvoice latestInvoice = rentInvoiceRepository
+                .findFirstByRentalAgreement_AgreementIdOrderByBillingYearDescBillingMonthDesc(
+                        agreement.getAgreementId())
+                .orElse(null);
 
-        // -----------------------------------------------------
-        // If invoices already exist, move to next month
-        // -----------------------------------------------------
-
-        if (!existingInvoices.isEmpty()) {
-
-            RentInvoice latestInvoice =
-                    existingInvoices
-                            .stream()
-                            .max((a, b) -> {
-
-                                LocalDate dateA =
-                                        LocalDate.of(
-                                                a.getBillingYear(),
-                                                a.getBillingMonth(),
-                                                1
-                                        );
-
-                                LocalDate dateB =
-                                        LocalDate.of(
-                                                b.getBillingYear(),
-                                                b.getBillingMonth(),
-                                                1
-                                        );
-
-                                return dateA.compareTo(
-                                        dateB
-                                );
-                            })
-                            .orElseThrow();
-
+        if (latestInvoice != null) {
             billingDate =
                     LocalDate.of(
                             latestInvoice.getBillingYear(),
@@ -558,6 +547,51 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         }
 
         return billingDate;
+    }
+
+    private List<RentInvoiceResponse> mapInvoicesToResponses(
+            List<RentInvoice> invoices) {
+
+        if (invoices.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> invoiceIds = invoices.stream()
+                .map(RentInvoice::getInvoiceId)
+                .toList();
+        Map<Long, BigDecimal> paidAmounts = new HashMap<>();
+
+        rentInvoiceRepository.findPaidAmountsByInvoiceIds(
+                        invoiceIds,
+                        PaymentStatus.SUCCESS)
+                .forEach(result -> paidAmounts.put(
+                        result.getInvoiceId(),
+                        result.getTotalPaid()));
+
+        return invoices.stream()
+                .map(invoice -> mapToResponse(
+                        invoice,
+                        paidAmounts.getOrDefault(
+                                invoice.getInvoiceId(),
+                                BigDecimal.ZERO)))
+                .toList();
+    }
+
+    private void dispatchEmail(String notificationType, Runnable sendEmail) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            userAuthEmailDispatcher.dispatch(notificationType, sendEmail);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        userAuthEmailDispatcher.dispatch(
+                                notificationType,
+                                sendEmail);
+                    }
+                });
     }
 
     // =========================================================
@@ -593,6 +627,18 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
 
     private RentInvoiceResponse mapToResponse(
             RentInvoice invoice) {
+        return mapToResponse(
+                invoice,
+                getSuccessfullyPaidAmount(invoice.getInvoiceId()));
+    }
+
+    private RentInvoiceResponse mapToResponse(
+            RentInvoice invoice,
+            BigDecimal totalPaid) {
+
+        totalPaid = totalPaid.setScale(
+                2,
+                RoundingMode.HALF_UP);
 
         RentInvoiceResponse response =
                 new RentInvoiceResponse();
@@ -650,11 +696,6 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         // -----------------------------------------------------
         // Calculate total successfully paid
         // -----------------------------------------------------
-
-        BigDecimal totalPaid =
-                getSuccessfullyPaidAmount(
-                        invoice.getInvoiceId()
-                );
 
         response.setTotalPaid(
                 totalPaid
@@ -737,4 +778,3 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         return response;
     }
 }
-

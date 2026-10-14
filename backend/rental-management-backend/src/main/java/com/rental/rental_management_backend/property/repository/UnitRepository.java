@@ -4,7 +4,9 @@ package com.rental.rental_management_backend.property.repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +17,28 @@ import com.rental.rental_management_backend.property.enums.UnitStatus;
 
 public interface UnitRepository extends JpaRepository<Unit, Long> {
 
+    @EntityGraph(attributePaths = {
+            "floor",
+            "floor.building",
+            "floor.building.property"
+    })
     List<Unit> findByFloor(Floor floor);
+
+    @EntityGraph(attributePaths = {
+            "floor",
+            "floor.building",
+            "floor.building.property",
+            "floor.building.property.owner",
+            "floor.building.property.propertyManager.user"
+    })
+    Optional<Unit> findUnitWithAccessDetailsByUnitId(Long unitId);
+
+    @EntityGraph(attributePaths = {
+            "floor",
+            "floor.building",
+            "floor.building.property"
+    })
+    List<Unit> findByFloorIn(List<Floor> floors);
 
     boolean existsByFloorAndUnitNumber(
             Floor floor,

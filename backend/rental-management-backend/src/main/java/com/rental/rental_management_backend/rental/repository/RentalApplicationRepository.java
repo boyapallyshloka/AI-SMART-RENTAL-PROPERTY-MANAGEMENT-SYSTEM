@@ -2,7 +2,9 @@ package com.rental.rental_management_backend.rental.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,13 +15,49 @@ import com.rental.rental_management_backend.rental.enums.RentalApplicationStatus
 public interface RentalApplicationRepository
         extends JpaRepository<RentalApplication, Long> {
 
+    @Override
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
+    List<RentalApplication> findAll();
+
+    @Override
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
+    Optional<RentalApplication> findById(Long applicationId);
+
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
     List<RentalApplication> findByTenant_TenantId(Long tenantId);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
     List<RentalApplication> findByUnit_UnitId(Long unitId);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
     List<RentalApplication> findByStatus(
             RentalApplicationStatus status);
 
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
     List<RentalApplication> findByUnit_UnitIdAndStatus(
             Long unitId,
             RentalApplicationStatus status);
@@ -40,6 +78,11 @@ public interface RentalApplicationRepository
      *         -> Unit
      *            -> RentalApplication
      */
+    @EntityGraph(attributePaths = {
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
     List<RentalApplication>
     findByUnit_Floor_Building_Property_PropertyId(
             Long propertyId);

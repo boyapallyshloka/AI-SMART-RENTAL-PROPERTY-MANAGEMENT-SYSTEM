@@ -1,9 +1,10 @@
-package com.rental.rental_management_backend.rental.repository;
+ package com.rental.rental_management_backend.rental.repository;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,9 +17,45 @@ import com.rental.rental_management_backend.rental.enums.AgreementStatus;
 public interface RentalAgreementRepository
         extends JpaRepository<RentalAgreement, Long> {
 
+    @EntityGraph(attributePaths = {
+            "rentalApplication",
+            "tenant.user",
+            "unit.floor.building.property.owner"
+    })
+    @Query("SELECT agreement FROM RentalAgreement agreement")
+    List<RentalAgreement> findAllForAdminResponse();
+
+    @EntityGraph(attributePaths = {
+            "rentalApplication",
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
+    @Query("SELECT agreement FROM RentalAgreement agreement")
+    List<RentalAgreement> findAllForManagementResponse();
+
+    @EntityGraph(attributePaths = {
+            "rentalApplication",
+            "tenant.user",
+            "unit.floor.building.property.owner",
+            "unit.floor.building.property.propertyManager.user"
+    })
+    @Query("""
+        SELECT agreement
+        FROM RentalAgreement agreement
+        WHERE agreement.agreementId = :agreementId
+        """)
+    Optional<RentalAgreement> findForAccessByAgreementId(
+            @Param("agreementId") Long agreementId);
+
     Optional<RentalAgreement>
     findByRentalApplication_ApplicationId(Long applicationId);
 
+    @EntityGraph(attributePaths = {
+            "rentalApplication",
+            "tenant.user",
+            "unit.floor.building.property.owner"
+    })
     List<RentalAgreement>
     findByTenant_User_Email(String email);
 
