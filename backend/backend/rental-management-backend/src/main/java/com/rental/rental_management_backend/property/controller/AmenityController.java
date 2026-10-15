@@ -56,7 +56,7 @@ public class AmenityController {
     // =========================================================
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('PROPERTY_OWNER', 'PROPERTY_MANAGER','TENANT')")
     public ResponseEntity<List<AmenityResponse>>
             getAllAmenities() {
 

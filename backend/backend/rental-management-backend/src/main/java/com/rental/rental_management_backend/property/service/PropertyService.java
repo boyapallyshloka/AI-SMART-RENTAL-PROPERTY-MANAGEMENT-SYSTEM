@@ -2,6 +2,7 @@ package com.rental.rental_management_backend.property.service;
 
 import java.util.List;
 
+import com.rental.rental_management_backend.property.dto.PropertyCardResponse;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
@@ -29,7 +30,7 @@ public interface PropertyService {
     // Public/Tenant property access
     PropertyResponse getPublicPropertyById(Long propertyId);
 
-    List<PropertyResponse> getAvailableProperties();
+    List<PropertyCardResponse> getAvailableProperties();
 
     /*
      * Tenant property search/filter

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
+import com.rental.rental_management_backend.property.dto.PropertyCardResponse;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
 import com.rental.rental_management_backend.property.enums.PropertyType;
@@ -41,7 +42,7 @@ public class PropertyPublicController {
      */
     @GetMapping("/public")
     @PreAuthorize("hasRole('TENANT')")
-    public ResponseEntity<List<PropertyResponse>> getAvailableProperties() {
+    public ResponseEntity<List<PropertyCardResponse>> getAvailableProperties() {
 
         return ResponseEntity.ok(
                 propertyService.getAvailableProperties()

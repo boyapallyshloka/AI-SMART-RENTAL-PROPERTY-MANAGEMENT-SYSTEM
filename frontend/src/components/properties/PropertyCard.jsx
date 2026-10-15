@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   Building2,
 } from 'lucide-react'
-import { resolveImageUrl, getPublicPropertyDetails } from '../../api/propertyApi'
+import { resolveImageUrl } from '../../api/propertyApi'
 
 /**
  * Enterprise PropertyCard Component for SmartEstate
@@ -36,7 +36,6 @@ export default function PropertyCard({
 }) {
   const [internalFavorite, setInternalFavorite] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [lazyImageUrl, setLazyImageUrl] = useState(null)
   const isFav = controlledFavorite !== undefined ? controlledFavorite : internalFavorite
 
   const {
@@ -131,38 +130,7 @@ export default function PropertyCard({
 
   const rawImg = extractRawImage()
   const initialResolved = rawImg ? resolveImageUrl(rawImg) : ''
-  const displayImg = initialResolved || lazyImageUrl || ''
-
-  // Fallback: If no image was provided on the property object, lazily fetch property details
-  useEffect(() => {
-    let isMounted = true
-    if (!initialResolved && realId && lazyImageUrl === null) {
-      getPublicPropertyDetails(realId)
-        .then((res) => {
-          if (!isMounted) return
-          const details = res?.data || res
-          const rawList = Array.isArray(details?.images) && details.images.length > 0
-            ? details.images
-            : Array.isArray(details?.property?.images) && details.property.images.length > 0
-            ? details.property.images
-            : []
-
-          const primary = rawList.find((img) => img && typeof img === 'object' && Boolean(img.isPrimary)) || rawList[0]
-          const target = typeof primary === 'string' ? primary : primary?.imageUrl
-          if (target && typeof target === 'string' && target.trim()) {
-            setLazyImageUrl(resolveImageUrl(target.trim()))
-          } else {
-            setLazyImageUrl('')
-          }
-        })
-        .catch(() => {
-          if (isMounted) setLazyImageUrl('')
-        })
-    }
-    return () => {
-      isMounted = false
-    }
-  }, [initialResolved, realId, lazyImageUrl])
+  const displayImg = initialResolved
 
   // Reset image error state whenever displayImg changes
   useEffect(() => {

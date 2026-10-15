@@ -9,9 +9,6 @@ import { Input, Select, Button } from '../../components/ui'
 import {
   getPublicProperties,
   searchPublicProperties,
-  getPublicPropertyDetails,
-  getPublicPropertiesWithDetails,
-  searchPublicPropertiesWithDetails,
   resolveImageUrl,
 } from '../../api/propertyApi'
 import { getPropertyRecommendations } from '../../api/aiApi'
@@ -104,7 +101,7 @@ function mapRecommendationToProperty(item) {
   if (!item) return null
 
   const details = item.propertyDetails || {}
-  const prop = details.property || details
+  const prop = details.property || (item.propertyDetails ? details : item)
   const addr = details.address || prop.address || {}
   const images = Array.isArray(details.images) && details.images.length > 0
     ? details.images
@@ -384,6 +381,8 @@ export default function PropertySearchPage() {
   const [prefSuccessMessage, setPrefSuccessMessage] = useState('')
   const [prefErrorMessage, setPrefErrorMessage] = useState('')
   const [availableAmenities, setAvailableAmenities] = useState([])
+  const [isAmenitiesLoading, setIsAmenitiesLoading] = useState(false)
+  const [amenityLoadError, setAmenityLoadError] = useState('')
   // Reverse-geocode feedback driven by PropertyMapLocationPicker callbacks
   const [hubGeoLoading, setHubGeoLoading] = useState(false)
   const [hubGeoError, setHubGeoError] = useState(null)
@@ -450,20 +449,19 @@ export default function PropertySearchPage() {
     return null
   }, [isUserTenant, user])
 
-  // 1. Load real amenities from backend API (optional for preferences)
+  // 1. Load real amenities from the tenant-accessible backend API.
   const loadAmenities = useCallback(async () => {
+    setIsAmenitiesLoading(true)
+    setAmenityLoadError('')
     try {
       const res = await getAllAmenities()
       const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
-      if (list.length > 0) {
-        setAvailableAmenities(list)
-        return
-      }
+      setAvailableAmenities(list.filter((amenity) => amenity?.amenityId != null || amenity?.id != null))
+    } catch (err) {
       setAvailableAmenities([])
-    } catch {
-      // Backend /api/amenities requires PROPERTY_OWNER role; 403 Forbidden is expected for tenants.
-      // Gracefully treat amenities as unavailable/empty without blocking page execution, retrying, or fabricating mock data.
-      setAvailableAmenities([])
+      setAmenityLoadError(err?.message || 'Could not load amenities. Please try again.')
+    } finally {
+      setIsAmenitiesLoading(false)
     }
   }, [])
 
@@ -480,7 +478,9 @@ export default function PropertySearchPage() {
       if (data && (data.preferenceId || data.preferredCity)) {
         setHasExistingPreferences(true)
         const amenityIds = Array.isArray(data.preferredAmenities)
-          ? data.preferredAmenities.map((a) => (typeof a === 'object' ? a.amenityId : a))
+          ? data.preferredAmenities
+              .map((amenity) => Number(typeof amenity === 'object' ? amenity.amenityId : amenity))
+              .filter(Number.isFinite)
           : []
 
         setPreferenceData({
@@ -568,34 +568,7 @@ export default function PropertySearchPage() {
             ? response
             : []
 
-          // Enrich any recommendation items that only have propertyId and lack propertyDetails
-          const enrichedItems = await Promise.all(
-            rawItems.map(async (item) => {
-              if (!item) return null
-              if (item.propertyDetails?.property) {
-                return item
-              }
-              const propId = item.propertyId || item.id
-              if (!propId) return null
-              try {
-                const details = await getPublicPropertyDetails(propId)
-                const data = details?.data || details
-                return {
-                  ...item,
-                  propertyDetails: data,
-                }
-              } catch (err) {
-                console.warn(`Unable to fetch details for recommended property #${propId}:`, err)
-                // Rule 7D: Property details cannot be loaded -> Do not fabricate the missing property.
-                return null
-              }
-            })
-          )
-
-          if (!isMountedRef.current) return
-
-          const mapped = enrichedItems
-            .filter(Boolean)
+          const mapped = rawItems
             .map(mapRecommendationToProperty)
             .filter((p) => p && p.id != null)
 
@@ -785,7 +758,7 @@ export default function PropertySearchPage() {
       preferredPropertyType: preferenceData.preferredPropertyType,
       furnishingPreference: preferenceData.furnishingPreference,
       parkingRequired: Boolean(preferenceData.parkingRequired),
-      preferredAmenityIds: preferenceData.preferredAmenityIds || [],
+      preferredAmenityIds: (preferenceData.preferredAmenityIds || []).map(Number).filter(Number.isFinite),
     }
 
     if (
@@ -861,11 +834,13 @@ export default function PropertySearchPage() {
   }
 
   const handleToggleAmenity = (amenityId) => {
+    const selectedId = Number(amenityId)
+    if (!Number.isFinite(selectedId)) return
     setPreferenceData((prev) => {
-      const current = prev.preferredAmenityIds || []
-      const next = current.includes(amenityId)
-        ? current.filter((id) => id !== amenityId)
-        : [...current, amenityId]
+      const current = (prev.preferredAmenityIds || []).map(Number).filter(Number.isFinite)
+      const next = current.includes(selectedId)
+        ? current.filter((id) => id !== selectedId)
+        : [...current, selectedId]
       return { ...prev, preferredAmenityIds: next }
     })
   }
@@ -933,11 +908,17 @@ export default function PropertySearchPage() {
     try {
       let list = []
       if (hasActiveBackendFilters(currentFilters)) {
-        list = await searchPublicPropertiesWithDetails(currentFilters)
+        list = await searchPublicProperties(currentFilters)
       } else {
-        list = await getPublicPropertiesWithDetails()
+        list = await getPublicProperties()
       }
-      setRawProperties(Array.isArray(list) ? list : [])
+      const properties = Array.isArray(list) ? list : []
+      setRawProperties(properties)
+      setFavoriteIds(
+        properties
+          .filter((property) => property.isFavorite)
+          .map((property) => property.propertyId ?? property.id)
+      )
     } catch (err) {
       console.error('Failed to load available properties from backend:', err)
       const errorMsg =
@@ -1305,22 +1286,25 @@ export default function PropertySearchPage() {
                       </div>
                     </div>
 
-                    {/* Row 4: Preferred Amenities (rendered if amenities are available from backend) */}
-                    {availableAmenities.length > 0 && (
-                      <div className="space-y-2 pt-1 border-t border-[#D9E0E6]">
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
-                          Preferred Amenities
-                        </label>
+                    {/* Preferred amenities are loaded from GET /api/amenities and saved as IDs. */}
+                    <div className="space-y-2 pt-1 border-t border-[#D9E0E6]">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
+                        Preferred Amenities
+                      </label>
+                      {availableAmenities.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {availableAmenities.map((amenity) => {
-                            const id = amenity.amenityId || amenity.id
-                            const isSelected = preferenceData.preferredAmenityIds.includes(id)
+                            const id = Number(amenity.amenityId ?? amenity.id)
+                            const isSelected = preferenceData.preferredAmenityIds.some(
+                              (selectedId) => Number(selectedId) === id
+                            )
                             return (
                               <button
                                 key={id}
                                 type="button"
                                 onClick={() => handleToggleAmenity(id)}
                                 disabled={isPrefSaving}
+                                aria-pressed={isSelected}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
                                   isSelected
                                     ? 'bg-[#EAF2F7] text-[#315A7D] border-[#315A7D]/40 font-semibold'
@@ -1333,8 +1317,23 @@ export default function PropertySearchPage() {
                             )
                           })}
                         </div>
-                      </div>
-                    )}
+                      ) : isAmenitiesLoading ? (
+                        <p className="text-xs text-[#5B6875]">Loading amenities…</p>
+                      ) : amenityLoadError ? (
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#9B1C1C]">
+                          <span>{amenityLoadError}</span>
+                          <button
+                            type="button"
+                            onClick={loadAmenities}
+                            className="font-semibold underline underline-offset-2"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#5B6875]">No amenities are currently available.</p>
+                      )}
+                    </div>
 
                     {/* Actions Bar */}
                     <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#D9E0E6]">

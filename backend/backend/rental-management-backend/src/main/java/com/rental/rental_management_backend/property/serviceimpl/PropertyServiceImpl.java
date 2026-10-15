@@ -14,6 +14,7 @@ import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.exception.ResourceNotFoundException;
+import com.rental.rental_management_backend.property.dto.PropertyCardResponse;
 import com.rental.rental_management_backend.property.dto.PropertyRequest;
 import com.rental.rental_management_backend.property.dto.PropertyResponse;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -24,6 +25,7 @@ import com.rental.rental_management_backend.property.enums.PropertyType;
 import com.rental.rental_management_backend.property.repository.PropertyManagerRepository;
 import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.service.PropertyService;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 @Service
 @Transactional
@@ -33,17 +35,20 @@ public class PropertyServiceImpl implements PropertyService {
 	private final UserRepository userRepository;
 	private final PropertyManagerRepository propertyManagerRepository;
 	private final PropertyNotificationDispatcher notificationDispatcher;
+	private final S3Service s3Service;
 
 	public PropertyServiceImpl(
 	        PropertyRepository propertyRepository,
 	        UserRepository userRepository,
 	        PropertyManagerRepository propertyManagerRepository,
-	        PropertyNotificationDispatcher notificationDispatcher) {
+	        PropertyNotificationDispatcher notificationDispatcher,
+	        S3Service s3Service) {
 
 	    this.propertyRepository = propertyRepository;
 	    this.userRepository = userRepository;
 	    this.propertyManagerRepository = propertyManagerRepository;
 	    this.notificationDispatcher = notificationDispatcher;
+	    this.s3Service = s3Service;
 	}
 	@Override
 	public PropertyResponse createProperty(PropertyRequest request) {
@@ -156,17 +161,38 @@ public class PropertyServiceImpl implements PropertyService {
      * that are currently available for rental.
      */
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<PropertyResponse> getAvailableProperties() {
+@Override
+@Transactional(readOnly = true)
+public List<PropertyCardResponse> getAvailableProperties() {
 
-        return propertyRepository
-                .findByStatus(PropertyStatus.AVAILABLE)
-                .stream()
-                .map(this::convertToResponse)
-                .toList();
-    }
+	List<PropertyCardResponse> propertyCards =
+	        propertyRepository.findAvailablePropertyCards(
+	                PropertyStatus.AVAILABLE);
 
+	for (PropertyCardResponse card : propertyCards) {
+	    card.setImageUrl(toPublicImageUrl(card.getImageUrl()));
+	}
+
+	return propertyCards;
+}
+
+private String toPublicImageUrl(String imageUrl) {
+	if (imageUrl == null || imageUrl.isBlank()) {
+	    return null;
+	}
+
+	if (imageUrl.startsWith("http://")
+	        || imageUrl.startsWith("https://")
+	        || imageUrl.startsWith("/uploads/")) {
+	    return imageUrl;
+	}
+
+	try {
+	    return s3Service.generatePresignedUrl(imageUrl);
+	} catch (Exception ex) {
+	    return null;
+	}
+}
     /*
      * GET ONE AVAILABLE PROPERTY
      *
