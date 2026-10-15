@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import AdminApiUnavailableCard from '../../components/common/AdminApiUnavailableCard'
-import TenantDocumentReviewSection from '../../components/admin/TenantDocumentReviewSection'
 import { getUsersByRoleAndStatus, updateUserStatus } from '../../api/userApi'
 import { Button, EmptyState, Loader, StatusBadge } from '../../components/ui'
 import {
@@ -262,8 +261,6 @@ export default function OwnerVerificationPage() {
             </div>
           )}
         </div>
-
-        <TenantDocumentReviewSection />
 
         {/* Section 2: Owner Document Verification (Unavailable State & Required Endpoints) */}
         <div className="space-y-4 pt-4 border-t border-[#D9E0E6]">

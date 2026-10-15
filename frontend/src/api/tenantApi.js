@@ -15,6 +15,9 @@ export const getMyTenantProfile = async () => {
   return axiosClient.get('/tenants/me')
 }
 
+/** Retrieve tenant profiles for the Super Admin review queue. */
+export const getAllTenants = async () => axiosClient.get('/tenants')
+
 /** Search tenant profiles. SUPER_ADMIN access is required by the backend. */
 export const searchTenants = async (keyword) => {
   return axiosClient.get('/tenants/search', { params: { keyword: keyword?.trim() || '' } })

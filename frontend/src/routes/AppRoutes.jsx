@@ -60,6 +60,7 @@ import ManagerProfilePage from '../pages/manager/ManagerProfilePage'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import UserManagementPage from '../pages/admin/UserManagementPage'
 import OwnerVerificationPage from '../pages/admin/OwnerVerificationPage'
+import TenantDocumentReviewPage from '../pages/admin/TenantDocumentReviewPage'
 import AuditLogsPage from '../pages/admin/AuditLogsPage'
 import AIMonitoringPage from '../pages/admin/AIMonitoringPage'
 import SystemSettingsPage from '../pages/admin/SystemSettingsPage'
@@ -309,6 +310,7 @@ export default function AppRoutes() {
                 <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="users" element={<UserManagementPage />} />
                 <Route path="owner-verification" element={<OwnerVerificationPage />} />
+                <Route path="tenant-document-review" element={<TenantDocumentReviewPage />} />
                 <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="ai-monitoring" element={<AIMonitoringPage />} />

@@ -71,6 +71,7 @@ const ADMIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
   { id: 'owner-verification', label: 'Owner Verification', icon: <ShieldCheck className="w-4 h-4" /> },
+  { id: 'tenant-document-review', label: 'Tenant Document Review', icon: <FileCheck className="w-4 h-4" /> },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'audit-logs', label: 'Audit Logs', icon: <History className="w-4 h-4" /> },
   { id: 'ai-monitoring', label: 'AI Monitoring', icon: <Activity className="w-4 h-4 text-[#315A7D]" /> },
@@ -150,6 +151,7 @@ export default function Sidebar({
       if (id === 'dashboard') navigate('/admin/dashboard')
       else if (id === 'users') navigate('/admin/users')
       else if (id === 'owner-verification') navigate('/admin/owner-verification')
+      else if (id === 'tenant-document-review') navigate('/admin/tenant-document-review')
       else if (id === 'reports') navigate('/admin/reports')
       else if (id === 'audit-logs') navigate('/admin/audit-logs')
       else if (id === 'ai-monitoring') navigate('/admin/ai-monitoring')
