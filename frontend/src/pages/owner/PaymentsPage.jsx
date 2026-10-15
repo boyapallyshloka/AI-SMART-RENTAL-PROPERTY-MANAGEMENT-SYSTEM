@@ -10,6 +10,7 @@ import {
 import { downloadInvoiceReceipt } from '../../api/paymentApi'
 import { getAgreements } from '../../api/agreementApi'
 import { getOwnerApplications, getAllApplications } from '../../api/applicationApi'
+import { formatCurrency } from '../../utils/currency'
 import {
   Button,
   Input,
@@ -147,14 +148,21 @@ export default function PaymentsPage() {
         }
       })
 
+      const tenantMap = new Map()
+      rawApps.forEach((app) => {
+        if (app?.tenantId != null && app.tenantName) {
+          tenantMap.set(Number(app.tenantId), app)
+        }
+      })
+
       // Store agreements for modal dropdown
       setAgreements(
         rawAgreements.map((agr) => {
           const app = agr.applicationId ? appMap.get(Number(agr.applicationId)) : null
           return {
             ...agr,
-            tenantName: app?.tenantName || (agr.tenantId ? `Tenant #${agr.tenantId}` : 'Tenant'),
-            propertyName: app?.propertyName || 'Property',
+            tenantName: app?.tenantName || (agr.tenantId ? `Tenant #${agr.tenantId}` : null),
+            propertyName: app?.propertyName || null,
             unitNumber: app?.unitNumber || agr.unitId || '',
           }
         })
@@ -170,22 +178,30 @@ export default function PaymentsPage() {
           id: inv.invoiceId,
           agreementNumber: agr ? `AGR-${String(agr.agreementId).padStart(4, '0')}` : `AGR-${inv.agreementId}`,
           tenantName:
+            inv.tenantName ||
             app?.tenantName ||
-            (inv.tenantId ? `Tenant #${inv.tenantId}` : 'Tenant'),
-          tenantEmail: app?.tenantEmail || '',
-          propertyName: app?.propertyName || 'Residential Property',
+            tenantMap.get(Number(inv.tenantId))?.tenantName ||
+            null,
+          tenantEmail:
+            inv.tenantEmail ||
+            app?.tenantEmail ||
+            tenantMap.get(Number(inv.tenantId))?.tenantEmail ||
+            null,
+          propertyName: app?.propertyName || null,
           unitNumber: app?.unitNumber
             ? `Unit #${app.unitNumber}`
             : inv.unitId
             ? `Unit #${inv.unitId}`
             : '—',
-          amount: Number(inv.totalAmount || 0),
-          totalPaid: Number(inv.totalPaid || 0),
+          amount: inv.totalAmount == null ? null : Number(inv.totalAmount),
+          totalPaid: inv.totalPaid == null ? null : Number(inv.totalPaid),
           remainingAmount:
             inv.remainingAmount != null
               ? Number(inv.remainingAmount)
-              : Number(inv.totalAmount || 0) - Number(inv.totalPaid || 0),
-          status: inv.status || 'PENDING',
+              : inv.totalAmount != null && inv.totalPaid != null
+              ? Number(inv.totalAmount) - Number(inv.totalPaid)
+              : null,
+          status: inv.status ?? null,
         }
       })
 
@@ -275,22 +291,23 @@ export default function PaymentsPage() {
   }
 
   // Calculate real summary metrics
-  const totalCollected = invoices.reduce(
-    (sum, inv) => sum + Number(inv.totalPaid || (String(inv.status).toUpperCase() === 'PAID' ? inv.amount : 0)),
-    0
+  const sumKnownAmounts = (rows, getAmount) => {
+    if (rows.length === 0) return 0
+    const amounts = rows.map(getAmount)
+    if (amounts.some((amount) => amount == null || !Number.isFinite(Number(amount)))) return null
+    return amounts.reduce((sum, amount) => sum + Number(amount), 0)
+  }
+  const totalCollected = sumKnownAmounts(invoices, (inv) => inv.totalPaid)
+  const pendingInvoices = invoices.filter((inv) =>
+    ['PENDING', 'PARTIALLY_PAID'].includes(String(inv.status || '').toUpperCase())
   )
-
-  const pendingRent = invoices
-    .filter(
-      (inv) =>
-        String(inv.status).toUpperCase() === 'PENDING' ||
-        String(inv.status).toUpperCase() === 'PARTIALLY_PAID'
-    )
-    .reduce((sum, inv) => sum + Number(inv.remainingAmount || inv.amount || 0), 0)
-
-  const overdueRent = invoices
-    .filter((inv) => String(inv.status).toUpperCase() === 'OVERDUE')
-    .reduce((sum, inv) => sum + Number(inv.remainingAmount || inv.amount || 0), 0)
+  const pendingRent = sumKnownAmounts(pendingInvoices, (inv) =>
+    inv.remainingAmount ?? (String(inv.status).toUpperCase() === 'PENDING' ? inv.amount : null)
+  )
+  const overdueInvoices = invoices.filter((inv) => String(inv.status || '').toUpperCase() === 'OVERDUE')
+  const overdueRent = sumKnownAmounts(overdueInvoices, (inv) =>
+    inv.remainingAmount ?? inv.amount
+  )
 
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
@@ -418,7 +435,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#243447] tracking-tight">
-                ₹{totalCollected.toLocaleString('en-IN')}
+                {formatCurrency(totalCollected)}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Total settlements recorded
@@ -438,7 +455,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#B7791F] tracking-tight">
-                ₹{pendingRent.toLocaleString('en-IN')}
+                {formatCurrency(pendingRent)}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Outstanding tenant dues
@@ -458,7 +475,7 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-[#B94A48] tracking-tight">
-                ₹{overdueRent.toLocaleString('en-IN')}
+                {formatCurrency(overdueRent)}
               </p>
               <p className="text-xs text-[#5B6875] mt-0.5">
                 Past due date
@@ -596,7 +613,7 @@ export default function PaymentsPage() {
                         <div className="flex items-center gap-2">
                           <User className="w-3.5 h-3.5 text-[#5B6875] shrink-0" />
                           <div>
-                            <span>{inv.tenantName}</span>
+                            <span>{inv.tenantName || '—'}</span>
                             {inv.tenantEmail && (
                               <p className="text-[11px] text-[#5B6875] font-normal truncate max-w-[150px]">
                                 {inv.tenantEmail}
@@ -626,7 +643,7 @@ export default function PaymentsPage() {
 
                       {/* Amount */}
                       <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                        ₹{Number(inv.amount || 0).toLocaleString('en-IN')}
+                        {formatCurrency(inv.amount)}
                         {inv.remainingAmount > 0 && inv.remainingAmount < inv.amount && (
                           <span className="block text-[11px] text-amber-700 font-normal">
                             Due: ₹{inv.remainingAmount.toLocaleString('en-IN')}

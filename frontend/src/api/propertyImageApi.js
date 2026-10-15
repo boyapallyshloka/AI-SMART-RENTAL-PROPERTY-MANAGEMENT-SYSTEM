@@ -18,16 +18,12 @@ export const ALLOWED_IMAGE_FIELDS = ['file', 'imageType', 'isPrimary']
  * imageUrl, ownerId, and any unrelated fields.
  */
 export const buildImageFormData = (data = {}) => {
-  const FormDataClass =
-    typeof FormData !== 'undefined'
-      ? FormData
-      : typeof globalThis !== 'undefined' && globalThis.FormData
-      ? globalThis.FormData
-      : class MockFormData {}
+  const FormDataClass = globalThis?.FormData
+  if (typeof FormDataClass !== 'function') {
+    throw new Error('This browser does not support multipart form uploads.')
+  }
 
-  const isFormDataInstance =
-    (typeof FormData !== 'undefined' && data instanceof FormData) ||
-    (data && typeof data.append === 'function' && typeof data.get === 'function')
+  const isFormDataInstance = data instanceof FormDataClass
 
   if (isFormDataInstance) {
     if (typeof data.has === 'function') {
@@ -47,11 +43,6 @@ export const buildImageFormData = (data = {}) => {
       }
       return sanitized
     }
-    return data
-  }
-
-  // Handle MockFormData in Node testing without .has()
-  if (data && typeof data.append === 'function' && !data.has) {
     return data
   }
 

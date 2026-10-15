@@ -20,11 +20,13 @@ export const APPLICATION_STATUSES = {
 /**
  * TENANT - Create a new rental application
  * Endpoint: POST /api/rental-applications
- * Payload contract: { unitId: Long (required), preferredMoveInDate: LocalDate (YYYY-MM-DD), message: String }
+ * Payload contract includes unit, move-in, lease, income, employer/occupation, and message details.
  *
  * @param {Object} applicationData
  * @param {number|string} applicationData.unitId
  * @param {string} [applicationData.preferredMoveInDate]
+ * @param {number|string|null} [applicationData.monthlyIncome]
+ * @param {string|null} [applicationData.employerOccupation]
  * @param {string} [applicationData.message]
  * @returns {Promise<Object>} RentalApplicationResponse
  */
@@ -32,12 +34,22 @@ export const createApplication = async ({
   unitId,
   preferredMoveInDate,
   preferredLeaseDurationMonths,
+  monthlyIncome,
+  employerOccupation,
   message
 }) => {
   const payload = {
     unitId: Number(unitId),
     preferredMoveInDate: preferredMoveInDate || null,
     preferredLeaseDurationMonths: Number(preferredLeaseDurationMonths),
+    monthlyIncome:
+      monthlyIncome == null || monthlyIncome === ''
+        ? null
+        : Number(monthlyIncome),
+    employerOccupation:
+      employerOccupation && employerOccupation.trim()
+        ? employerOccupation.trim()
+        : null,
     message: message && message.trim() ? message.trim() : null,
   }
 

@@ -7,6 +7,7 @@ import {
   reviewApplication,
   APPLICATION_STATUSES,
 } from '../../api/applicationApi'
+import PaymentRiskAnalysisCard from '../../components/applications/PaymentRiskAnalysisCard'
 import {
   Button,
   StatusBadge,
@@ -462,7 +463,7 @@ export default function ManagerApplicationDetailsPage() {
                 <div>
                   <span className="text-xs text-[#5B6875] block">Current Application Status</span>
                   <div className="mt-0.5">
-                    <StatusBadge status={application.status || 'PENDING'} size="md" />
+                    <StatusBadge status={application.status} size="md" />
                   </div>
                 </div>
               </div>
@@ -652,6 +653,24 @@ export default function ManagerApplicationDetailsPage() {
                       </span>
                     </div>
                   )}
+
+                  {application.monthlyIncome != null && (
+                    <div>
+                      <span className="text-xs text-[#5B6875] block">Monthly Gross Income</span>
+                      <span className="font-semibold text-[#243447]">
+                        {formatInr(application.monthlyIncome)} / mo
+                      </span>
+                    </div>
+                  )}
+
+                  {application.employerOccupation && (
+                    <div>
+                      <span className="text-xs text-[#5B6875] block">Employer / Occupation</span>
+                      <span className="font-medium text-[#243447]">
+                        {application.employerOccupation}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -677,6 +696,9 @@ export default function ManagerApplicationDetailsPage() {
                 </div>
               </div>
             </div>
+
+            {/* AI Decision Support: Tenant Payment-Risk Analysis */}
+            <PaymentRiskAnalysisCard tenantId={application.tenantId} />
 
             {/* Audit Metadata Footer */}
             <div className="bg-white rounded-lg border border-[#D9E0E6] px-6 py-4 shadow-2xs text-xs text-[#5B6875] flex flex-col sm:flex-row sm:items-center justify-between gap-2">

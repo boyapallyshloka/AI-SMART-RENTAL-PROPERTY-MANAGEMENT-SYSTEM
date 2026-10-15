@@ -227,7 +227,7 @@ export default function OwnerVerificationPage() {
                               : '—'}
                           </td>
                           <td className="p-3.5">
-                            <StatusBadge status={owner.status || 'PENDING'} size="sm" />
+                            <StatusBadge status={owner.status} size="sm" />
                           </td>
                           <td className="p-3.5">
                             <div className="flex justify-end gap-2">

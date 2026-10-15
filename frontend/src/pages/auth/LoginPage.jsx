@@ -48,12 +48,13 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(location.state?.email || '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [verificationEmail, setVerificationEmail] = useState('')
 
   const validate = () => {
     const errs = {}
@@ -96,6 +97,9 @@ export default function LoginPage() {
         navigate(destination, { replace: true })
       } else {
         setAuthError(result.error || 'Authentication failed')
+        setVerificationEmail(
+          result.requiresEmailVerification ? email.trim().toLowerCase() : ''
+        )
       }
     } catch (err) {
       setAuthError('An unexpected error occurred. Please try again.')
@@ -106,13 +110,29 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in to HomeSphere"
+      title="Sign in to SmartEstate"
       subtitle="Access your smart rental property management portal"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {authError && (
-          <div className="p-3 rounded-md bg-[#FBF0F0] border border-[#EFC8C7] text-xs font-medium text-[#B94A48]">
-            {authError}
+          <div
+            className="p-3 rounded-md bg-[#FBF0F0] border border-[#EFC8C7] text-xs font-medium text-[#B94A48]"
+            role="alert"
+          >
+            <p>{authError}</p>
+            {verificationEmail && (
+              <button
+                type="button"
+                className="mt-2 font-semibold text-[#315A7D] underline"
+                onClick={() =>
+                  navigate('/verify-email', {
+                    state: { email: verificationEmail },
+                  })
+                }
+              >
+                Verify your email or resend the code
+              </button>
+            )}
           </div>
         )}
 
@@ -125,6 +145,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value)
+            setVerificationEmail('')
             if (errors.email) setErrors((prev) => ({ ...prev, email: '' }))
           }}
           error={errors.email}

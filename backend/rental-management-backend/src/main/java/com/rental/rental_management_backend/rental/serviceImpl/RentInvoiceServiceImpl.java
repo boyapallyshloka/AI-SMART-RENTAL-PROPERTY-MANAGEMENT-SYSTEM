@@ -560,6 +560,15 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
                 .map(RentInvoice::getInvoiceId)
                 .toList();
         Map<Long, BigDecimal> paidAmounts = new HashMap<>();
+        List<Long> tenantIds = invoices.stream()
+                .map(RentInvoice::getTenantId)
+                .filter(tenantId -> tenantId != null)
+                .distinct()
+                .toList();
+        Map<Long, Tenant> tenantsById = new HashMap<>();
+
+        tenantRepository.findAllById(tenantIds).forEach(tenant ->
+                tenantsById.put(tenant.getTenantId(), tenant));
 
         rentInvoiceRepository.findPaidAmountsByInvoiceIds(
                         invoiceIds,
@@ -573,7 +582,8 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
                         invoice,
                         paidAmounts.getOrDefault(
                                 invoice.getInvoiceId(),
-                                BigDecimal.ZERO)))
+                                BigDecimal.ZERO),
+                        tenantsById.get(invoice.getTenantId())))
                 .toList();
     }
 
@@ -635,6 +645,16 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
     private RentInvoiceResponse mapToResponse(
             RentInvoice invoice,
             BigDecimal totalPaid) {
+        Tenant tenant = invoice.getTenantId() == null
+                ? null
+                : tenantRepository.findById(invoice.getTenantId()).orElse(null);
+        return mapToResponse(invoice, totalPaid, tenant);
+    }
+
+    private RentInvoiceResponse mapToResponse(
+            RentInvoice invoice,
+            BigDecimal totalPaid,
+            Tenant tenant) {
 
         totalPaid = totalPaid.setScale(
                 2,
@@ -660,6 +680,19 @@ public class RentInvoiceServiceImpl implements RentInvoiceService {
         response.setTenantId(
                 invoice.getTenantId()
         );
+
+        User tenantUser = tenant == null ? null : tenant.getUser();
+        if (tenantUser != null) {
+            String firstName = tenantUser.getFirstName() == null
+                    ? ""
+                    : tenantUser.getFirstName().trim();
+            String lastName = tenantUser.getLastName() == null
+                    ? ""
+                    : tenantUser.getLastName().trim();
+            String tenantName = (firstName + " " + lastName).trim();
+            response.setTenantName(tenantName.isBlank() ? null : tenantName);
+            response.setTenantEmail(tenantUser.getEmail());
+        }
 
         response.setUnitId(
                 invoice.getUnitId()

@@ -784,7 +784,7 @@ export default function CreateAgreementPage() {
               </div>
 
               <p className="text-xs text-[#5B6875] leading-relaxed">
-                HomeSphere automatically generates an official digital Lease Agreement PDF with verified lease terms, payment schedules, and premise details upon creation. If your organization has an additional physical signed contract, you may attach it below.
+                SmartEstate automatically generates an official digital Lease Agreement PDF with verified lease terms, payment schedules, and premise details upon creation. If your organization has an additional physical signed contract, you may attach it below.
               </p>
 
               {/* Hidden native file input */}

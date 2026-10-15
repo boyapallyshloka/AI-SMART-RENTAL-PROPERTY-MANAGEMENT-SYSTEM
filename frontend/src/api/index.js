@@ -12,13 +12,12 @@ export * as locationApi from './locationApi.js'
 export * as managerProfileApi from './managerProfileApi.js'
 export * as ownerProfileApi from './ownerProfileApi.js'
 
-// Disconnected future modules (mock-backed only; backend endpoints not yet available)
+// Domain APIs using the shared authenticated HTTP client.
 export * as applicationApi from './applicationApi.js'
 export * as paymentApi from './paymentApi.js'
 export * as maintenanceApi from './maintenanceApi.js'
 export * as reportApi from './reportApi.js'
 export * as aiApi from './aiApi.js'
-export * as scoutApi from './scoutApi.js'
 export * as tenantDocumentApi from './tenantDocumentApi.js'
 export * as agreementApi from './agreementApi.js'
 export * as invoiceApi from './invoiceApi.js'

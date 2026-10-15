@@ -176,6 +176,20 @@ public class RentalApplicationServiceImpl
         application.setPreferredLeaseDurationMonths(
                 request.getPreferredLeaseDurationMonths());
 
+        application.setMonthlyIncome(
+                request.getMonthlyIncome());
+
+        // M4 payment-risk analysis reads income from the tenant profile.
+        // Keep that profile value in sync with an income supplied here,
+        // while preserving an existing profile value when this field is blank.
+        if (request.getMonthlyIncome() != null) {
+            tenant.setMonthlyIncome(request.getMonthlyIncome());
+            tenantRepository.save(tenant);
+        }
+
+        application.setEmployerOccupation(
+                cleanString(request.getEmployerOccupation()));
+
         application.setMessage(
                 cleanString(request.getMessage()));
 
@@ -1500,6 +1514,12 @@ public class RentalApplicationServiceImpl
 
         response.setPreferredLeaseDurationMonths(
                 application.getPreferredLeaseDurationMonths());
+
+        response.setMonthlyIncome(
+                application.getMonthlyIncome());
+
+        response.setEmployerOccupation(
+                application.getEmployerOccupation());
 
         response.setMessage(
                 application.getMessage());

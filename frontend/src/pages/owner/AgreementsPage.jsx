@@ -13,6 +13,7 @@ import {
 } from '../../api/agreementApi'
 import { createInvoice } from '../../api/invoiceApi'
 import { getOwnerApplications, getAllApplications } from '../../api/applicationApi'
+import { formatCurrency } from '../../utils/currency'
 import {
   Button,
   Input,
@@ -147,16 +148,16 @@ export default function AgreementsPage() {
           agreementNumber: `AGR-${String(agr.agreementId).padStart(4, '0')}`,
           tenantName:
             app?.tenantName ||
-            (agr.tenantId ? `Tenant #${agr.tenantId}` : 'Tenant'),
+            (agr.tenantId ? `Tenant #${agr.tenantId}` : null),
           tenantEmail: app?.tenantEmail || '',
-          propertyName: app?.propertyName || 'Residential Property',
+          propertyName: app?.propertyName || null,
           buildingName: app?.buildingName || null,
           unit: app?.unitNumber
             ? `Unit #${app.unitNumber}`
             : agr.unitId
             ? `Unit #${agr.unitId}`
             : '—',
-          status: agr.status || 'DRAFT',
+          status: agr.status ?? null,
         }
       })
 
@@ -598,12 +599,12 @@ export default function AgreementsPage() {
 
                         {/* Monthly Rent */}
                         <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                          ₹{Number(agr.monthlyRent || 0).toLocaleString('en-IN')}/mo
+                          {formatCurrency(agr.monthlyRent)}/mo
                         </td>
 
                         {/* Security Deposit */}
                         <td className="py-4 px-4 whitespace-nowrap text-xs text-[#5B6875]">
-                          ₹{Number(agr.securityDeposit || 0).toLocaleString('en-IN')}
+                          {formatCurrency(agr.securityDeposit)}
                         </td>
 
                         {/* Status */}
@@ -818,15 +819,15 @@ export default function AgreementsPage() {
                   <div className="p-3.5 rounded-xl border border-[#D9E0E6] bg-white">
                     <span className="text-xs text-[#5B6875] block">Monthly Rent</span>
                     <p className="text-base font-bold text-[#243447] mt-0.5">
-                      ₹{Number(selectedDetails.monthlyRent || 0).toLocaleString('en-IN')}
+                      {formatCurrency(selectedDetails.monthlyRent)}
                     </p>
-                    <span className="text-[10px] text-[#5B6875]">Due on day {selectedDetails.dueDay || 1}</span>
+                    <span className="text-[10px] text-[#5B6875]">Due on day {selectedDetails.dueDay ?? '—'}</span>
                   </div>
 
                   <div className="p-3.5 rounded-xl border border-[#D9E0E6] bg-white">
                     <span className="text-xs text-[#5B6875] block">Security Deposit</span>
                     <p className="text-base font-bold text-[#243447] mt-0.5">
-                      ₹{Number(selectedDetails.securityDeposit || 0).toLocaleString('en-IN')}
+                      {formatCurrency(selectedDetails.securityDeposit)}
                     </p>
                     <span className="text-[10px] text-[#5B6875]">Refundable</span>
                   </div>
@@ -834,7 +835,7 @@ export default function AgreementsPage() {
                   <div className="p-3.5 rounded-xl border border-[#D9E0E6] bg-white">
                     <span className="text-xs text-[#5B6875] block">Rent Due Day</span>
                     <p className="text-base font-bold text-[#243447] mt-0.5">
-                      Day {selectedDetails.dueDay || 1}
+                      {selectedDetails.dueDay == null ? '—' : `Day ${selectedDetails.dueDay}`}
                     </p>
                     <span className="text-[10px] text-[#5B6875]">Of each month</span>
                   </div>

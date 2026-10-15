@@ -4,9 +4,9 @@
 
 @theme {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: 'DM Serif Display', Georgia, serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
 
-  /* HomeSphere Blue Color System */
+  /* SmartEstate Blue Color System */
   --color-primary: #315A7D;
   --color-primary-hover: #274B68;
   --color-primary-light: #EAF2F7;

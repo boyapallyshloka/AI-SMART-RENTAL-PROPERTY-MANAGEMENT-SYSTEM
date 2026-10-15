@@ -294,7 +294,7 @@ export default function TenantApplicationsPage() {
 
                         {/* Status */}
                         <td className="py-4 px-4 whitespace-nowrap text-center">
-                          <StatusBadge status={app.status || 'PENDING'} size="sm" />
+                          <StatusBadge status={app.status} size="sm" />
                           {app.rejectionReason && (
                             <span className="block text-[10px] text-[#8A2E2C] mt-0.5">
                               {app.rejectionReason}

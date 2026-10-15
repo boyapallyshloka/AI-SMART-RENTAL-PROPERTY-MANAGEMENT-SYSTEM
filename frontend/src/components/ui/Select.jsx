@@ -1,7 +1,7 @@
 import React, { useId } from 'react'
 
 /**
- * Enterprise Select Component for HomeSphere
+ * Enterprise Select Component for SmartEstate
  * @param {Object} props
  * @param {string} [props.label]
  * @param {string} [props.error]

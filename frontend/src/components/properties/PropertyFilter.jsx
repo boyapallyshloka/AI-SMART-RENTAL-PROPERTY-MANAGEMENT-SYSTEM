@@ -14,8 +14,15 @@ import {
   ChevronDown,
 } from 'lucide-react'
 export const filterOptions = {
-  propertyTypes: ['All Types', 'Apartment', 'House', 'Villa', 'PG', 'Hostel', 'Commercial', 'Studio', 'Townhouse', 'Condo', 'Penthouse'],
-  cities: ['All Locations', 'Austin, TX', 'Seattle, WA', 'San Diego, CA', 'Miami, FL', 'New York, NY', 'Chicago, IL', 'Denver, CO', 'San Francisco, CA'],
+  propertyTypes: [
+    { value: 'All Types', label: 'All Types' },
+    { value: 'APARTMENT', label: 'Apartment' },
+    { value: 'HOUSE', label: 'Independent House' },
+    { value: 'VILLA', label: 'Villa' },
+    { value: 'PG', label: 'Paying Guest (PG)' },
+    { value: 'HOSTEL', label: 'Hostel' },
+    { value: 'COMMERCIAL', label: 'Commercial Space' },
+  ],
   bedrooms: [
     { label: 'Any Beds', value: 'all' },
     { label: 'Studio (0)', value: '0' },
@@ -25,7 +32,7 @@ export const filterOptions = {
     { label: '4+ Beds', value: '4+' },
   ],
   furnishing: ['All Furnishing', 'Furnished', 'Semi-Furnished', 'Unfurnished'],
-  parking: ['All Parking', 'Covered Garage', 'Dedicated Spot', 'Street Parking'],
+  parking: ['All Parking', 'Parking Available'],
   priceRanges: [
     { label: 'Any Budget', min: 0, max: Infinity },
     { label: 'Under ₹2,000', min: 0, max: 2000 },
@@ -36,7 +43,7 @@ export const filterOptions = {
 }
 
 /**
- * Enterprise PropertyFilter Component for HomeSphere
+ * Enterprise PropertyFilter Component for SmartEstate
  * Provides comprehensive filtering controls for tenants browsing properties.
  *
  * @param {Object} props
@@ -50,9 +57,18 @@ export default function PropertyFilter({
   onFilterChange,
   onResetFilters,
   totalResults,
+  availableCities = [],
 }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const cityOptions = [...new Set(availableCities
+    .map((city) => String(city || '').trim())
+    .filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const selectedCity = filters.city || 'All Locations'
+  if (selectedCity !== 'All Locations' && !cityOptions.includes(selectedCity)) {
+    cityOptions.unshift(selectedCity)
+  }
 
   // Calculate number of active filters (excluding defaults)
   const activeCount = Object.entries(filters).filter(([key, val]) => {
@@ -112,7 +128,8 @@ export default function PropertyFilter({
               onChange={(e) => handleFieldChange('city', e.target.value)}
               className="w-full pl-8 pr-8 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] text-sm focus:outline-none focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] appearance-none cursor-pointer"
             >
-              {filterOptions.cities.map((city) => (
+              <option value="All Locations">All Locations</option>
+              {cityOptions.map((city) => (
                 <option key={city} value={city}>
                   {city}
                 </option>
@@ -130,8 +147,8 @@ export default function PropertyFilter({
               className="w-full pl-8 pr-8 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] text-sm focus:outline-none focus:bg-white focus:border-[#315A7D] focus:ring-1 focus:ring-[#315A7D] appearance-none cursor-pointer"
             >
               {filterOptions.propertyTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+                <option key={type.value} value={type.value}>
+                  {type.label}
                 </option>
               ))}
             </select>

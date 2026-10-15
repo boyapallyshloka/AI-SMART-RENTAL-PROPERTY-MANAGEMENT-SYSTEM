@@ -288,13 +288,13 @@ export default function AddUnitPage() {
           if (existing) {
             setFormData({
               unitNumber: existing.unitNumber || '',
-              unitType: existing.unitType || 'APARTMENT',
+              unitType: existing.unitType || '',
               area: String(existing.area ?? ''),
-              bedrooms: String(existing.bedrooms ?? '1'),
-              bathrooms: String(existing.bathrooms ?? '1'),
+              bedrooms: String(existing.bedrooms ?? ''),
+              bathrooms: String(existing.bathrooms ?? ''),
               monthlyRent: String(existing.monthlyRent ?? ''),
               securityDeposit: String(existing.securityDeposit ?? ''),
-              status: existing.status || 'VACANT',
+              status: existing.status || '',
               description: existing.description || '',
             })
 
@@ -746,11 +746,13 @@ export default function AddUnitPage() {
     value: t,
     label: t === 'APARTMENT' ? 'Apartment' : 'Private Room / Suite',
   }))
+  unitTypeOptions.unshift({ value: '', label: 'Select unit type' })
 
   const statusOptions = UNIT_STATUSES.map((s) => ({
     value: s,
     label: s.charAt(0) + s.slice(1).toLowerCase(),
   }))
+  statusOptions.unshift({ value: '', label: 'Select status' })
 
   return (
     <DashboardLayout
@@ -834,7 +836,7 @@ export default function AddUnitPage() {
                 <span>
                   Target Floor:{' '}
                   <strong>
-                    {floor?.floorName || `Floor ${floor?.floorNumber ?? ''}`} (Level {floor?.floorNumber ?? 0})
+                    {floor?.floorName || (floor?.floorNumber == null ? '—' : `Floor ${floor.floorNumber}`)} (Level {floor?.floorNumber ?? '—'})
                   </strong>
                 </span>
               </div>

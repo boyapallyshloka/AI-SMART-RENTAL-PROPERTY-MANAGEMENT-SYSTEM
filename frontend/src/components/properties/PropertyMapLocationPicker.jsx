@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { reverseGeocode } from '../../api/locationApi.js'
 import { MapPin, Navigation, Loader, AlertCircle, CheckCircle2, RotateCw } from 'lucide-react'
 
-// HomeSphere branded SVG marker icon using Leaflet divIcon
+// SmartEstate branded SVG marker icon using Leaflet divIcon
 const createCustomPinIcon = () => {
   return L.divIcon({
     className: 'hs-custom-map-pin',

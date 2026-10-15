@@ -7,7 +7,7 @@ import ProfileModal from './ProfileModal'
 
 /**
  * UserMenu Component for Topbar
- * Updated to use HomeSphere Primary Blue #315A7D
+ * Updated to use SmartEstate Primary Blue #315A7D
  * Connected to live user profile from GET /api/users/me with ProfileModal
  *
  * @param {Object} props

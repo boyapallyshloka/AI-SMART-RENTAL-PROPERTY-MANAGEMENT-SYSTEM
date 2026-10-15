@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 /**
- * Axios Client configured for HomeSphere Spring Boot REST API
+ * Axios Client configured for SmartEstate Spring Boot REST API
  * 
  * Base URL:
  * - VITE_API_BASE_URL environment variable
@@ -29,6 +29,7 @@ axiosClient.interceptors.request.use(
     try {
       const token =
         localStorage.getItem('token') ||
+        localStorage.getItem('smartestate_token') ||
         localStorage.getItem('homesphere_token')
 
       if (token && token.trim()) {
@@ -91,6 +92,8 @@ axiosClient.interceptors.response.use(
         message = 'Your session has expired. Please sign in again.'
         try {
           localStorage.removeItem('token')
+          localStorage.removeItem('smartestate_token')
+          localStorage.removeItem('smartestate_user')
           localStorage.removeItem('homesphere_token')
           localStorage.removeItem('homesphere_user')
         } catch (e) {

@@ -947,7 +947,7 @@ export default function UserManagementPage() {
           onConfirm={handleDeleteConfirm}
           title="Delete User Account"
           itemName={userToDelete ? `${userToDelete.name} (${userToDelete.email})` : ''}
-          consequenceMessage="This will permanently delete this user account from HomeSphere. All credentials will be invalidated. This action cannot be undone."
+          consequenceMessage="This will permanently delete this user account from SmartEstate. All credentials will be invalidated. This action cannot be undone."
           isLoading={isDeleting}
         />
         {deleteError && (

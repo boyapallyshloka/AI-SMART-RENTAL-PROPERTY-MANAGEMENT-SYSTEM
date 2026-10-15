@@ -977,7 +977,7 @@ export default function ManagerMaintenancePage() {
                       <Sparkles className="w-3.5 h-3.5 text-[#315A7D]" /> AI Risk Forecast:
                     </span>
                     <p className="text-[#243447]">
-                      Risk Level: <strong>{modalPrediction.maintenance_risk?.risk_level}</strong> &bull; Failure Probability: <strong>{((modalPrediction.maintenance_risk?.probability || 0) * 100).toFixed(1)}%</strong> &bull; Forecasted Cost: <strong>{"\u20B9"}{Number(modalPrediction.next_month_maintenance_cost || 0).toFixed(2)}</strong>
+                      Risk Level: <strong>{modalPrediction.maintenance_risk?.risk_level || '—'}</strong> &bull; Failure Probability: <strong>{modalPrediction.maintenance_risk?.probability == null ? '—' : `${(Number(modalPrediction.maintenance_risk.probability) * 100).toFixed(1)}%`}</strong> &bull; Forecasted Cost: <strong>{modalPrediction.next_month_maintenance_cost == null ? '—' : `₹${Number(modalPrediction.next_month_maintenance_cost).toFixed(2)}`}</strong>
                     </p>
                   </div>
                 )}
@@ -1027,7 +1027,7 @@ export default function ManagerMaintenancePage() {
                     >
                       {availableWorkers.map((w) => (
                         <option key={w.workerId || w.id} value={w.workerId || w.id}>
-                          {w.name} ({w.specialization || 'General'}) - {w.phone || 'No phone'}
+                          {w.name || '—'} ({w.specialization || '—'}) - {w.phone || '—'}
                         </option>
                       ))}
                     </select>

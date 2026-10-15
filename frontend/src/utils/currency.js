@@ -4,8 +4,9 @@
  */
 
 export const formatCurrency = (amount, options = {}) => {
-  const num = Number(amount ?? 0)
-  if (isNaN(num)) return '₹0'
+  if (amount == null || amount === '') return '—'
+  const num = Number(amount)
+  if (!Number.isFinite(num)) return '—'
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -16,8 +17,9 @@ export const formatCurrency = (amount, options = {}) => {
 }
 
 export const formatINR = (amount) => {
-  const num = Number(amount ?? 0)
-  if (isNaN(num)) return '₹0'
+  if (amount == null || amount === '') return '—'
+  const num = Number(amount)
+  if (!Number.isFinite(num)) return '—'
   return `₹${num.toLocaleString('en-IN')}`
 }
 

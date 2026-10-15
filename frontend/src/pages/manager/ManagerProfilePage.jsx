@@ -70,7 +70,7 @@ export default function ManagerProfilePage() {
   const userGender = profileData?.gender
     ? String(profileData.gender).toLowerCase()
     : '—'
-  const userStatus = profileData?.status || user?.status || 'ACTIVE'
+  const userStatus = profileData?.status || user?.status || null
 
   return (
     <DashboardLayout

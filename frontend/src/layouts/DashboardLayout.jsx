@@ -6,7 +6,7 @@ import ScoutAssistant from '../components/scout/ScoutAssistant'
 import { ROLES, normalizeRole } from '../utils/roles'
 
 /**
- * DashboardLayout Component for HomeSphere
+ * DashboardLayout Component for SmartEstate
  * Canvas background: #F7F8FA, Main Text: #243447
  *
  * @param {Object} props
@@ -48,7 +48,7 @@ export default function DashboardLayout({
 
   React.useEffect(() => {
     if (displayTitle) {
-      document.title = `${displayTitle} | HomeSphere`
+      document.title = `${displayTitle} | SmartEstate`
     }
   }, [displayTitle])
 

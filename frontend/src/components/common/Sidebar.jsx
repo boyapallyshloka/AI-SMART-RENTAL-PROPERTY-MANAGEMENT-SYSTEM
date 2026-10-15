@@ -78,7 +78,7 @@ const ADMIN_MENU = [
 ]
 
 /**
- * Enterprise Sidebar Component for HomeSphere
+ * Enterprise Sidebar Component for SmartEstate
  * @param {Object} props
  * @param {string} props.role
  * @param {string} props.activeItem
@@ -169,10 +169,11 @@ export default function Sidebar({
         navigate('/manager/maintenance')
       } else if (id === 'profile') {
         navigate('/manager/profile')
+      } else if (id === 'reports') {
+        navigate('/manager/reports')
       } else {
         const itemLabels = {
           inspections: 'Property & Unit Inspections',
-          reports: 'Operational & Financial Reports',
         }
         const label = itemLabels[id] || 'This feature'
         alert(`${label} will be available in an upcoming Manager Portal update.`)
@@ -224,7 +225,7 @@ export default function Sidebar({
             </div>
             <div>
               <span className="font-serif text-lg font-bold tracking-tight text-[#243447]">
-                HomeSphere
+                SmartEstate
               </span>
               <span className="block text-[10px] uppercase font-semibold tracking-wider text-[#5B6875]">
                 Property Management
@@ -310,14 +311,14 @@ export default function Sidebar({
                   <span className="text-xs font-bold text-[#243447] leading-tight">
                     SCOUT
                   </span>
-                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
-                    AI
+                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-[#F7F8FA] text-[#5B6875] border border-[#D9E0E6]">
+                    Unavailable
                   </span>
                 </div>
               </div>
             </div>
             <p className="text-[11px] text-[#5B6875] leading-snug mb-2.5">
-              Your HomeSphere assistant
+              Assistant service is not connected
             </p>
             <button
               type="button"

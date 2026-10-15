@@ -3,7 +3,7 @@ import { AlertTriangle, Trash2 } from 'lucide-react'
 import { Button } from '../ui'
 
 /**
- * Reusable Delete Confirmation Modal for HomeSphere
+ * Reusable Delete Confirmation Modal for SmartEstate
  * 
  * @param {Object} props
  * @param {boolean} props.isOpen

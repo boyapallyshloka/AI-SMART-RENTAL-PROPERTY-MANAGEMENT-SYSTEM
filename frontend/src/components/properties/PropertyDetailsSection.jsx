@@ -65,7 +65,7 @@ const formatInr = (amount) => {
 }
 
 /**
- * Enterprise PropertyDetailsSection Component for HomeSphere
+ * Enterprise PropertyDetailsSection Component for SmartEstate
  * Displays structured real backend data:
  * - Property Overview & Specs (from details.property)
  * - Real Address (from details.address)

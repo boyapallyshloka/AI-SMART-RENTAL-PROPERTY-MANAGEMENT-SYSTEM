@@ -3,21 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertyDetailsSection from '../../components/properties/PropertyDetailsSection'
 import { getPublicPropertyDetails, resolveImageUrl } from '../../api/propertyApi'
-import { useAuth } from '../../context/AuthContext'
 import {
   ArrowLeft,
   MapPin,
-  Heart,
   Share2,
-  Calendar,
   CheckCircle2,
   ShieldCheck,
-  Send,
-  X,
-  User,
-  Mail,
-  Phone,
-  Briefcase,
   AlertCircle,
   RefreshCw,
   Building2,
@@ -34,7 +25,6 @@ export default function PropertyDetailsPage({
 }) {
   const { id: routeId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
 
   // Target property ID from route param or props
   const activeId = propPropertyId || routeId || propFromProps?.propertyId || propFromProps?.id
@@ -54,33 +44,7 @@ export default function PropertyDetailsPage({
   const [isLoading, setIsLoading] = useState(!details && Boolean(activeId))
   const [error, setError] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const [isFavorite, setIsFavorite] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
-
-  // Interactive Modals State (pre-existing from template)
-  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
-  const [isTourModalOpen, setIsTourModalOpen] = useState(false)
-  const [applicationSubmitted, setApplicationSubmitted] = useState(false)
-  const [tourSubmitted, setTourSubmitted] = useState(false)
-
-  // Application Form State (pre-existing)
-  const [appForm, setAppForm] = useState({
-    fullName: user?.name || user?.username || 'Tenant Applicant',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    moveInDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-    leaseTerm: '12 Months',
-    monthlyIncome: '',
-    hasPets: 'no',
-    notes: '',
-  })
-
-  // Tour Form State (pre-existing)
-  const [tourForm, setTourForm] = useState({
-    tourType: 'in-person', // 'in-person' | 'virtual'
-    preferredDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
-    preferredTime: '11:00 AM',
-  })
 
   // Fetch real property details from backend
   const loadDetails = useCallback(async () => {
@@ -163,16 +127,6 @@ export default function PropertyDetailsPage({
       setCopiedLink(true)
       setTimeout(() => setCopiedLink(false), 2500)
     }
-  }
-
-  const handleApplySubmit = (e) => {
-    e.preventDefault()
-    setApplicationSubmitted(true)
-  }
-
-  const handleTourSubmit = (e) => {
-    e.preventDefault()
-    setTourSubmitted(true)
   }
 
   // Helper for Status Badge Styling
@@ -367,16 +321,6 @@ export default function PropertyDetailsPage({
               <span>{copiedLink ? 'Link Copied!' : 'Share'}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsFavorite(!isFavorite)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9E0E6] bg-white text-xs font-medium transition-colors cursor-pointer ${
-                isFavorite ? 'text-[#B94A48]' : 'text-[#243447]'
-              }`}
-            >
-              <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-[#B94A48] text-[#B94A48]' : 'text-[#5B6875]'}`} />
-              <span>{isFavorite ? 'Saved' : 'Save'}</span>
-            </button>
           </div>
         </div>
 
@@ -385,7 +329,7 @@ export default function PropertyDetailsPage({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#315A7D] border border-[#315A7D]/20 uppercase tracking-wider">
-                {property.propertyType || 'Residential'}
+                {property.propertyType || '—'}
               </span>
               {getPropertyStatusBadge(property.status)}
             </div>
@@ -412,8 +356,7 @@ export default function PropertyDetailsPage({
                   alt={`${property.propertyName} preview`}
                   className="h-full w-full object-cover transition-all duration-300"
                   onError={(e) => {
-                    e.target.src =
-                      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
+                    e.currentTarget.style.display = 'none'
                   }}
                 />
                 <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-md bg-[#243447]/80 text-white text-xs font-medium backdrop-blur-xs">
@@ -440,8 +383,7 @@ export default function PropertyDetailsPage({
                         alt={`Thumbnail ${idx + 1}`}
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
+                          e.currentTarget.style.display = 'none'
                         }}
                       />
                     </button>
@@ -566,337 +508,22 @@ export default function PropertyDetailsPage({
                   <span>Apply for Property</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTourSubmitted(false)
-                    setIsTourModalOpen(true)
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] hover:bg-[#EAF2F7] px-5 py-3 text-sm font-semibold text-[#243447] transition-colors cursor-pointer"
-                >
-                  <Calendar className="w-4 h-4 text-[#315A7D]" />
-                  <span>Schedule a Tour</span>
-                </button>
+                <p className="rounded-md border border-[#D9E0E6] bg-[#F7F8FA] px-4 py-3 text-xs text-[#5B6875]">
+                  Tour scheduling is unavailable because the backend does not provide a tour-request service.
+                </p>
               </div>
 
               {/* Tenant Guarantee Badge */}
               <div className="rounded-md bg-[#F7F8FA] border border-[#D9E0E6] p-3 flex items-start gap-2.5 text-[11px] text-[#5B6875]">
                 <ShieldCheck className="w-4 h-4 text-[#3F7D58] shrink-0 mt-0.5" />
                 <span>
-                  <strong className="text-[#243447]">HomeSphere Tenant Protection:</strong> Direct digital lease signing, verified owner listings, and transparent security deposit terms.
+                  <strong className="text-[#243447]">SmartEstate Tenant Protection:</strong> Direct digital lease signing, verified owner listings, and transparent security deposit terms.
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* 5. MODAL: Apply Interactive Rental Application Modal (pre-existing) */}
-        {/* ========================================================================= */}
-        {isApplyModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="relative w-full max-w-xl overflow-hidden rounded-lg bg-white border border-[#D9E0E6] shadow-xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="flex items-start justify-between border-b border-[#D9E0E6] pb-4">
-                <div>
-                  <span className="text-xs font-bold text-[#315A7D] uppercase tracking-wider">
-                    HomeSphere Digital Lease Application
-                  </span>
-                  <h3 className="text-xl font-bold text-[#243447] mt-1">
-                    Apply for {property.propertyName}
-                  </h3>
-                  <p className="text-xs text-[#5B6875]">
-                    {formattedAddress || 'Listing verified on HomeSphere'}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsApplyModalOpen(false)}
-                  className="p-1.5 rounded-md text-[#5B6875] hover:text-[#243447] hover:bg-[#F7F8FA] cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {applicationSubmitted ? (
-                /* Success State */
-                <div className="py-8 text-center space-y-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#EDF7EE] text-[#3F7D58] mx-auto border border-[#C6DEC8]">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
-                  <h4 className="text-xl font-bold text-[#243447]">
-                    Application Submitted Successfully!
-                  </h4>
-                  <p className="text-xs sm:text-sm text-[#5B6875] max-w-md mx-auto">
-                    Thank you, <strong className="text-[#243447]">{appForm.fullName}</strong>. Your rental application for{' '}
-                    <strong className="text-[#243447]">{property.propertyName}</strong> has been recorded.
-                    The property manager will review your submission shortly.
-                  </p>
-                  <div className="p-4 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-xs text-[#5B6875] max-w-sm mx-auto space-y-1">
-                    <p>
-                      <strong className="text-[#243447]">Application Ref:</strong> APP-{property.propertyId || 'PROP'}-
-                      {Date.now().toString().slice(-4)}
-                    </p>
-                    <p>
-                      <strong className="text-[#243447]">Proposed Move-in:</strong> {appForm.moveInDate}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsApplyModalOpen(false)}
-                    className="rounded-md bg-[#315A7D] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#274B68] transition-colors cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
-              ) : (
-                /* Application Form */
-                <form onSubmit={handleApplySubmit} className="space-y-4 text-xs">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Full Name */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-[#315A7D]" /> Full Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={appForm.fullName}
-                        onChange={(e) => setAppForm({ ...appForm, fullName: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      />
-                    </div>
-
-                    {/* Email */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5 text-[#315A7D]" /> Email Address
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={appForm.email}
-                        onChange={(e) => setAppForm({ ...appForm, email: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      />
-                    </div>
-
-                    {/* Phone */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-[#315A7D]" /> Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={appForm.phone}
-                        onChange={(e) => setAppForm({ ...appForm, phone: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      />
-                    </div>
-
-                    {/* Move-in Date */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#315A7D]" /> Desired Move-in Date
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={appForm.moveInDate}
-                        onChange={(e) => setAppForm({ ...appForm, moveInDate: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      />
-                    </div>
-
-                    {/* Lease Duration */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875]">Lease Duration</label>
-                      <select
-                        value={appForm.leaseTerm}
-                        onChange={(e) => setAppForm({ ...appForm, leaseTerm: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      >
-                        <option>12 Months</option>
-                        <option>18 Months</option>
-                        <option>24 Months</option>
-                        <option>Flexible / Month-to-Month</option>
-                      </select>
-                    </div>
-
-                    {/* Monthly Income */}
-                    <div className="space-y-1">
-                      <label className="font-semibold text-[#5B6875] flex items-center gap-1">
-                        <Briefcase className="w-3.5 h-3.5 text-[#315A7D]" /> Monthly Income (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={appForm.monthlyIncome}
-                        onChange={(e) => setAppForm({ ...appForm, monthlyIncome: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Additional Notes */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-[#5B6875]">Applicant Notes (Optional)</label>
-                    <textarea
-                      rows="3"
-                      value={appForm.notes}
-                      onChange={(e) => setAppForm({ ...appForm, notes: e.target.value })}
-                      className="w-full p-2.5 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                      placeholder="Mention references, preferred timings, or questions regarding the lease..."
-                    />
-                  </div>
-
-                  {/* Submit button bar */}
-                  <div className="pt-3 border-t border-[#D9E0E6] flex items-center justify-between">
-                    <span className="text-[#5B6875] text-[11px]">
-                      Application fee: Waived for HomeSphere verified members
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsApplyModalOpen(false)}
-                        className="px-4 py-2 rounded-md border border-[#D9E0E6] text-[#5B6875] hover:bg-[#F7F8FA] cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-5 py-2 rounded-md bg-[#315A7D] text-white font-semibold hover:bg-[#274B68] transition-colors flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        Submit Application
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* 6. MODAL: Schedule a Tour Modal (pre-existing) */}
-        {/* ========================================================================= */}
-        {isTourModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="relative w-full max-w-md overflow-hidden rounded-lg bg-white border border-[#D9E0E6] shadow-xl p-6 space-y-6">
-              <div className="flex items-start justify-between border-b border-[#D9E0E6] pb-3">
-                <div>
-                  <h3 className="text-lg font-bold text-[#243447]">Schedule a Tour</h3>
-                  <p className="text-xs text-[#5B6875]">{property.propertyName}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsTourModalOpen(false)}
-                  className="p-1 rounded-md text-[#5B6875] hover:text-[#243447] cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {tourSubmitted ? (
-                <div className="text-center py-6 space-y-3">
-                  <CheckCircle2 className="w-12 h-12 text-[#3F7D58] mx-auto" />
-                  <h4 className="font-bold text-base text-[#243447]">Tour Request Sent!</h4>
-                  <p className="text-xs text-[#5B6875]">
-                    Your {tourForm.tourType} tour request has been recorded for{' '}
-                    <strong className="text-[#243447]">
-                      {tourForm.preferredDate} at {tourForm.preferredTime}
-                    </strong>
-                    . The leasing office will confirm your appointment via email.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsTourModalOpen(false)}
-                    className="mt-2 rounded-md bg-[#315A7D] px-5 py-2 text-xs font-bold text-white hover:bg-[#274B68] cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleTourSubmit} className="space-y-4 text-xs">
-                  {/* Tour Type */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#5B6875]">Tour Format</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTourForm({ ...tourForm, tourType: 'in-person' })}
-                        className={`py-2 px-3 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                          tourForm.tourType === 'in-person'
-                            ? 'border-[#315A7D] bg-[#EAF2F7] text-[#315A7D] font-bold'
-                            : 'border-[#D9E0E6] text-[#5B6875]'
-                        }`}
-                      >
-                        In-Person Tour
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTourForm({ ...tourForm, tourType: 'virtual' })}
-                        className={`py-2 px-3 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                          tourForm.tourType === 'virtual'
-                            ? 'border-[#315A7D] bg-[#EAF2F7] text-[#315A7D] font-bold'
-                            : 'border-[#D9E0E6] text-[#5B6875]'
-                        }`}
-                      >
-                        Virtual Tour
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Preferred Date */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-[#5B6875]">Preferred Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={tourForm.preferredDate}
-                      onChange={(e) => setTourForm({ ...tourForm, preferredDate: e.target.value })}
-                      className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                    />
-                  </div>
-
-                  {/* Preferred Time */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-[#5B6875]">Preferred Time</label>
-                    <select
-                      value={tourForm.preferredTime}
-                      onChange={(e) => setTourForm({ ...tourForm, preferredTime: e.target.value })}
-                      className="w-full px-3 py-2 rounded-md border border-[#D9E0E6] bg-[#F7F8FA] text-[#243447] focus:bg-white focus:border-[#315A7D]"
-                    >
-                      <option>09:00 AM</option>
-                      <option>11:00 AM</option>
-                      <option>02:00 PM</option>
-                      <option>04:30 PM</option>
-                      <option>06:00 PM</option>
-                    </select>
-                  </div>
-
-                  <div className="pt-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsTourModalOpen(false)}
-                      className="px-4 py-2 rounded-md border border-[#D9E0E6] text-[#5B6875] hover:bg-[#F7F8FA] cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-md bg-[#315A7D] text-white font-semibold hover:bg-[#274B68] cursor-pointer"
-                    >
-                      Confirm Tour
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   )

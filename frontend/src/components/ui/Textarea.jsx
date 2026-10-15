@@ -1,7 +1,7 @@
 import React, { useId } from 'react'
 
 /**
- * Enterprise Textarea Component for HomeSphere
+ * Enterprise Textarea Component for SmartEstate
  * @param {Object} props
  * @param {string} [props.label]
  * @param {string} [props.error]

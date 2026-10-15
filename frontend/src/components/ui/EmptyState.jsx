@@ -3,7 +3,7 @@ import { FolderOpen } from 'lucide-react'
 import Button from './Button'
 
 /**
- * Enterprise EmptyState Component for HomeSphere
+ * Enterprise EmptyState Component for SmartEstate
  * @param {Object} props
  * @param {string} props.title
  * @param {string} [props.message]

@@ -90,13 +90,13 @@ export default function UnitDetailsPage() {
             id: raw.unitId ?? raw.id,
             unitId: raw.unitId ?? raw.id,
             unitNumber: raw.unitNumber ?? raw.number ?? '',
-            unitType: raw.unitType ?? raw.type ?? 'APARTMENT',
-            status: raw.status ?? 'VACANT',
-            monthlyRent: Number(raw.monthlyRent ?? raw.rent ?? 0),
-            securityDeposit: Number(raw.securityDeposit ?? raw.deposit ?? 0),
-            area: Number(raw.area ?? 0),
-            bedrooms: Number(raw.bedrooms ?? 0),
-            bathrooms: Number(raw.bathrooms ?? 0),
+            unitType: raw.unitType ?? raw.type ?? null,
+            status: raw.status ?? null,
+            monthlyRent: raw.monthlyRent ?? raw.rent ?? null,
+            securityDeposit: raw.securityDeposit ?? raw.deposit ?? null,
+            area: raw.area ?? null,
+            bedrooms: raw.bedrooms ?? null,
+            bathrooms: raw.bathrooms ?? null,
             description: raw.description ?? '',
             floorId: uFloorId,
             floorName: uFloorName,
@@ -417,7 +417,7 @@ export default function UnitDetailsPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase font-bold tracking-wider text-[#315A7D] px-2 py-0.5 rounded bg-[#EAF2F7] border border-[#D9E0E6]">
-                  {unit.unitType}
+                  {unit.unitType || '—'}
                 </span>
                 <span className="text-xs text-[#5B6875] font-mono">
                   ID: {unit.unitId}
@@ -456,7 +456,7 @@ export default function UnitDetailsPage() {
 
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Unit Type</p>
-                <p className="font-bold text-sm text-[#243447] mt-0.5">{unit.unitType}</p>
+                <p className="font-bold text-sm text-[#243447] mt-0.5">{unit.unitType || '—'}</p>
               </div>
 
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
@@ -468,7 +468,7 @@ export default function UnitDetailsPage() {
 
               <div className="p-3 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6]/70">
                 <p className="text-[#5B6875] font-medium">Area</p>
-                <p className="font-bold text-sm text-[#243447] mt-0.5">{unit.area} sq ft</p>
+                <p className="font-bold text-sm text-[#243447] mt-0.5">{unit.area == null ? '—' : `${unit.area} sq ft`}</p>
               </div>
             </div>
           </div>
@@ -575,7 +575,7 @@ export default function UnitDetailsPage() {
                 </div>
                 <div>
                   <p className="text-[#5B6875] font-medium">Bedrooms</p>
-                  <p className="font-bold text-base text-[#243447] mt-0.5">{unit.bedrooms}</p>
+                  <p className="font-bold text-base text-[#243447] mt-0.5">{unit.bedrooms ?? '—'}</p>
                 </div>
               </div>
 
@@ -585,7 +585,7 @@ export default function UnitDetailsPage() {
                 </div>
                 <div>
                   <p className="text-[#5B6875] font-medium">Bathrooms</p>
-                  <p className="font-bold text-base text-[#243447] mt-0.5">{unit.bathrooms}</p>
+                  <p className="font-bold text-base text-[#243447] mt-0.5">{unit.bathrooms ?? '—'}</p>
                 </div>
               </div>
             </div>

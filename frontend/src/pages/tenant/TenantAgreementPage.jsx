@@ -8,6 +8,7 @@ import {
   getAgreementDocument,
 } from '../../api/agreementApi'
 import { getMyApplications } from '../../api/applicationApi'
+import { formatCurrency } from '../../utils/currency'
 import {
   Button,
   StatusBadge,
@@ -112,7 +113,7 @@ export default function TenantAgreementPage() {
             app?.propertyName ||
             (agr.propertyId
               ? `Property #${agr.propertyId}`
-              : 'Residential Property'),
+              : null),
           unit: app?.unitNumber
             ? `Unit #${app.unitNumber}`
             : agr.unitId
@@ -121,7 +122,7 @@ export default function TenantAgreementPage() {
           buildingName: app?.buildingName || null,
           tenantName: tenantDisplayName,
           tenantEmail: app?.tenantEmail || user?.email || '',
-          status: agr.status || 'DRAFT',
+          status: agr.status ?? null,
         }
       })
 
@@ -395,10 +396,10 @@ export default function TenantAgreementPage() {
                     Monthly Rent
                   </span>
                   <span className="text-xl font-bold text-[#315A7D]">
-                    ₹{Number(selectedAgreement.monthlyRent || 0).toLocaleString('en-IN')}
+                    {formatCurrency(selectedAgreement.monthlyRent)}
                   </span>
                   <span className="text-[11px] text-[#5B6875] block mt-0.5">
-                    Due {selectedAgreement.dueDay ? `${selectedAgreement.dueDay}th of month` : '1st of month'}
+                    {selectedAgreement.dueDay == null ? 'Due day unavailable' : `Due day ${selectedAgreement.dueDay} of month`}
                   </span>
                 </div>
 
@@ -407,7 +408,7 @@ export default function TenantAgreementPage() {
                     Security Deposit
                   </span>
                   <span className="text-xl font-bold text-[#243447]">
-                    ₹{Number(selectedAgreement.securityDeposit || 0).toLocaleString('en-IN')}
+                    {formatCurrency(selectedAgreement.securityDeposit)}
                   </span>
                   <span className="text-[11px] text-[#3F7D58] font-medium block mt-0.5">
                     Refundable Deposit

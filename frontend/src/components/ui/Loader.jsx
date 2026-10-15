@@ -1,7 +1,7 @@
 import React from 'react'
 
 /**
- * Loader Component for HomeSphere
+ * Loader Component for SmartEstate
  * @param {Object} props
  * @param {'xs' | 'sm' | 'md' | 'lg' | 'xl'} [props.size='md']
  * @param {string} [props.text]

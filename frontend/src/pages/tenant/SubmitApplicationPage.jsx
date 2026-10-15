@@ -62,11 +62,11 @@ export default function SubmitApplicationPage() {
   const [loadError, setLoadError] = useState(null)
 
   // Applicant contact & financial information
-  const [applicantName, setApplicantName] = useState(user?.name || user?.username || 'Elena Vance')
-  const [applicantEmail, setApplicantEmail] = useState(user?.email || 'tenant@homesphere.com')
-  const [phone, setPhone] = useState(user?.phone || '+91 98765 43210')
-  const [monthlyIncome, setMonthlyIncome] = useState('85000')
-  const [employer, setEmployer] = useState('Senior Software Engineer')
+  const [applicantName, setApplicantName] = useState(user?.name || user?.username || '')
+  const [applicantEmail, setApplicantEmail] = useState(user?.email || '')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [monthlyIncome, setMonthlyIncome] = useState('')
+  const [employer, setEmployer] = useState('')
   const [moveInDate, setMoveInDate] = useState(
     new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
   )
@@ -489,6 +489,8 @@ export default function SubmitApplicationPage() {
       // 2. Strictly submit only fields supported by backend RentalApplicationCreateRequest
       const payload = {
         unitId: Number(selectedUnitId),
+        monthlyIncome: monthlyIncome.trim() ? Number(monthlyIncome) : null,
+        employerOccupation: employer.trim() || null,
         preferredMoveInDate: moveInDate || null,
         preferredLeaseDurationMonths: Number(
           preferredLeaseDurationMonths
@@ -501,7 +503,7 @@ export default function SubmitApplicationPage() {
       const result = await createApplication(payload)
 
       const appId = result?.applicationId ? `#${result.applicationId}` : ''
-      const appStatus = result?.status || 'PENDING'
+      const appStatus = result?.status || 'status not returned by the server'
 
       setSuccessMessage(
         `Your rental application ${appId} for Unit ${selectedUnitObj?.unitNumber || ''} at ${selectedProperty?.propertyName || 'the property'
@@ -789,11 +791,12 @@ export default function SubmitApplicationPage() {
                   <Input
                     label="Monthly Gross Income (₹)"
                     type="number"
+                    min="0"
                     placeholder="e.g. 85000"
                     value={monthlyIncome}
                     onChange={(e) => setMonthlyIncome(e.target.value)}
                     leftIcon={<IndianRupee className="w-4 h-4 text-[#5B6875]" />}
-                    helperText="Verified in tenant profile"
+                    helperText="Saved with your application and tenant profile"
                   />
                 </div>
 
@@ -856,7 +859,7 @@ export default function SubmitApplicationPage() {
                     {uploadedPhotoId ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                        Uploaded ({uploadedPhotoId.verificationStatus || 'PENDING'})
+                        Uploaded ({uploadedPhotoId.verificationStatus || 'Status unavailable'})
                       </span>
                     ) : (
                       <span className="text-[11px] text-[#5B6875]">Required for identity check</span>
@@ -954,7 +957,7 @@ export default function SubmitApplicationPage() {
                     {uploadedIncomeProof ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                        Uploaded ({uploadedIncomeProof.verificationStatus || 'PENDING'})
+                        Uploaded ({uploadedIncomeProof.verificationStatus || 'Status unavailable'})
                       </span>
                     ) : (
                       <span className="text-[11px] text-[#5B6875]">Income verification</span>
@@ -1052,7 +1055,7 @@ export default function SubmitApplicationPage() {
                     {uploadedOtherDoc ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#3F7D58]" />
-                        Uploaded ({uploadedOtherDoc.verificationStatus || 'PENDING'})
+                        Uploaded ({uploadedOtherDoc.verificationStatus || 'Status unavailable'})
                       </span>
                     ) : (
                       <span className="text-[11px] text-[#5B6875]">Reference or history</span>

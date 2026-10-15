@@ -2,10 +2,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import * as authApi from '../api/authApi.js'
 import { normalizeRole, getRoleLabel } from '../utils/roles.js'
 
-const STORAGE_KEY = 'homesphere_user'
-const LEGACY_STORAGE_KEY = 'homesphere_mock_user'
-const TOKEN_KEY = 'homesphere_token'
-const LEGACY_TOKEN_KEY = 'token'
+const STORAGE_KEY = 'smartestate_user'
+const LEGACY_STORAGE_KEY = 'homesphere_user'
+const LEGACY_MOCK_USER_KEY = 'homesphere_mock_user'
+const LEGACY_TOKEN_KEY = 'homesphere_token'
+const TOKEN_KEY = 'smartestate_token'
+const GENERIC_TOKEN_KEY = 'token'
+const LEGACY_MOCK_STORAGE_KEYS = [
+  'homesphere_pending_registrations',
+  'homesphere_mock_buildings',
+  'homesphere_mock_floors',
+  'homesphere_mock_units',
+  'homesphere_maintenance',
+]
 
 const AuthContext = createContext(null)
 
@@ -15,22 +24,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Load saved session from localStorage on initial render & migrate legacy session if found
+  // Remove persisted fixtures from older frontend-only demo flows, then restore
+  // only a session that contains a real backend token.
   useEffect(() => {
     try {
-      let stored = localStorage.getItem(STORAGE_KEY)
-      // Check legacy key if primary key is absent
-      if (!stored) {
-        const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY)
-        if (legacyStored) {
-          stored = legacyStored
-          localStorage.setItem(STORAGE_KEY, legacyStored)
-          localStorage.removeItem(LEGACY_STORAGE_KEY)
+      localStorage.removeItem(LEGACY_MOCK_USER_KEY)
+      LEGACY_MOCK_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
+
+      const previousUser = localStorage.getItem(LEGACY_STORAGE_KEY)
+      const previousToken = localStorage.getItem(LEGACY_TOKEN_KEY)
+      if (previousUser && !localStorage.getItem(STORAGE_KEY)) {
+        localStorage.setItem(STORAGE_KEY, previousUser)
+      }
+      if (previousToken && !localStorage.getItem(TOKEN_KEY) && !previousToken.startsWith('mock_jwt_')) {
+        localStorage.setItem(TOKEN_KEY, previousToken)
+      }
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      localStorage.removeItem(LEGACY_TOKEN_KEY)
+
+      for (const key of [TOKEN_KEY, GENERIC_TOKEN_KEY]) {
+        if (localStorage.getItem(key)?.startsWith('mock_jwt_')) {
+          localStorage.removeItem(key)
+          localStorage.removeItem(STORAGE_KEY)
         }
       }
 
-      const storedToken =
-        localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY)
+      const stored = localStorage.getItem(STORAGE_KEY)
+      const storedToken = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(GENERIC_TOKEN_KEY)
 
       if (stored && storedToken) {
         const parsed = JSON.parse(stored)
@@ -47,7 +67,6 @@ export function AuthProvider({ children }) {
       } else if (stored && !storedToken) {
         // Incomplete session without token: purge invalid session
         localStorage.removeItem(STORAGE_KEY)
-        localStorage.removeItem(LEGACY_STORAGE_KEY)
       }
     } catch (e) {
       console.error('Failed to parse stored session from localStorage', e)
@@ -75,7 +94,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user))
         if (result.token) {
           localStorage.setItem(TOKEN_KEY, result.token)
-          localStorage.setItem(LEGACY_TOKEN_KEY, result.token)
+          localStorage.setItem(GENERIC_TOKEN_KEY, result.token)
         }
       } catch (e) {
         console.error('Failed to save session to localStorage', e)
@@ -99,6 +118,18 @@ export function AuthProvider({ children }) {
     const result = await authApi.register(registrationData)
 
     if (result.success) {
+      if (result.requiresEmailVerification) {
+        // A registered account cannot log in until the email OTP is verified.
+        // Do not create or persist an authenticated session here.
+        return {
+          success: true,
+          user: result.user,
+          status: result.status,
+          isPending: result.isPending || false,
+          requiresEmailVerification: true,
+        }
+      }
+
       if (result.isPending || result.status === 'PENDING') {
         // Pending approval: do not create active authenticated session
         return {
@@ -127,7 +158,7 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // Active registration fallback if token was already returned (e.g. mock mode)
+      // Persist a real backend session if registration returned a token.
       setUser(result.user)
       if (result.token) {
         setToken(result.token)
@@ -137,7 +168,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user))
         if (result.token) {
           localStorage.setItem(TOKEN_KEY, result.token)
-          localStorage.setItem(LEGACY_TOKEN_KEY, result.token)
+          localStorage.setItem(GENERIC_TOKEN_KEY, result.token)
         }
       } catch (e) {
         console.error('Failed to save session to localStorage', e)
@@ -171,6 +202,7 @@ export function AuthProvider({ children }) {
         localStorage.removeItem(LEGACY_STORAGE_KEY)
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(LEGACY_TOKEN_KEY)
+        localStorage.removeItem(GENERIC_TOKEN_KEY)
       } catch (e) {
         console.error('Failed to clear session from localStorage', e)
       }
@@ -201,6 +233,14 @@ export function AuthProvider({ children }) {
     return authApi.changePassword({ currentPassword, newPassword })
   }
 
+  const verifyEmailOtp = async ({ email, otp }) => {
+    return authApi.verifyEmailOtp({ email, otp })
+  }
+
+  const resendEmailOtp = async (email) => {
+    return authApi.resendEmailOtp(email)
+  }
+
   const value = {
     user,
     token,
@@ -212,6 +252,8 @@ export function AuthProvider({ children }) {
     forgotPassword,
     resetPassword,
     changePassword,
+    verifyEmailOtp,
+    resendEmailOtp,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

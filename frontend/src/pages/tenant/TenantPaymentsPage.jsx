@@ -16,6 +16,7 @@ import {
 } from '../../api/paymentApi'
 import { getMyAgreements } from '../../api/agreementApi'
 import { getMyApplications } from '../../api/applicationApi'
+import { formatCurrency } from '../../utils/currency'
 import {
   Button,
   Input,
@@ -258,19 +259,21 @@ export default function TenantPaymentsPage() {
         return {
           ...inv,
           id: inv.invoiceId,
-          propertyName: app?.propertyName || 'Residential Premise',
+          propertyName: app?.propertyName || null,
           unitNumber: app?.unitNumber
             ? `Unit #${app.unitNumber}`
             : inv.unitId
             ? `Unit #${inv.unitId}`
             : '—',
-          amount: Number(inv.totalAmount || 0),
-          totalPaid: Number(inv.totalPaid || 0),
+          amount: inv.totalAmount == null ? null : Number(inv.totalAmount),
+          totalPaid: inv.totalPaid == null ? null : Number(inv.totalPaid),
           remainingAmount:
             inv.remainingAmount != null
               ? Number(inv.remainingAmount)
-              : Math.max(0, Number(inv.totalAmount || 0) - Number(inv.totalPaid || 0)),
-          status: inv.status || INVOICE_STATUSES.PENDING,
+              : inv.totalAmount != null && inv.totalPaid != null
+              ? Math.max(0, Number(inv.totalAmount) - Number(inv.totalPaid))
+              : null,
+          status: inv.status ?? null,
         }
       })
 
@@ -373,7 +376,7 @@ export default function TenantPaymentsPage() {
       order_id: orderData.orderId,
       currency: orderData.currency || 'INR',
       amount: Math.round(Number(orderData.amount) * 100), // convert rupees to paise
-      name: 'HomeSphere',
+      name: 'SmartEstate',
       description: `Payment for Invoice #${activePaymentInvoice.invoiceNumber || activePaymentInvoice.invoiceId}`,
       prefill: {
         name:
@@ -521,20 +524,17 @@ export default function TenantPaymentsPage() {
     (inv) => String(inv.status).toUpperCase() === 'PAID'
   )
 
-  const totalPendingAmount = pendingInvoices.reduce(
-    (sum, inv) => sum + (Number(inv.remainingAmount || inv.amount) || 0),
-    0
+  const sumKnownAmounts = (rows, getAmount) => {
+    if (rows.length === 0) return 0
+    const values = rows.map(getAmount)
+    if (values.some((amount) => amount == null || !Number.isFinite(Number(amount)))) return null
+    return values.reduce((sum, amount) => sum + Number(amount), 0)
+  }
+  const totalPendingAmount = sumKnownAmounts(pendingInvoices, (inv) =>
+    inv.remainingAmount ?? (String(inv.status).toUpperCase() === 'PENDING' ? inv.amount : null)
   )
 
-  const totalPaidAmount = invoices.reduce(
-    (sum, inv) =>
-      sum +
-      Number(
-        inv.totalPaid ||
-          (String(inv.status).toUpperCase() === 'PAID' ? inv.amount : 0)
-      ),
-    0
-  )
+  const totalPaidAmount = sumKnownAmounts(invoices, (inv) => inv.totalPaid)
 
   // Upcoming due: earliest pending/overdue due date
   const upcomingInvoice = [...pendingInvoices].sort(
@@ -668,7 +668,7 @@ export default function TenantPaymentsPage() {
                     Pending Dues
                   </span>
                   <div className="text-2xl font-bold text-[#B94A48] mt-1">
-                    ₹{totalPendingAmount.toLocaleString('en-IN')}
+                    {formatCurrency(totalPendingAmount)}
                   </div>
                   <span className="text-xs text-[#5B6875] block mt-0.5">
                     {pendingInvoices.length} outstanding {pendingInvoices.length === 1 ? 'invoice' : 'invoices'}
@@ -686,7 +686,7 @@ export default function TenantPaymentsPage() {
                     Total Paid
                   </span>
                   <div className="text-2xl font-bold text-[#3F7D58] mt-1">
-                    ₹{totalPaidAmount.toLocaleString('en-IN')}
+                    {formatCurrency(totalPaidAmount)}
                   </div>
                   <span className="text-xs text-[#5B6875] block mt-0.5">
                     {paidInvoices.length} settled {paidInvoices.length === 1 ? 'invoice' : 'invoices'}
@@ -769,13 +769,13 @@ export default function TenantPaymentsPage() {
 
                           {/* Total Amount */}
                           <td className="py-4 px-4 whitespace-nowrap font-bold text-[#243447]">
-                            ₹{Number(inv.amount || 0).toLocaleString('en-IN')}
+                            {formatCurrency(inv.amount)}
                           </td>
 
                           {/* Paid / Balance Due */}
                           <td className="py-4 px-4 whitespace-nowrap text-xs">
                             <span className="text-[#2A583B] font-semibold">
-                              Paid: ₹{Number(inv.totalPaid || 0).toLocaleString('en-IN')}
+                              Paid: {formatCurrency(inv.totalPaid)}
                             </span>
                             {inv.remainingAmount > 0 ? (
                               <span className="block text-[#B94A48] font-bold mt-0.5">
@@ -901,7 +901,7 @@ export default function TenantPaymentsPage() {
                       Total Invoiced
                     </span>
                     <span className="text-sm font-bold text-[#243447] mt-0.5 block">
-                      ₹{Number(activePaymentInvoice.amount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(activePaymentInvoice.amount)}
                     </span>
                   </div>
                   <div>
@@ -909,7 +909,7 @@ export default function TenantPaymentsPage() {
                       Already Paid
                     </span>
                     <span className="text-sm font-bold text-[#2A583B] mt-0.5 block">
-                      ₹{Number(activePaymentInvoice.totalPaid || 0).toLocaleString('en-IN')}
+                      {formatCurrency(activePaymentInvoice.totalPaid)}
                     </span>
                   </div>
                   <div>
@@ -917,7 +917,7 @@ export default function TenantPaymentsPage() {
                       Balance Due
                     </span>
                     <span className="text-sm font-extrabold text-[#B94A48] mt-0.5 block">
-                      ₹{Number(activePaymentInvoice.remainingAmount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(activePaymentInvoice.remainingAmount)}
                     </span>
                   </div>
                 </div>
@@ -1064,19 +1064,19 @@ export default function TenantPaymentsPage() {
                   <span>
                     Total Due:{' '}
                     <strong className="text-[#243447]">
-                      ₹{Number(historyInvoice.amount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(historyInvoice.amount)}
                     </strong>
                   </span>
                   <span>
                     Total Paid:{' '}
                     <strong className="text-[#2A583B]">
-                      ₹{Number(historyInvoice.totalPaid || 0).toLocaleString('en-IN')}
+                      {formatCurrency(historyInvoice.totalPaid)}
                     </strong>
                   </span>
                   <span>
                     Remaining:{' '}
                     <strong className="text-[#B94A48]">
-                      ₹{Number(historyInvoice.remainingAmount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(historyInvoice.remainingAmount)}
                     </strong>
                   </span>
                 </div>
@@ -1122,14 +1122,14 @@ export default function TenantPaymentsPage() {
                               {formatDateTime(p.paymentDate || p.createdAt)}
                             </td>
                             <td className="py-3 px-3 font-medium text-[#243447]">
-                              {p.paymentMethod || 'UPI'}
+                              {p.paymentMethod || '—'}
                             </td>
                             <td className="py-3 px-3 font-bold text-[#243447]">
-                              ₹{Number(p.amount || 0).toLocaleString('en-IN')}
+                              {formatCurrency(p.amount)}
                             </td>
                             <td className="py-3 px-3 text-right">
                               <StatusBadge
-                                status={p.paymentStatus || 'SUCCESS'}
+                                status={p.paymentStatus}
                                 size="sm"
                               />
                             </td>
@@ -1255,19 +1255,19 @@ export default function TenantPaymentsPage() {
                       <span>
                         Total Invoiced:{' '}
                         <strong className="text-[#243447]">
-                          ₹{Number(receiptModalInvoice.amount || 0).toLocaleString('en-IN')}
+                          {formatCurrency(receiptModalInvoice.amount)}
                         </strong>
                       </span>
                       <span>
                         Total Paid:{' '}
                         <strong className="text-[#2A583B]">
-                          ₹{Number(receiptModalInvoice.totalPaid || 0).toLocaleString('en-IN')}
+                          {formatCurrency(receiptModalInvoice.totalPaid)}
                         </strong>
                       </span>
                       <span>
                         Remaining Due:{' '}
                         <strong className="text-[#B94A48]">
-                          ₹{Number(receiptModalInvoice.remainingAmount || 0).toLocaleString('en-IN')}
+                          {formatCurrency(receiptModalInvoice.remainingAmount)}
                         </strong>
                       </span>
                     </div>
@@ -1333,13 +1333,13 @@ export default function TenantPaymentsPage() {
                                     {formatDate(rcp.paymentDate || rcp.createdAt)}
                                   </td>
                                   <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
-                                    {rcp.paymentMethod || 'UPI'}
+                                    {rcp.paymentMethod || '—'}
                                   </td>
                                   <td className="py-3 px-3 font-bold text-[#2A583B] whitespace-nowrap">
-                                    ₹{Number(rcp.amountPaid || 0).toLocaleString('en-IN')}
+                                    {formatCurrency(rcp.amountPaid)}
                                   </td>
                                   <td className="py-3 px-3 font-semibold text-[#B94A48] whitespace-nowrap">
-                                    ₹{Number(rcp.remainingAmount || 0).toLocaleString('en-IN')}
+                                    {formatCurrency(rcp.remainingAmount)}
                                   </td>
                                   <td className="py-3 px-3 text-right whitespace-nowrap">
                                     <Button

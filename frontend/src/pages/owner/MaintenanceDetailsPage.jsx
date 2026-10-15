@@ -875,19 +875,19 @@ export default function MaintenanceDetailsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-[#243447] leading-relaxed">
-                      {String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'HIGH'
-                        ? `Critical preventive notice: Elevated failure risk detected (${(
-                          (prediction.maintenance_risk?.probability || 0) * 100
-                        ).toFixed(1)}%). We recommend scheduling a certified technician inspection for ${formatCategoryLabel(
+                      {!prediction.maintenance_risk?.risk_level
+                        ? 'Risk assessment was not returned by the prediction service.'
+                        : String(prediction.maintenance_risk.risk_level).toUpperCase() === 'HIGH'
+                        ? `Critical preventive notice: Elevated failure risk detected (${prediction.maintenance_risk?.probability == null ? '—' : `${(Number(prediction.maintenance_risk.probability) * 100).toFixed(1)}%`}). We recommend scheduling a certified technician inspection for ${formatCategoryLabel(
                           request.category
-                        )} fixtures within 7 days to forestall emergent failures and curb estimated monthly expenses (₹${Number(
-                          prediction.next_month_maintenance_cost || 0
-                        ).toLocaleString()}).`
-                        : String(prediction.maintenance_risk?.risk_level).toUpperCase() === 'MEDIUM'
+                        )} fixtures within 7 days to forestall emergent failures and curb estimated monthly expenses (${prediction.next_month_maintenance_cost == null ? '—' : `₹${Number(prediction.next_month_maintenance_cost).toLocaleString()}`}).`
+                        : String(prediction.maintenance_risk.risk_level).toUpperCase() === 'MEDIUM'
                           ? `Standard preventive notice: Moderate equipment wear detected. Dispatch regular servicing for ${formatCategoryLabel(
                             request.category
                           )} equipment prior to next billing cycle.`
-                          : `Low risk profile: Asset degradation metrics are within healthy nominal limits. Standard periodic maintenance routine recommended.`}
+                          : String(prediction.maintenance_risk.risk_level).toUpperCase() === 'LOW'
+                            ? `Low risk profile: Asset degradation metrics are within healthy nominal limits. Standard periodic maintenance routine recommended.`
+                            : 'The prediction service returned an unrecognized risk level.'}
                     </p>
                   </div>
                 </div>

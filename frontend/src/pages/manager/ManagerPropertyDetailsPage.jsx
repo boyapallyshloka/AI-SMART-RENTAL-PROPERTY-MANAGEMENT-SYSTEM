@@ -100,11 +100,11 @@ export default function ManagerPropertyDetailsPage() {
   const [isEditPropertyOpen, setIsEditPropertyOpen] = useState(false)
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
-    propertyType: 'APARTMENT',
+    propertyType: '',
     description: '',
     totalArea: '',
-    furnishingStatus: 'UNFURNISHED',
-    parkingAvailable: 'false',
+    furnishingStatus: '',
+    parkingAvailable: '',
     yearBuilt: '',
   })
   const [isSubmittingProperty, setIsSubmittingProperty] = useState(false)
@@ -160,11 +160,11 @@ export default function ManagerPropertyDetailsPage() {
       // Initialize Edit Form
       setPropertyForm({
         propertyName: propData.propertyName || '',
-        propertyType: propData.propertyType || 'APARTMENT',
+        propertyType: propData.propertyType || '',
         description: propData.description || '',
         totalArea: propData.totalArea != null ? String(propData.totalArea) : '',
-        furnishingStatus: propData.furnishingStatus || 'UNFURNISHED',
-        parkingAvailable: String(Boolean(propData.parkingAvailable)),
+        furnishingStatus: propData.furnishingStatus || '',
+        parkingAvailable: propData.parkingAvailable == null ? '' : String(Boolean(propData.parkingAvailable)),
         yearBuilt: propData.yearBuilt != null ? String(propData.yearBuilt) : '',
       })
 
@@ -346,11 +346,13 @@ export default function ManagerPropertyDetailsPage() {
     // Form payload strictly matching backend PropertyRequest contract
     const payload = {
       propertyName: propertyForm.propertyName.trim(),
-      propertyType: propertyForm.propertyType,
+      propertyType: propertyForm.propertyType || undefined,
       description: propertyForm.description.trim() || undefined,
       totalArea: propertyForm.totalArea ? Number(propertyForm.totalArea) : undefined,
-      furnishingStatus: propertyForm.furnishingStatus,
-      parkingAvailable: propertyForm.parkingAvailable === 'true',
+      furnishingStatus: propertyForm.furnishingStatus || undefined,
+      parkingAvailable: propertyForm.parkingAvailable === ''
+        ? undefined
+        : propertyForm.parkingAvailable === 'true',
       yearBuilt: propertyForm.yearBuilt ? Number(propertyForm.yearBuilt) : undefined,
     }
 
@@ -661,7 +663,7 @@ export default function ManagerPropertyDetailsPage() {
                   Parking
                 </span>
                 <p className="font-bold text-[#243447] text-sm">
-                  {property.parkingAvailable ? 'Available' : 'None'}
+                  {property.parkingAvailable == null ? 'Not specified' : property.parkingAvailable ? 'Available' : 'None'}
                 </p>
               </div>
 
@@ -1131,6 +1133,7 @@ export default function ManagerPropertyDetailsPage() {
                       setPropertyForm((prev) => ({ ...prev, propertyType: e.target.value }))
                     }
                     options={[
+                      { label: 'Select property type', value: '' },
                       { label: 'Apartment', value: 'APARTMENT' },
                       { label: 'House', value: 'HOUSE' },
                       { label: 'Villa', value: 'VILLA' },
@@ -1172,6 +1175,7 @@ export default function ManagerPropertyDetailsPage() {
                       }))
                     }
                     options={[
+                      { label: 'Not specified', value: '' },
                       { label: 'Unfurnished', value: 'UNFURNISHED' },
                       { label: 'Semi-Furnished', value: 'SEMI_FURNISHED' },
                       { label: 'Fully Furnished', value: 'FULLY_FURNISHED' },
@@ -1192,6 +1196,7 @@ export default function ManagerPropertyDetailsPage() {
                       }))
                     }
                     options={[
+                      { label: 'Not specified', value: '' },
                       { label: 'Available (Yes)', value: 'true' },
                       { label: 'No Parking', value: 'false' },
                     ]}

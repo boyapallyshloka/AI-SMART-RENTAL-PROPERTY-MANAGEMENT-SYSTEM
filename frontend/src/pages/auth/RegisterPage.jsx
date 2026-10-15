@@ -136,7 +136,18 @@ export default function RegisterPage() {
         role,
       })
       if (result.success) {
-        if (result.isPending || result.status === 'PENDING') {
+        if (result.requiresEmailVerification) {
+          navigate('/verify-email', {
+            replace: true,
+            state: {
+              email: email.trim().toLowerCase(),
+              role,
+              status: result.status,
+              fromRegistration: true,
+              resendCooldownSeconds: 60,
+            },
+          })
+        } else if (result.isPending || result.status === 'PENDING') {
           setRegisteredData({
             firstName: firstName.trim(),
             lastName: lastName.trim(),
@@ -220,7 +231,7 @@ export default function RegisterPage() {
               <span>What happens next?</span>
             </div>
             <p className="text-[11px] text-[#5B6875]">
-              In accordance with HomeSphere enterprise security policies, property owner credentials must be verified by a Super Administrator before access to the Owner Portal is unlocked.
+              In accordance with SmartEstate enterprise security policies, property owner credentials must be verified by a Super Administrator before access to the Owner Portal is unlocked.
             </p>
           </div>
 
@@ -249,7 +260,7 @@ export default function RegisterPage() {
   return (
     <AuthLayout
       title="Create an account"
-      subtitle="Join HomeSphere as a tenant, owner, or manager"
+      subtitle="Join SmartEstate as a tenant, owner, or manager"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {formError && (

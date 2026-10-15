@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Home, ShieldCheck, CheckCircle2, Building2 } from 'lucide-react'
 
 /**
- * Enterprise AuthLayout Component for HomeSphere
+ * Enterprise AuthLayout Component for SmartEstate
  * Standardized with Primary Blue #315A7D brand side and #F7F8FA form side
  *
  * @param {Object} props
@@ -27,7 +27,7 @@ export default function AuthLayout({
           </div>
           <div>
             <span className="font-serif text-xl font-bold tracking-tight text-white">
-              HomeSphere
+              SmartEstate
             </span>
             <span className="block text-[10px] uppercase font-semibold tracking-wider text-[#EAF2F7]">
               Property Management System
@@ -75,7 +75,7 @@ export default function AuthLayout({
 
         {/* Footer */}
         <div className="flex items-center justify-between text-xs text-[#EAF2F7]/80">
-          <span>&copy; {new Date().getFullYear()} HomeSphere SaaS Platform</span>
+          <span>&copy; {new Date().getFullYear()} SmartEstate SaaS Platform</span>
           <div className="flex items-center gap-3">
             <Link to="/privacy-policy" className="hover:text-white hover:underline transition-colors">
               Privacy Policy
@@ -101,7 +101,7 @@ export default function AuthLayout({
               <Home className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-serif text-lg font-bold text-[#243447]">HomeSphere</span>
+              <span className="font-serif text-lg font-bold text-[#243447]">SmartEstate</span>
               <span className="block text-[10px] uppercase font-semibold text-[#5B6875]">
                 Property Management
               </span>

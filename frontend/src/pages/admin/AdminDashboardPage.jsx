@@ -11,7 +11,6 @@ import {
   Wrench,
   Sparkles,
   History,
-  Layers,
   LogOut,
   Shield,
   RotateCcw,
@@ -45,6 +44,7 @@ export default function AdminDashboardPage() {
   const [users, setUsers] = useState([])
   const [maintenanceRequests, setMaintenanceRequests] = useState([])
   const [invoices, setInvoices] = useState([])
+  const [dataAvailability, setDataAvailability] = useState({ users: false, maintenance: false, invoices: false })
 
   const handleLogout = () => {
     logout()
@@ -68,6 +68,12 @@ export default function AdminDashboardPage() {
         invoicesRes.status === 'rejected' ? 'rent invoices' : null,
       ].filter(Boolean)
 
+      setDataAvailability({
+        users: usersRes.status === 'fulfilled',
+        maintenance: maintRes.status === 'fulfilled',
+        invoices: invoicesRes.status === 'fulfilled',
+      })
+
       if (failedSources.length > 0) {
         setErrorMessage(
           `Could not connect to backend for: ${failedSources.join(
@@ -81,6 +87,7 @@ export default function AdminDashboardPage() {
       setInvoices(unwrapList(invoicesRes))
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err)
+      setDataAvailability({ users: false, maintenance: false, invoices: false })
       setErrorMessage(
         err?.response?.data?.message ||
           err?.message ||
@@ -124,14 +131,16 @@ export default function AdminDashboardPage() {
       String(m.status || '').toUpperCase()
     )
   ).length
+  const displayMetric = (value, source) =>
+    dataAvailability[source] ? value.toLocaleString('en-IN') : '—'
 
   // Real summary metric cards
   const summaryMetrics = [
     {
       id: 'total-users',
       label: 'Total Registered Users',
-      value: totalUsers.toLocaleString('en-IN'),
-      subtext: `${totalUsers} platform accounts in database`,
+      value: displayMetric(totalUsers, 'users'),
+      subtext: dataAvailability.users ? `${totalUsers} platform accounts in database` : 'User data unavailable',
       icon: <Users className="w-5 h-5 text-[#315A7D]" />,
       bg: 'bg-[#EAF2F7] border-[#D9E0E6]',
       link: '/admin/users',
@@ -139,8 +148,8 @@ export default function AdminDashboardPage() {
     {
       id: 'property-owners',
       label: 'Property Owners',
-      value: propertyOwners.toLocaleString('en-IN'),
-      subtext: 'Registered property & building owners',
+      value: displayMetric(propertyOwners, 'users'),
+      subtext: dataAvailability.users ? 'Registered property & building owners' : 'User data unavailable',
       icon: <Building2 className="w-5 h-5 text-[#3F7D58]" />,
       bg: 'bg-[#EDF7EE] border-[#C6DEC8]',
       link: '/admin/users',
@@ -148,8 +157,10 @@ export default function AdminDashboardPage() {
     {
       id: 'pending-owners',
       label: 'Pending Owner Approvals',
-      value: pendingOwners.toLocaleString('en-IN'),
-      subtext:
+      value: displayMetric(pendingOwners, 'users'),
+      subtext: !dataAvailability.users
+        ? 'Owner approval data unavailable'
+        :
         pendingOwners > 0
           ? 'Requires administrator review'
           : 'All owner accounts reviewed',
@@ -160,8 +171,8 @@ export default function AdminDashboardPage() {
     {
       id: 'tenants',
       label: 'Registered Tenants',
-      value: tenants.toLocaleString('en-IN'),
-      subtext: 'Tenant and resident accounts',
+      value: displayMetric(tenants, 'users'),
+      subtext: dataAvailability.users ? 'Tenant and resident accounts' : 'User data unavailable',
       icon: <UserCheck className="w-5 h-5 text-[#315A7D]" />,
       bg: 'bg-[#EAF2F7] border-[#D9E0E6]',
       link: '/admin/users',
@@ -169,16 +180,16 @@ export default function AdminDashboardPage() {
     {
       id: 'open-maintenance',
       label: 'Active Maintenance Tickets',
-      value: openMaintenance.toLocaleString('en-IN'),
-      subtext: `${maintenanceRequests.length} total tickets recorded`,
+      value: displayMetric(openMaintenance, 'maintenance'),
+      subtext: dataAvailability.maintenance ? `${maintenanceRequests.length} total tickets recorded` : 'Maintenance data unavailable',
       icon: <Wrench className="w-5 h-5 text-[#5B6875]" />,
       bg: 'bg-[#F0F4F7] border-[#D9E0E6]',
     },
     {
       id: 'total-invoices',
       label: 'Platform Rent Invoices',
-      value: invoices.length.toLocaleString('en-IN'),
-      subtext: 'Rent invoice transaction records',
+      value: displayMetric(invoices.length, 'invoices'),
+      subtext: dataAvailability.invoices ? 'Rent invoice transaction records' : 'Invoice data unavailable',
       icon: <FileBarChart className="w-5 h-5 text-[#315A7D]" />,
       bg: 'bg-[#EAF2F7] border-[#D9E0E6]',
       link: '/admin/reports',
@@ -245,11 +256,6 @@ export default function AdminDashboardPage() {
       pageTitle="Super Admin Dashboard"
       topbarActions={
         <div className="flex items-center gap-2">
-          <Link to="/ui-showcase">
-            <Button size="sm" variant="outline" leftIcon={<Layers className="w-3.5 h-3.5" />}>
-              UI Showcase
-            </Button>
-          </Link>
           <Button
             size="sm"
             variant="secondary"
@@ -390,7 +396,7 @@ export default function AdminDashboardPage() {
                           [u.firstName, u.lastName].filter(Boolean).join(' ') ||
                           'Unnamed'
                         const roleStr = String(u.role || '').replace(/^ROLE_/i, '')
-                        const statusStr = String(u.status || 'ACTIVE')
+                        const statusStr = u.status
 
                         return (
                           <tr

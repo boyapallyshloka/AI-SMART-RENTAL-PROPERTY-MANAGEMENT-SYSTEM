@@ -480,7 +480,7 @@ export default function BuildingsPage() {
 
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
-                              {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
+                              {building.totalFloors ?? '—'} Floors &bull; {building.totalUnits ?? '—'} Units
                             </span>
                             {building.buildingId === myRental?.currentBuilding?.buildingId && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
@@ -630,7 +630,7 @@ export default function BuildingsPage() {
 
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#EAF2F7] text-[#274B68] border border-[#D9E0E6]">
-                            {building.totalFloors ?? 0} Floors &bull; {building.totalUnits ?? 0} Units
+                            {building.totalFloors ?? '—'} Floors &bull; {building.totalUnits ?? '—'} Units
                           </span>
                         </div>
                       </div>

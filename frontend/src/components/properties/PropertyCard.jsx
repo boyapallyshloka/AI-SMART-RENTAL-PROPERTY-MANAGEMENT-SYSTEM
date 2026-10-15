@@ -16,7 +16,7 @@ import {
 import { resolveImageUrl, getPublicPropertyDetails } from '../../api/propertyApi'
 
 /**
- * Enterprise PropertyCard Component for HomeSphere
+ * Enterprise PropertyCard Component for SmartEstate
  * Displays key details of a rental property for tenant browsing.
  * Strictly adheres to backend Property contract:
  * - monthlyRent, securityDeposit, bedrooms, bathrooms belong to Unit and are hidden when absent.
@@ -73,7 +73,7 @@ export default function PropertyCard({
 
   const realId = propertyId ?? id
   const displayName = propertyName || name || 'Unnamed Property'
-  const displayType = (propertyType || type || 'APARTMENT').replace(/_/g, ' ')
+  const displayType = propertyType || type
 
   const handleFavoriteClick = (e) => {
     e.stopPropagation()
@@ -270,11 +270,13 @@ export default function PropertyCard({
         </div>
 
         {/* Bottom Property Type Pill */}
-        <div className="absolute bottom-2.5 left-2.5">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#315A7D] text-white text-[11px] font-medium capitalize shadow-2xs">
-            {displayType}
-          </span>
-        </div>
+        {displayType && (
+          <div className="absolute bottom-2.5 left-2.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#315A7D] text-white text-[11px] font-medium capitalize shadow-2xs">
+              {displayType.replace(/_/g, ' ')}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content Section */}

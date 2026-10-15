@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPageLayout
       title="Privacy Policy"
-      subtitle="This Privacy Policy describes how the HomeSphere Property Management platform handles personal, tenancy, and operational information when you access our software and related services."
+      subtitle="This Privacy Policy describes how the SmartEstate Property Management platform handles personal, tenancy, and operational information when you access our software and related services."
       lastUpdated="September 2026"
       effectiveDate="September 1, 2026"
       activeDoc="privacy"
@@ -59,10 +59,10 @@ export default function PrivacyPolicyPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere (&ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;the platform&rdquo;) provides digital property management software designed to streamline rental operations for <strong className="text-[#243447]">property owners</strong>, <strong className="text-[#243447]">property managers</strong>, <strong className="text-[#243447]">tenants</strong>, and <strong className="text-[#243447]">system administrators</strong>.
+            SmartEstate (&ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;the platform&rdquo;) provides digital property management software designed to streamline rental operations for <strong className="text-[#243447]">property owners</strong>, <strong className="text-[#243447]">property managers</strong>, <strong className="text-[#243447]">tenants</strong>, and <strong className="text-[#243447]">system administrators</strong>.
           </p>
           <p>
-            This Privacy Policy explains how information is gathered, recorded, utilized, and safeguarded when using the HomeSphere application, including unit listings, rental applications, digital lease records, maintenance ticket coordination, and payment tracking.
+            This Privacy Policy explains how information is gathered, recorded, utilized, and safeguarded when using the SmartEstate application, including unit listings, rental applications, digital lease records, maintenance ticket coordination, and payment tracking.
           </p>
           <p>
             By creating an account, accessing the dashboard, or submitting information through the platform, you acknowledge the data handling practices described in this document.
@@ -137,7 +137,7 @@ export default function PrivacyPolicyPage() {
           <div className="p-3 rounded-md bg-[#EAF2F7] border border-[#D9E0E6] text-xs space-y-1">
             <p className="font-semibold text-[#243447]">Payment Processing Notice</p>
             <p className="text-[#5B6875] leading-relaxed">
-              HomeSphere records payment status metadata (such as payment dates, amounts, receipt numbers, and payment status indicators). Full credit card numbers and bank routing credentials are processed through designated payment gateways and are not stored in plain text within HomeSphere application databases.
+              SmartEstate records payment status metadata (such as payment dates, amounts, receipt numbers, and payment status indicators). Full credit card numbers and bank routing credentials are processed through designated payment gateways and are not stored in plain text within SmartEstate application databases.
             </p>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere respects the sensitivity of rental and financial data. Information is shared only in the following contexts:
+            SmartEstate respects the sensitivity of rental and financial data. Information is shared only in the following contexts:
           </p>
 
           <div className="space-y-3 text-xs sm:text-sm">
@@ -223,7 +223,7 @@ export default function PrivacyPolicyPage() {
 
             <div className="border-l-2 border-[#3F7D58] pl-3.5 py-0.5">
               <strong className="text-[#243447] block">No Selling of Personal Data</strong>
-              <span>HomeSphere does not sell, rent, or trade personal contact information, rental history, or financial data to third-party advertisers or data brokers.</span>
+              <span>SmartEstate does not sell, rent, or trade personal contact information, rental history, or financial data to third-party advertisers or data brokers.</span>
             </div>
           </div>
         </div>
@@ -352,7 +352,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere uses essential browser cookies and local storage tokens strictly required for:
+            SmartEstate uses essential browser cookies and local storage tokens strictly required for:
           </p>
           <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm pl-2">
             <li>Maintaining authenticated user sessions without requiring repeated sign-ins.</li>
@@ -384,7 +384,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere is designed exclusively for adults managing, leasing, or renting real property. We do not knowingly collect personal information from individuals under the age of 18. If we become aware that an account was created by a minor, we will promptly terminate the account and remove associated data.
+            SmartEstate is designed exclusively for adults managing, leasing, or renting real property. We do not knowingly collect personal information from individuals under the age of 18. If we become aware that an account was created by a minor, we will promptly terminate the account and remove associated data.
           </p>
         </div>
       </section>
@@ -432,13 +432,12 @@ export default function PrivacyPolicyPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            If you have questions, comments, or requests regarding this Privacy Policy or HomeSphere data practices, please reach out to our platform administration team:
+            If you have questions, comments, or requests regarding this Privacy Policy or SmartEstate data practices, please reach out to our platform administration team:
           </p>
           <div className="p-4 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-xs space-y-1.5 font-mono text-[#243447]">
-            <p><strong>HomeSphere Property Management Platform</strong></p>
-            <p>Support Email: support@homesphere.com</p>
-            <p>Privacy Inquiries: privacy@homesphere.com</p>
-            <p>Department: Legal & Compliance Operations</p>
+            <p><strong>SmartEstate Property Management Platform</strong></p>
+            <p>Support and privacy contact addresses are not configured in this application.</p>
+            <p>Contact channels will be shown here when configured.</p>
           </div>
         </div>
       </section>

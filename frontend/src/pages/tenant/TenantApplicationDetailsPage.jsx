@@ -314,7 +314,7 @@ export default function TenantApplicationDetailsPage() {
                 <div>
                   <span className="text-xs text-[#5B6875] block">Current Status</span>
                   <div className="mt-0.5">
-                    <StatusBadge status={application.status || 'PENDING'} size="md" />
+                    <StatusBadge status={application.status} size="md" />
                   </div>
                 </div>
               </div>
@@ -476,6 +476,24 @@ export default function TenantApplicationDetailsPage() {
                       <span className="text-xs text-[#5B6875] block">Tenant Profile ID</span>
                       <span className="font-mono text-xs text-[#5B6875]">
                         #{application.tenantId}
+                      </span>
+                    </div>
+                  )}
+
+                  {application.monthlyIncome != null && (
+                    <div>
+                      <span className="text-xs text-[#5B6875] block">Monthly Gross Income</span>
+                      <span className="font-semibold text-[#243447]">
+                        {formatInr(application.monthlyIncome)} / mo
+                      </span>
+                    </div>
+                  )}
+
+                  {application.employerOccupation && (
+                    <div>
+                      <span className="text-xs text-[#5B6875] block">Employer / Occupation</span>
+                      <span className="font-medium text-[#243447]">
+                        {application.employerOccupation}
                       </span>
                     </div>
                   )}

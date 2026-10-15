@@ -5,7 +5,7 @@ import UserMenu from './UserMenu'
 import { ROLES } from '../../utils/roles'
 
 /**
- * Enterprise Topbar Component for HomeSphere Dashboard
+ * Enterprise Topbar Component for SmartEstate Dashboard
  * High contrast with #243447 headings and #5B6875 secondary text
  *
  * @param {Object} props
@@ -35,7 +35,7 @@ export default function Topbar({
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#5B6875] hidden sm:inline">
-            HomeSphere /
+            SmartEstate /
           </span>
           <h2 className="text-lg sm:text-xl font-serif font-bold text-[#243447] capitalize tracking-normal">
             {title}

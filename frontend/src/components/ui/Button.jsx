@@ -2,7 +2,7 @@ import React from 'react'
 import Loader from './Loader'
 
 /**
- * Enterprise Button Component for HomeSphere
+ * Enterprise Button Component for SmartEstate
  * Standardized to the new Primary Blue #315A7D color system
  *
  * @param {Object} props

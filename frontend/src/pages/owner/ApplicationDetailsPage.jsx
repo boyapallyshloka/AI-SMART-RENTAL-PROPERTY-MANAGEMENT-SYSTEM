@@ -7,6 +7,7 @@ import {
   reviewApplication,
   APPLICATION_STATUSES,
 } from '../../api/applicationApi'
+import PaymentRiskAnalysisCard from '../../components/applications/PaymentRiskAnalysisCard'
 import {
   ROLES,
   normalizeRole,
@@ -479,6 +480,24 @@ export default function ApplicationDetailsPage() {
                     </div>
                   )}
 
+                  {application.monthlyIncome != null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#5B6875]">Monthly Gross Income</span>
+                      <span className="font-semibold text-[#243447]">
+                        {formatInr(application.monthlyIncome)} / mo
+                      </span>
+                    </div>
+                  )}
+
+                  {application.employerOccupation && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#5B6875]">Employer / Occupation</span>
+                      <span className="font-medium text-[#243447] text-right">
+                        {application.employerOccupation}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875] flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-[#5B6875]" /> Preferred Move-In
@@ -545,6 +564,9 @@ export default function ApplicationDetailsPage() {
                 </div>
               </div>
             </div>
+
+            {/* AI Decision Support: Tenant Payment-Risk Analysis */}
+            <PaymentRiskAnalysisCard tenantId={application.tenantId} />
 
             {/* Applicant Message / Notes */}
             <div className="bg-white rounded-2xl border border-[#D9E0E6] p-6 shadow-xs space-y-3">

@@ -69,6 +69,13 @@ export default function FindPropertiesPage() {
   const [maxRent, setMaxRent] = useState('all')
   const [activeTab, setActiveTab] = useState('units') // 'units' | 'communities'
 
+  const minimumAvailableRent = useMemo(() => {
+    const rents = availableUnits
+      .map((unit) => Number(unit.monthlyRent))
+      .filter((rent) => Number.isFinite(rent) && rent > 0)
+    return rents.length ? Math.min(...rents) : null
+  }, [availableUnits])
+
   // Property Filter Options
   const propertyOptions = useMemo(() => {
     return [
@@ -187,7 +194,7 @@ export default function FindPropertiesPage() {
             </h1>
 
             <p className="text-xs sm:text-sm text-[#EAF2F7]/90 leading-relaxed">
-              Explore verified residential properties, multi-floor complexes, and vacant units ready for immediate move-in across our network.
+              Browse properties and vacant units currently returned by SmartEstate.
             </p>
 
             {/* Quick Metrics Bar */}
@@ -195,24 +202,24 @@ export default function FindPropertiesPage() {
               <div className="flex items-center gap-2">
                 <Home className="w-4 h-4 text-[#EAF2F7]" />
                 <span>
-                  <strong className="text-white font-semibold">{availableUnits.length}</strong> Vacant Units
+                  <strong className="text-white font-semibold">{errorMessage ? '—' : availableUnits.length}</strong> Vacant Units
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-[#EAF2F7]" />
                 <span>
-                  <strong className="text-white font-semibold">{availableProperties.length}</strong> Communities
+                  <strong className="text-white font-semibold">{errorMessage ? '—' : availableProperties.length}</strong> Communities
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <IndianRupee className="w-4 h-4 text-[#EAF2F7]" />
                 <span>
-                  From <strong className="text-white font-semibold">₹1,450</strong>/mo
+                  {errorMessage ? 'Rent unavailable' : minimumAvailableRent != null ? (
+                    <>From <strong className="text-white font-semibold">₹{minimumAvailableRent.toLocaleString('en-IN')}</strong>/mo</>
+                  ) : (
+                    'Rent not available'
+                  )}
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#C6DEC8]" />
-                <span className="text-[#C6DEC8] font-medium">100% Vacant &amp; Available</span>
               </div>
             </div>
           </div>
@@ -357,16 +364,12 @@ export default function FindPropertiesPage() {
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5B6875] mb-1">
                 Max Monthly Rent
               </label>
-              <Select
-                value={maxRent}
-                onChange={(e) => setMaxRent(e.target.value)}
-                options={[
-                  { value: 'all', label: 'Any Budget' },
-                  { value: '2000', label: 'Under ₹2,000 / mo' },
-                  { value: '2800', label: 'Under ₹2,800 / mo' },
-                  { value: '3500', label: 'Under ₹3,500 / mo' },
-                  { value: '4000', label: 'Under ₹4,000 / mo' },
-                ]}
+              <Input
+                type="number"
+                min="0"
+                value={maxRent === 'all' ? '' : maxRent}
+                onChange={(e) => setMaxRent(e.target.value || 'all')}
+                placeholder="Any budget"
               />
             </div>
           </div>

@@ -31,41 +31,21 @@ export const PROPERTY_STATUSES = {
  * Helper to map property types to canonical backend enums
  */
 export const mapPropertyTypeToBackend = (type) => {
-  if (!type) return 'APARTMENT'
+  if (!type) return undefined
   const upper = String(type).trim().toUpperCase().replace(/\s+/g, '_')
-  switch (upper) {
-    case 'APARTMENT':
-    case 'CONDOMINIUM':
-    case 'LOFT':
-      return 'APARTMENT'
-    case 'HOUSE':
-    case 'TOWNHOUSE':
-    case 'SINGLE_FAMILY':
-    case 'SINGLE FAMILY':
-      return 'HOUSE'
-    case 'VILLA':
-      return 'VILLA'
-    case 'PG':
-      return 'PG'
-    case 'HOSTEL':
-      return 'HOSTEL'
-    case 'COMMERCIAL':
-      return 'COMMERCIAL'
-    default:
-      return 'APARTMENT'
-  }
+  return Object.values(PROPERTY_TYPES).includes(upper) ? upper : undefined
 }
 
 /**
  * Helper to map furnishing status to canonical backend enums
  */
 export const mapFurnishingStatusToBackend = (furnishing) => {
-  if (!furnishing) return 'UNFURNISHED'
+  if (!furnishing) return undefined
   const upper = String(furnishing).trim().toUpperCase().replace(/[-\s]+/g, '_')
   if (upper === 'FURNISHED' || upper === 'FULLY_FURNISHED') return 'FULLY_FURNISHED'
   if (upper === 'SEMI_FURNISHED') return 'SEMI_FURNISHED'
   if (upper === 'UNFURNISHED') return 'UNFURNISHED'
-  return 'UNFURNISHED'
+  return undefined
 }
 
 /**
@@ -75,12 +55,14 @@ export const mapParkingAvailableToBackend = (parking) => {
   if (typeof parking === 'boolean') return parking
   if (typeof parking === 'string') {
     const s = parking.trim().toLowerCase()
-    if (s === 'false' || s === 'no' || s === 'none' || s === '0' || s === '') {
+    if (['false', 'no', 'none', '0', '', 'no parking', 'not available', 'unavailable'].includes(s)) {
       return false
     }
-    return true
+    if (['true', 'yes', '1', 'available', 'parking available', 'covered parking', 'covered garage', 'dedicated spot', 'street parking'].includes(s)) {
+      return true
+    }
   }
-  return false
+  return null
 }
 
 /**
@@ -315,7 +297,16 @@ export const mapBackendPropertyToUi = (prop) => {
       ? String(prop.id)
       : ''
   const name = prop.propertyName || prop.name || 'Unnamed Property'
-  const type = prop.propertyType || prop.type || 'APARTMENT'
+  const type = prop.propertyType || prop.type || null
+  const rawArea = prop.totalArea ?? prop.area
+  const area = rawArea != null && rawArea !== '' && Number.isFinite(Number(rawArea))
+    ? Number(rawArea)
+    : null
+  const parkingAvailable = prop.parkingAvailable != null
+    ? Boolean(prop.parkingAvailable)
+    : prop.parking != null
+      ? mapParkingAvailableToBackend(prop.parking)
+      : null
 
   return {
     ...prop,
@@ -362,30 +353,17 @@ export const mapBackendPropertyToUi = (prop) => {
     // Specs (legacy fields no longer returned by backend Property API)
     bedrooms: prop.bedrooms != null ? Number(prop.bedrooms) : null,
     bathrooms: prop.bathrooms != null ? Number(prop.bathrooms) : null,
-    area:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    totalArea:
-      prop.totalArea != null
-        ? Number(prop.totalArea)
-        : prop.area != null
-        ? Number(prop.area)
-        : 0,
-    furnishing: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
-    furnishingStatus: prop.furnishingStatus || prop.furnishing || 'UNFURNISHED',
+    area,
+    totalArea: area,
+    furnishing: prop.furnishingStatus || prop.furnishing || null,
+    furnishingStatus: prop.furnishingStatus || prop.furnishing || null,
     parking:
       prop.parkingAvailable != null
         ? prop.parkingAvailable
           ? 'Available'
           : 'None'
-        : prop.parking || 'None',
-    parkingAvailable:
-      prop.parkingAvailable != null
-        ? Boolean(prop.parkingAvailable)
-        : prop.parking === 'Available' || Boolean(prop.parking),
+        : prop.parking || null,
+    parkingAvailable,
     yearBuilt:
       prop.yearBuilt != null
         ? Number(prop.yearBuilt)
@@ -407,16 +385,11 @@ export const mapBackendPropertyToUi = (prop) => {
         ? Number(prop.deposit)
         : null,
     // Status & details
-    status: prop.status || 'AVAILABLE',
+    status: prop.status || null,
     description: prop.description || '',
     // Units metrics (backend PropertyResponse does not have nested building/units)
-    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : 1,
-    occupiedUnits:
-      prop.occupiedUnits != null
-        ? Number(prop.occupiedUnits)
-        : prop.status === 'OCCUPIED'
-        ? 1
-        : 0,
+    totalUnits: prop.totalUnits != null ? Number(prop.totalUnits) : null,
+    occupiedUnits: prop.occupiedUnits != null ? Number(prop.occupiedUnits) : null,
     images: Array.isArray(prop.images) && prop.images.length > 0 ? prop.images : [],
     imageUrl: prop.imageUrl
       ? resolveImageUrl(prop.imageUrl)
@@ -459,8 +432,8 @@ export const mapOwnerPropertyDetailsToUi = (details, fallbackProp = {}) => {
       : ''
   const propertyId = prop.propertyId ?? prop.id ?? fallback.propertyId ?? fallback.id ?? null
   const propertyName = prop.propertyName || prop.name || fallback.propertyName || fallback.name || 'Unnamed Property'
-  const propertyType = prop.propertyType || prop.type || fallback.propertyType || fallback.type || 'APARTMENT'
-  const status = prop.status || fallback.status || 'AVAILABLE'
+  const propertyType = prop.propertyType || prop.type || fallback.propertyType || fallback.type || null
+  const status = prop.status || fallback.status || null
   const description = prop.description || fallback.description || ''
   const totalArea =
     prop.totalArea != null && !isNaN(Number(prop.totalArea))
@@ -469,13 +442,17 @@ export const mapOwnerPropertyDetailsToUi = (details, fallbackProp = {}) => {
       ? Number(fallback.totalArea)
       : null
   const furnishingStatus =
-    prop.furnishingStatus || fallback.furnishingStatus || 'UNFURNISHED'
+    prop.furnishingStatus || fallback.furnishingStatus || null
   const parkingAvailable =
     prop.parkingAvailable != null
       ? Boolean(prop.parkingAvailable)
       : fallback.parkingAvailable != null
       ? Boolean(fallback.parkingAvailable)
-      : false
+      : prop.parking != null
+      ? mapParkingAvailableToBackend(prop.parking)
+      : fallback.parking != null
+      ? mapParkingAvailableToBackend(fallback.parking)
+      : null
   const yearBuilt =
     prop.yearBuilt != null && !isNaN(Number(prop.yearBuilt))
       ? Number(prop.yearBuilt)
@@ -544,22 +521,36 @@ export const mapOwnerPropertyDetailsToUi = (details, fallbackProp = {}) => {
   }
 
   // Explicit Unit Status Categorization (VACANT, OCCUPIED, RESERVED, MAINTENANCE)
-  const totalUnits = allUnits.length
-  const vacantUnits = allUnits.filter((u) => u.status === 'VACANT').length
-  const occupiedUnits = allUnits.filter((u) => u.status === 'OCCUPIED').length
-  const reservedUnits = allUnits.filter((u) => u.status === 'RESERVED').length
-  const maintenanceUnits = allUnits.filter((u) => u.status === 'MAINTENANCE').length
+  const hasUnitData = Array.isArray(details?.buildings) || Array.isArray(prop.units)
+  const readCount = (field) => {
+    const value = prop[field] ?? fallback[field]
+    return value != null && value !== '' && Number.isFinite(Number(value))
+      ? Number(value)
+      : null
+  }
+  const countByStatus = (statusValue, field) =>
+    hasUnitData
+      ? allUnits.filter((unit) => unit.status === statusValue).length
+      : readCount(field)
 
-  const occupancyRate =
-    totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
+  const totalUnits = hasUnitData ? allUnits.length : readCount('totalUnits')
+  const vacantUnits = countByStatus('VACANT', 'vacantUnits')
+  const occupiedUnits = countByStatus('OCCUPIED', 'occupiedUnits')
+  const reservedUnits = countByStatus('RESERVED', 'reservedUnits')
+  const maintenanceUnits = countByStatus('MAINTENANCE', 'maintenanceUnits')
+  const occupancyRate = totalUnits > 0 && occupiedUnits != null
+    ? Math.round((occupiedUnits / totalUnits) * 100)
+    : readCount('occupancyRate')
 
   // Monthly Revenue: Sum of monthlyRent for OCCUPIED units only
-  const occupiedRevenue = allUnits
-    .filter((u) => u.status === 'OCCUPIED')
-    .reduce((sum, u) => {
-      const rent = Number(u.monthlyRent)
-      return sum + (!isNaN(rent) && rent > 0 ? rent : 0)
-    }, 0)
+  const occupiedRevenue = hasUnitData
+    ? allUnits
+        .filter((u) => u.status === 'OCCUPIED')
+        .reduce((sum, u) => {
+          const rent = Number(u.monthlyRent)
+          return sum + (!isNaN(rent) && rent > 0 ? rent : 0)
+        }, 0)
+    : readCount('occupiedRevenue')
 
   // 3. RENT EXTRACTION (Stored clean without "/ mo")
   const unitRents = allUnits

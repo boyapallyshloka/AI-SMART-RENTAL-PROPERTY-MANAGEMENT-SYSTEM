@@ -63,7 +63,27 @@ export const getPincodeDetails = async (pincode) => {
   return response?.data || response
 }
 
+/**
+ * Search Indian postal pincodes by prefix (3 to 6 digits).
+ * Endpoint: GET /api/location/pincode/search?prefix={prefix}
+ *
+ * @param {string} prefix - Pincode prefix (3 to 6 digits)
+ * @returns {Promise<Array<{ pincode: string, district: string, state: string }>>}
+ */
+export const searchPincodes = async (prefix) => {
+  const cleanPrefix = String(prefix || '').trim()
+  if (!cleanPrefix) {
+    return []
+  }
+
+  const response = await axiosClient.get('/location/pincode/search', {
+    params: { prefix: cleanPrefix },
+  })
+  return response?.data || response
+}
+
 export default {
   reverseGeocode,
   getPincodeDetails,
+  searchPincodes,
 }

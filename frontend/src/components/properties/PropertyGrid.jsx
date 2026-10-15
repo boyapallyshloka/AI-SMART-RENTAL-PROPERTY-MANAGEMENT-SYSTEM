@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 
 /**
- * Enterprise PropertyGrid Component for HomeSphere
+ * Enterprise PropertyGrid Component for SmartEstate
  * Renders a responsive grid of property cards or a helpful empty state.
  *
  * @param {Object} props

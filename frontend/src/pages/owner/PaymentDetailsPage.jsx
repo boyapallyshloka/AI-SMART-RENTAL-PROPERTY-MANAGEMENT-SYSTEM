@@ -13,6 +13,7 @@ import {
 } from '../../api/paymentApi'
 import { getAgreements } from '../../api/agreementApi'
 import { getOwnerApplications, getAllApplications } from '../../api/applicationApi'
+import { formatCurrency } from '../../utils/currency'
 import {
   Button,
   StatusBadge,
@@ -225,24 +226,26 @@ export default function PaymentDetailsPage() {
           : `AGR-${rawInvoice.agreementId}`,
         tenantName:
           app?.tenantName ||
-          (rawInvoice.tenantId ? `Tenant #${rawInvoice.tenantId}` : 'Tenant'),
-        tenantEmail: app?.tenantEmail || '',
-        propertyName: app?.propertyName || 'Residential Property',
+          (rawInvoice.tenantId ? `Tenant #${rawInvoice.tenantId}` : null),
+        tenantEmail: app?.tenantEmail || null,
+        propertyName: app?.propertyName || null,
         buildingName: app?.buildingName || null,
         unitNumber: app?.unitNumber
           ? `Unit #${app.unitNumber}`
           : rawInvoice.unitId
           ? `Unit #${rawInvoice.unitId}`
           : '—',
-        rentAmount: Number(rawInvoice.rentAmount || 0),
-        lateFee: Number(rawInvoice.lateFee || 0),
-        totalAmount: Number(rawInvoice.totalAmount || 0),
-        totalPaid: Number(rawInvoice.totalPaid || 0),
+        rentAmount: rawInvoice.rentAmount == null ? null : Number(rawInvoice.rentAmount),
+        lateFee: rawInvoice.lateFee == null ? null : Number(rawInvoice.lateFee),
+        totalAmount: rawInvoice.totalAmount == null ? null : Number(rawInvoice.totalAmount),
+        totalPaid: rawInvoice.totalPaid == null ? null : Number(rawInvoice.totalPaid),
         remainingAmount:
           rawInvoice.remainingAmount != null
             ? Number(rawInvoice.remainingAmount)
-            : Math.max(0, Number(rawInvoice.totalAmount || 0) - Number(rawInvoice.totalPaid || 0)),
-        status: rawInvoice.status || INVOICE_STATUSES.PENDING,
+            : rawInvoice.totalAmount != null && rawInvoice.totalPaid != null
+            ? Math.max(0, Number(rawInvoice.totalAmount) - Number(rawInvoice.totalPaid))
+            : null,
+        status: rawInvoice.status ?? null,
       }
 
       setInvoice(enriched)
@@ -584,7 +587,7 @@ export default function PaymentDetailsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875]">Monthly Rent</span>
                     <span className="font-medium text-[#243447]">
-                      ₹{Number(invoice.rentAmount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(invoice.rentAmount)}
                     </span>
                   </div>
 
@@ -597,7 +600,7 @@ export default function PaymentDetailsPage() {
                           : 'text-[#243447]'
                       }`}
                     >
-                      ₹{Number(invoice.lateFee || 0).toLocaleString('en-IN')}
+                      {formatCurrency(invoice.lateFee)}
                     </span>
                   </div>
 
@@ -606,14 +609,14 @@ export default function PaymentDetailsPage() {
                       Total Invoiced Amount
                     </span>
                     <span className="text-lg font-bold text-[#243447]">
-                      ₹{Number(invoice.totalAmount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(invoice.totalAmount)}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[#5B6875]">Total Paid</span>
                     <span className="font-semibold text-[#2A583B]">
-                      ₹{Number(invoice.totalPaid || 0).toLocaleString('en-IN')}
+                      {formatCurrency(invoice.totalPaid)}
                     </span>
                   </div>
 
@@ -622,7 +625,7 @@ export default function PaymentDetailsPage() {
                       Remaining Balance Due
                     </span>
                     <span className="text-base font-bold text-[#B94A48]">
-                      ₹{Number(invoice.remainingAmount || 0).toLocaleString('en-IN')}
+                      {formatCurrency(invoice.remainingAmount)}
                     </span>
                   </div>
                 </div>
@@ -673,14 +676,14 @@ export default function PaymentDetailsPage() {
                             {formatDateTime(txn.paymentDate || txn.createdAt)}
                           </td>
                           <td className="py-3 px-4 font-medium text-[#243447]">
-                            {txn.paymentMethod || 'UPI'}
+                            {txn.paymentMethod || '—'}
                           </td>
                           <td className="py-3 px-4 font-bold text-[#243447]">
-                            ₹{Number(txn.amount || 0).toLocaleString('en-IN')}
+                            {formatCurrency(txn.amount)}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <StatusBadge
-                              status={txn.paymentStatus || 'SUCCESS'}
+                              status={txn.paymentStatus}
                               size="sm"
                             />
                           </td>
@@ -793,17 +796,17 @@ export default function PaymentDetailsPage() {
 
                           {/* Method */}
                           <td className="py-3 px-3 font-medium text-[#243447] whitespace-nowrap">
-                            {rcp.paymentMethod || 'UPI'}
+                            {rcp.paymentMethod || '—'}
                           </td>
 
                           {/* Amount Paid */}
                           <td className="py-3 px-3 font-bold text-[#2A583B] whitespace-nowrap">
-                            ₹{Number(rcp.amountPaid || 0).toLocaleString('en-IN')}
+                            {formatCurrency(rcp.amountPaid)}
                           </td>
 
                           {/* Remaining Balance */}
                           <td className="py-3 px-3 font-semibold text-[#B94A48] whitespace-nowrap">
-                            ₹{Number(rcp.remainingAmount || 0).toLocaleString('en-IN')}
+                            {formatCurrency(rcp.remainingAmount)}
                           </td>
 
                           {/* View & Print Action */}

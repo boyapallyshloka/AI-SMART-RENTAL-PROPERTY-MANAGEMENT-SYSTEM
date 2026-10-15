@@ -110,7 +110,7 @@ export default function FloorDetailsPage() {
             floorId: rawFlr.floorId ?? rawFlr.id,
             name: rawFlr.floorName ?? rawFlr.name,
             floorName: rawFlr.floorName ?? rawFlr.name,
-            floorNumber: rawFlr.floorNumber ?? rawFlr.number ?? 0,
+            floorNumber: rawFlr.floorNumber ?? rawFlr.number ?? null,
             buildingId: rawFlr.buildingId ?? buildingId,
             buildingName: rawFlr.buildingName,
             propertyId: rawFlr.propertyId,
@@ -135,13 +135,13 @@ export default function FloorDetailsPage() {
                 id: u.unitId ?? u.id,
                 unitId: u.unitId ?? u.id,
                 unitNumber: u.unitNumber ?? u.number ?? '',
-                unitType: u.unitType ?? u.type ?? 'APARTMENT',
-                status: u.status ?? 'VACANT',
-                monthlyRent: Number(u.monthlyRent ?? u.rent ?? 0),
-                securityDeposit: Number(u.securityDeposit ?? u.deposit ?? 0),
-                area: Number(u.area ?? 0),
-                bedrooms: Number(u.bedrooms ?? 0),
-                bathrooms: Number(u.bathrooms ?? 0),
+                unitType: u.unitType ?? u.type ?? null,
+                status: u.status ?? null,
+                monthlyRent: u.monthlyRent ?? u.rent ?? null,
+                securityDeposit: u.securityDeposit ?? u.deposit ?? null,
+                area: u.area ?? null,
+                bedrooms: u.bedrooms ?? null,
+                bathrooms: u.bathrooms ?? null,
                 description: u.description ?? '',
                 floorId: u.floorId ?? flr.floorId ?? floorId,
                 floorName: u.floorName ?? flr.floorName,
@@ -612,7 +612,7 @@ export default function FloorDetailsPage() {
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[10px] uppercase font-bold tracking-wider text-[#5B6875]">
-                            {unit.unitType}
+                            {unit.unitType || '—'}
                           </span>
                           {isTenant && String(unit.unitId) === String(myRental?.currentUnitId) && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#EDF7EE] text-[#2A583B] border border-[#C6DEC8]">
@@ -641,17 +641,17 @@ export default function FloorDetailsPage() {
                       <div className="grid grid-cols-3 gap-2 pt-1 text-center">
                         <div className="p-2 rounded bg-[#F7F8FA] border border-[#D9E0E6]/60">
                           <p className="text-[10px] uppercase text-[#5B6875] font-semibold">Area</p>
-                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.area} sq ft</p>
+                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.area == null ? '—' : `${unit.area} sq ft`}</p>
                         </div>
 
                         <div className="p-2 rounded bg-[#F7F8FA] border border-[#D9E0E6]/60">
                           <p className="text-[10px] uppercase text-[#5B6875] font-semibold">Beds</p>
-                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.bedrooms}</p>
+                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.bedrooms ?? '—'}</p>
                         </div>
 
                         <div className="p-2 rounded bg-[#F7F8FA] border border-[#D9E0E6]/60">
                           <p className="text-[10px] uppercase text-[#5B6875] font-semibold">Baths</p>
-                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.bathrooms}</p>
+                          <p className="text-xs font-bold text-[#243447] mt-0.5">{unit.bathrooms ?? '—'}</p>
                         </div>
                       </div>
                     </div>

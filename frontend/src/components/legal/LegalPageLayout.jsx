@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 
 /**
- * Reusable Legal Page Layout for HomeSphere
+ * Reusable Legal Page Layout for SmartEstate
  * Provides standardized navigation, table of contents, and reading container
  *
  * @param {Object} props
@@ -50,7 +50,7 @@ export default function LegalPageLayout({
   const location = useLocation()
 
   useEffect(() => {
-    document.title = `${title} | HomeSphere Property Management`
+    document.title = `${title} | SmartEstate Property Management`
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [title, location.pathname])
 
@@ -94,7 +94,7 @@ export default function LegalPageLayout({
               </div>
               <div>
                 <span className="font-serif text-lg font-bold tracking-tight text-[#243447] block leading-none">
-                  HomeSphere
+                  SmartEstate
                 </span>
                 <span className="text-[10px] uppercase font-semibold tracking-wider text-[#5B6875] mt-1 block">
                   Property Management
@@ -272,12 +272,12 @@ export default function LegalPageLayout({
                 Have questions regarding our platform policies, lease management data, or security practices?
               </p>
               <div className="pt-1">
-                <a
-                  href="mailto:support@homesphere.com"
+                <Link
+                  to="/contact"
                   className="inline-block font-semibold text-[#315A7D] hover:text-[#274B68] hover:underline"
                 >
-                  support@homesphere.com
-                </a>
+                  View support contact status
+                </Link>
               </div>
             </div>
           </aside>
@@ -292,7 +292,7 @@ export default function LegalPageLayout({
                   Standard Platform Documentation Notice
                 </p>
                 <p className="leading-relaxed">
-                  This document serves as an operational policy template for the HomeSphere Property Management application. It outlines standard operational handling for accounts, property listings, lease agreements, maintenance requests, and payment logging, and is structured for formal customization by your organization's legal counsel.
+                  This document serves as an operational policy template for the SmartEstate Property Management application. It outlines standard operational handling for accounts, property listings, lease agreements, maintenance requests, and payment logging, and is structured for formal customization by your organization's legal counsel.
                 </p>
               </div>
             </div>

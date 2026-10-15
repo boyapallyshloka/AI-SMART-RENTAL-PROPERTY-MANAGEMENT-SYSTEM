@@ -1,7 +1,7 @@
 import React from 'react'
 
 /**
- * Enterprise Status Badge Configurations for HomeSphere
+ * Enterprise Status Badge Configurations for SmartEstate
  * High-contrast dark text on light backgrounds:
  * - Success: #3F7D58 (text #2A583B on #EDF7EE)
  * - Warning: #B7791F (text #8A5B16 on #FEF7EC)
@@ -177,7 +177,7 @@ const STATUS_CONFIG = {
 }
 
 /**
- * StatusBadge Component for HomeSphere
+ * StatusBadge Component for SmartEstate
  * @param {Object} props
  * @param {string} props.status
  * @param {'sm' | 'md'} [props.size='md']
@@ -192,7 +192,7 @@ export default function StatusBadge({
 }) {
   const normalizedKey = String(status).trim().toLowerCase()
   const config = STATUS_CONFIG[normalizedKey] || {
-    label: status,
+    label: normalizedKey ? status : '—',
     badge: 'bg-[#F0F4F7] text-[#5B6875] border-[#D9E0E6]',
     dot: 'bg-[#5B6875]',
   }

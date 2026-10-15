@@ -151,8 +151,8 @@ export const mapBackendUserToUi = (user) => {
   const name = `${firstName} ${lastName}`.trim() || user.email || 'Unnamed User'
   const id = user.id
 
-  const role = user.role || 'TENANT'
-  const status = user.status || 'ACTIVE'
+  const role = user.role ?? null
+  const status = user.status ?? null
 
   const joinDate = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString('en-US', {
@@ -160,7 +160,7 @@ export const mapBackendUserToUi = (user) => {
         month: 'short',
         day: 'numeric',
       })
-    : 'Recently'
+    : '—'
 
   const avatarText =
     ((firstName?.[0] || '') + (lastName?.[0] || '')) ||

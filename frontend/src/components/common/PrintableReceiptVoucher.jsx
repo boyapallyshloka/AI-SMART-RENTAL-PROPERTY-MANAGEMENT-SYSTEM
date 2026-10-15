@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { Building2, ShieldCheck } from 'lucide-react'
+import { formatCurrency } from '../../utils/currency'
 
 // Default date/time formatters
 const defaultFormatDateTime = (dateStr) => {
@@ -21,7 +22,7 @@ const defaultFormatDateTime = (dateStr) => {
 }
 
 const defaultFormatMonthYear = (month, year) => {
-  if (!month && !year) return 'Current Billing Period'
+  if (!month && !year) return 'Billing period unavailable'
   if (month && year) {
     const d = new Date(year, month - 1, 1)
     return d.toLocaleString('en-US', { month: 'long', year: 'numeric' })
@@ -110,7 +111,7 @@ export function PrintableReceiptVoucher({
       ? invoice.amount
       : invoice?.totalAmount != null
       ? invoice.totalAmount
-      : 0
+      : null
 
   const resolvedBillingMonth =
     billingMonth != null
@@ -126,7 +127,8 @@ export function PrintableReceiptVoucher({
       ? invoice.billingYear
       : null
 
-  const isFullySettled = Number(receipt.remainingAmount || 0) <= 0
+  const isFullySettled =
+    receipt.remainingAmount != null && Number(receipt.remainingAmount) <= 0
 
   return (
     <div
@@ -148,7 +150,7 @@ export function PrintableReceiptVoucher({
           <div className="flex items-center gap-2">
             <Building2 className="w-6 h-6 text-[#315A7D]" />
             <span className="text-xl font-bold tracking-tight text-[#243447]">
-              HomeSphere
+              SmartEstate
             </span>
           </div>
           <p className="text-xs text-[#5B6875] mt-1">
@@ -246,14 +248,16 @@ export function PrintableReceiptVoucher({
                 </span>
               </td>
               <td className="py-3.5 px-4 text-right font-medium text-[#243447]">
-                ₹{Number(resolvedInvoicedAmount).toLocaleString('en-IN')}
+                {formatCurrency(resolvedInvoicedAmount)}
               </td>
               <td className="py-3.5 px-4 text-right font-bold text-[#2A583B]">
-                ₹{Number(receipt.amountPaid || 0).toLocaleString('en-IN')}
+                {formatCurrency(receipt.amountPaid)}
               </td>
               <td className={`py-3.5 px-4 text-right font-bold ${isFullySettled ? 'text-[#2A583B]' : 'text-[#B94A48]'}`}>
                 {!isFullySettled
-                  ? `₹${Number(receipt.remainingAmount).toLocaleString('en-IN')}`
+                  ? formatCurrency(receipt.remainingAmount)
+                  : receipt.remainingAmount == null
+                  ? '—'
                   : '₹0 (Settled)'}
               </td>
             </tr>
@@ -266,12 +270,12 @@ export function PrintableReceiptVoucher({
         <div className="flex justify-between items-center text-[#5B6875]">
           <span>Total Invoiced</span>
           <span className="font-semibold text-[#243447]">
-            ₹{Number(resolvedInvoicedAmount).toLocaleString('en-IN')}
+            {formatCurrency(resolvedInvoicedAmount)}
           </span>
         </div>
         <div className="flex justify-between items-center text-sm font-bold text-[#2A583B] pt-1 border-t border-[#D9E0E6]">
           <span>Amount Paid in this Receipt</span>
-          <span>₹{Number(receipt.amountPaid || 0).toLocaleString('en-IN')}</span>
+          <span>{formatCurrency(receipt.amountPaid)}</span>
         </div>
         <div className="flex justify-between items-center text-xs text-[#5B6875] pt-1 border-t border-[#D9E0E6]">
           <span>Remaining Balance on Invoice</span>
@@ -280,7 +284,7 @@ export function PrintableReceiptVoucher({
               !isFullySettled ? 'text-[#B94A48]' : 'text-[#3F7D58]'
             }`}
           >
-            ₹{Number(receipt.remainingAmount || 0).toLocaleString('en-IN')}
+            {formatCurrency(receipt.remainingAmount)}
           </span>
         </div>
       </div>

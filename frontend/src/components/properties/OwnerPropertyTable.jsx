@@ -18,7 +18,7 @@ import {
  * Format property type for clean presentation
  */
 const formatPropertyType = (type) => {
-  if (!type) return 'Apartment'
+  if (!type) return '—'
   const str = String(type)
   return str.charAt(0) + str.slice(1).toLowerCase().replace(/_/g, ' ')
 }
@@ -162,6 +162,10 @@ export default function OwnerPropertyTable({
                         <span className="font-medium text-[#5B6875]">No units configured</span>
                         <p className="text-[11px] text-[#5B6875]/70 mt-0.5">Add units to track</p>
                       </div>
+                    ) : prop.totalUnits == null || prop.occupiedUnits == null || prop.occupancyRate == null || prop.vacantUnits == null ? (
+                      <div className="text-xs text-[#5B6875]">
+                        <span className="font-medium text-[#5B6875]">Unit data unavailable</span>
+                      </div>
                     ) : (
                       <div>
                         <div className="flex items-baseline justify-between text-xs mb-1">
@@ -217,7 +221,7 @@ export default function OwnerPropertyTable({
 
                   {/* Status Badge / Selector */}
                   <td className="py-4 px-4 whitespace-nowrap min-w-[140px]">
-                    {onStatusChange ? (
+                    {onStatusChange && prop.status ? (
                       <div className="flex items-center gap-2">
                         <select
                           aria-label="Change property status"
@@ -238,8 +242,10 @@ export default function OwnerPropertyTable({
                           <Loader size="xs" />
                         )}
                       </div>
-                    ) : (
+                    ) : prop.status ? (
                       <StatusBadge status={prop.status} size="sm" />
+                    ) : (
+                      <span className="text-xs text-[#5B6875]">Status unavailable</span>
                     )}
                   </td>
 

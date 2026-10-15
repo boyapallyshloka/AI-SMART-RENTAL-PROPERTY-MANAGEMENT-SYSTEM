@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 // Auth Pages
 import LoginPage from '../pages/auth/LoginPage'
 import RegisterPage from '../pages/auth/RegisterPage'
+import VerifyEmailPage from '../pages/auth/VerifyEmailPage'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage'
 
@@ -65,7 +66,6 @@ import SystemSettingsPage from '../pages/admin/SystemSettingsPage'
 import AdminReportsPage from '../pages/admin/AdminReportsPage'
 
 // UI Showcase Page
-import UIShowcasePage from '../pages/UIShowcasePage'
 
 // Legal & Informational Pages
 import PrivacyPolicyPage from '../pages/legal/PrivacyPolicyPage'
@@ -156,12 +156,12 @@ export default function AppRoutes() {
       {/* Public Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
       {/* Standalone UI Component Showcase */}
-      <Route path="/ui-showcase" element={<UIShowcasePage />} />
 
       {/* Public Legal & Informational Routes */}
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -338,6 +338,7 @@ export default function AppRoutes() {
                 <Route path="agreements/new" element={<CreateAgreementPage />} />
                 <Route path="payments" element={<PaymentsPage />} />
                 <Route path="payments/:id" element={<PaymentDetailsPage />} />
+                <Route path="reports" element={<ReportsPage role={ROLES.PROPERTY_MANAGER} />} />
                 <Route path="profile" element={<ManagerProfilePage />} />
                 <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
               </Routes>

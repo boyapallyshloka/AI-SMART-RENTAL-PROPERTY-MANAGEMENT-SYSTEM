@@ -22,6 +22,10 @@ private Long agreementId;
 
 private Long tenantId;
 
+private String tenantName;
+
+private String tenantEmail;
+
 private Long unitId;
 
 private Integer billingMonth;

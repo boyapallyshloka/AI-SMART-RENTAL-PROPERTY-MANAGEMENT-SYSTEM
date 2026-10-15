@@ -437,15 +437,15 @@ export default function TenantMaintenancePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#D9E0E6] text-sm">
-                  {filteredRequests.map((req) => {
+                  {filteredRequests.map((req, index) => {
                     const ticketId = req.requestId || req.id || req.ticketNumber || '—'
                     const dateStr = req.requestedDate
                       ? new Date(req.requestedDate).toLocaleDateString()
-                      : req.submittedDate || 'Recent'
+                      : req.submittedDate || 'Date unavailable'
 
                     return (
                       <tr
-                        key={req.requestId || req.id || Math.random()}
+                        key={req.requestId || req.id || req.ticketNumber || index}
                         className="hover:bg-[#F7F8FA] transition-colors"
                       >
                         {/* Ticket Number */}
@@ -553,7 +553,7 @@ export default function TenantMaintenancePage() {
                     <strong className="text-[#243447]">
                       {selectedTicket.requestedDate
                         ? new Date(selectedTicket.requestedDate).toLocaleString()
-                        : selectedTicket.submittedDate || 'Recent'}
+                        : selectedTicket.submittedDate || 'Date unavailable'}
                     </strong>
                   </div>
                 </div>

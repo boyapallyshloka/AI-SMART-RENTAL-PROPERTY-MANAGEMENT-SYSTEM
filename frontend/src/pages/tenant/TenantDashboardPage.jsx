@@ -28,6 +28,11 @@ export default function TenantDashboardPage() {
   const [myRental, setMyRental] = useState(null)
   const [invoices, setInvoices] = useState([])
   const [maintenanceRequests, setMaintenanceRequests] = useState([])
+  const [sourceAvailability, setSourceAvailability] = useState({
+    rental: false,
+    invoices: false,
+    maintenance: false,
+  })
 
   const loadDashboardData = async () => {
     setLoading(true)
@@ -40,11 +45,8 @@ export default function TenantDashboardPage() {
         getMaintenanceRequests(),
       ])
 
-      if (rentalRes.status === 'fulfilled' && rentalRes.value) {
-        setMyRental(rentalRes.value.myRental || null)
-      } else {
-        setMyRental(null)
-      }
+      const rentalAvailable = rentalRes.status === 'fulfilled'
+      setMyRental(rentalAvailable ? rentalRes.value?.myRental || null : null)
 
       const loadedInvoices =
         invRes.status === 'fulfilled'
@@ -64,8 +66,20 @@ export default function TenantDashboardPage() {
             : []
           : []
 
+      const invoicesAvailable =
+        invRes.status === 'fulfilled' &&
+        (Array.isArray(invRes.value?.data) || Array.isArray(invRes.value))
+      const maintenanceAvailable =
+        maintRes.status === 'fulfilled' &&
+        (Array.isArray(maintRes.value?.data) || Array.isArray(maintRes.value))
+
       setInvoices(loadedInvoices)
       setMaintenanceRequests(loadedMaint)
+      setSourceAvailability({
+        rental: rentalAvailable,
+        invoices: invoicesAvailable,
+        maintenance: maintenanceAvailable,
+      })
     } catch (err) {
       console.error('Failed to load tenant dashboard data:', err)
       setErrorMessage(
@@ -73,6 +87,7 @@ export default function TenantDashboardPage() {
           err?.message ||
           'Failed to load dashboard data. Please try again.'
       )
+      setSourceAvailability({ rental: false, invoices: false, maintenance: false })
     } finally {
       setLoading(false)
     }
@@ -94,13 +109,18 @@ export default function TenantDashboardPage() {
     )
   ).length
 
-  const pendingInvoices = invoices.filter(
-    (inv) => String(inv.status || '').toUpperCase() !== 'PAID'
+  const pendingInvoices = invoices.filter((inv) =>
+    ['PENDING', 'OVERDUE', 'PARTIALLY_PAID'].includes(String(inv.status || '').toUpperCase())
   )
-  const pendingBalance = pendingInvoices.reduce(
-    (sum, inv) => sum + (Number(inv.balanceDue ?? inv.amount ?? 0)),
-    0
-  )
+  const pendingBalances = pendingInvoices.map((inv) => {
+    const amount = inv.remainingAmount ?? inv.balanceDue ?? inv.totalAmount ?? inv.amount
+    return amount == null || amount === '' || !Number.isFinite(Number(amount))
+      ? null
+      : Number(amount)
+  })
+  const pendingBalance = pendingBalances.some((amount) => amount == null)
+    ? null
+    : pendingBalances.reduce((sum, amount) => sum + amount, 0)
 
   return (
     <DashboardLayout
@@ -152,33 +172,37 @@ export default function TenantDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <MetricCard
                 title="Current Residence"
-                value={activeUnit ? `Unit ${activeUnit}` : 'No Lease'}
-                subtitle={activeProperty || 'No active rental agreement'}
-                change={leaseStatus ? `Status: ${leaseStatus}` : 'Available for leasing'}
+                value={!sourceAvailability.rental ? '—' : activeUnit ? `Unit ${activeUnit}` : 'No Lease'}
+                subtitle={!sourceAvailability.rental ? 'Rental information unavailable' : activeProperty || 'No active rental agreement'}
+                change={!sourceAvailability.rental ? null : leaseStatus ? `Status: ${leaseStatus}` : null}
                 icon={<Building2 className="w-5 h-5 text-[#315A7D]" />}
                 iconBg="bg-[#EBF2F7] border-[#D9E2EC]"
               />
               <MetricCard
                 title="Billing Status"
-                value={pendingBalance > 0 ? formatCurrency(pendingBalance) : 'Settled'}
+                value={!sourceAvailability.invoices || pendingBalance == null ? '—' : pendingBalance > 0 ? formatCurrency(pendingBalance) : 'Settled'}
                 subtitle={
-                  pendingInvoices.length > 0
+                  !sourceAvailability.invoices
+                    ? 'Invoice information unavailable'
+                    : pendingInvoices.length > 0
                     ? `${pendingInvoices.length} unpaid invoice(s)`
                     : 'No outstanding balance'
                 }
-                change={invoices.length > 0 ? `${invoices.length} total invoice records` : 'No invoices on record'}
+                change={!sourceAvailability.invoices ? null : invoices.length > 0 ? `${invoices.length} total invoice records` : 'No invoices on record'}
                 icon={<CreditCard className="w-5 h-5 text-[#2E7D5B]" />}
                 iconBg="bg-[#EAF5EF] border-[#D0E7D9]"
               />
               <MetricCard
                 title="Maintenance"
-                value={`${openMaintenanceCount} Open`}
+                value={sourceAvailability.maintenance ? `${openMaintenanceCount} Open` : '—'}
                 subtitle={
-                  openMaintenanceCount > 0
+                  !sourceAvailability.maintenance
+                    ? 'Maintenance information unavailable'
+                    : openMaintenanceCount > 0
                     ? 'Repair tickets in progress'
                     : 'All service tickets resolved'
                 }
-                change={`${maintenanceRequests.length} total requests submitted`}
+                change={sourceAvailability.maintenance ? `${maintenanceRequests.length} total requests submitted` : null}
                 icon={<Wrench className="w-5 h-5 text-[#B7791F]" />}
                 iconBg="bg-[#FEF6EC] border-[#FAD7B2]"
               />
@@ -202,7 +226,11 @@ export default function TenantDashboardPage() {
                   </Link>
                 </div>
 
-                {invoices.length === 0 ? (
+                {!sourceAvailability.invoices ? (
+                  <div className="rounded-lg border border-[#F4E2B6] bg-[#FEF7EC] p-4 text-sm text-[#8A5B16]">
+                    Invoice information could not be loaded from the backend. Use Retry above to try again.
+                  </div>
+                ) : invoices.length === 0 ? (
                   <EmptyState
                     icon={<CreditCard className="w-7 h-7 text-[#5B6875]" />}
                     title="No invoices found"
@@ -212,7 +240,7 @@ export default function TenantDashboardPage() {
                   <div className="divide-y divide-[#EDF2F7]">
                     {invoices.slice(0, 4).map((inv) => {
                       const invId = inv.invoiceId || inv.id
-                      const amount = Number(inv.amount || inv.totalAmount || 0)
+                      const amount = inv.amount ?? inv.totalAmount ?? null
 
                       return (
                         <div
@@ -228,7 +256,7 @@ export default function TenantDashboardPage() {
                                 Invoice #{invId}
                               </p>
                               <p className="text-[11px] text-[#64748B]">
-                                Due {inv.dueDate || 'Current cycle'}
+                                Due {inv.dueDate || 'Date unavailable'}
                               </p>
                             </div>
                           </div>
@@ -236,7 +264,7 @@ export default function TenantDashboardPage() {
                             <span className="font-semibold text-xs text-[#1B2B4A] block">
                               {formatCurrency(amount)}
                             </span>
-                            <StatusBadge status={inv.status || 'PENDING'} size="xs" />
+                            <StatusBadge status={inv.status} size="xs" />
                           </div>
                         </div>
                       )

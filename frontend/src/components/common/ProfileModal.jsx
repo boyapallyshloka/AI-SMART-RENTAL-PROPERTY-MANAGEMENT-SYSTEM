@@ -276,7 +276,7 @@ export default function ProfileModal({ isOpen, onClose, initialTab = 'profile' }
                     <div>
                       <span className="text-[11px] font-medium text-[#5B6875] block">Account Status</span>
                       <div className="mt-1">
-                        <StatusBadge status={displayUser.status || 'ACTIVE'} size="sm" />
+                        <StatusBadge status={displayUser.status} size="sm" />
                       </div>
                     </div>
                     <div>

@@ -1,0 +1,88 @@
+package com.rental.rental_management_backend.property.dto;
+
+import com.rental.rental_management_backend.property.enums.FurnishingStatus;
+import com.rental.rental_management_backend.property.enums.PropertyType;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+
+public class PropertyRequest {
+
+    @NotBlank(message = "Property name is required")
+    private String propertyName;
+
+    @NotNull(message = "Property type is required")
+    private PropertyType propertyType;
+
+    private String description;
+
+    @PositiveOrZero(message = "Total area cannot be negative")
+    private Double totalArea;
+
+    private FurnishingStatus furnishingStatus;
+
+    private Boolean parkingAvailable;
+
+    @PositiveOrZero(message = "Year built cannot be negative")
+    private Integer yearBuilt;
+
+    public PropertyRequest() {
+    }
+
+    public String getPropertyName() {
+        return propertyName;
+    }
+
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
+    }
+
+    public PropertyType getPropertyType() {
+        return propertyType;
+    }
+
+    public void setPropertyType(PropertyType propertyType) {
+        this.propertyType = propertyType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Double getTotalArea() {
+        return totalArea;
+    }
+
+    public void setTotalArea(Double totalArea) {
+        this.totalArea = totalArea;
+    }
+
+    public FurnishingStatus getFurnishingStatus() {
+        return furnishingStatus;
+    }
+
+    public void setFurnishingStatus(FurnishingStatus furnishingStatus) {
+        this.furnishingStatus = furnishingStatus;
+    }
+
+    public Boolean getParkingAvailable() {
+        return parkingAvailable;
+    }
+
+    public void setParkingAvailable(Boolean parkingAvailable) {
+        this.parkingAvailable = parkingAvailable;
+    }
+
+    public Integer getYearBuilt() {
+        return yearBuilt;
+    }
+
+    public void setYearBuilt(Integer yearBuilt) {
+        this.yearBuilt = yearBuilt;
+    }
+}

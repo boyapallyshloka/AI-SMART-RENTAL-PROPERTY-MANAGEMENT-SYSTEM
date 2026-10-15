@@ -34,6 +34,10 @@ public class RentalApplicationResponse {
 
     private Integer preferredLeaseDurationMonths;
 
+    private BigDecimal monthlyIncome;
+
+    private String employerOccupation;
+
     private String message;
 
     private RentalApplicationStatus status;
@@ -175,6 +179,22 @@ public class RentalApplicationResponse {
 
     public void setPreferredLeaseDurationMonths(Integer preferredLeaseDurationMonths) {
         this.preferredLeaseDurationMonths = preferredLeaseDurationMonths;
+    }
+
+    public BigDecimal getMonthlyIncome() {
+        return monthlyIncome;
+    }
+
+    public void setMonthlyIncome(BigDecimal monthlyIncome) {
+        this.monthlyIncome = monthlyIncome;
+    }
+
+    public String getEmployerOccupation() {
+        return employerOccupation;
+    }
+
+    public void setEmployerOccupation(String employerOccupation) {
+        this.employerOccupation = employerOccupation;
     }
 
     public String getMessage() {

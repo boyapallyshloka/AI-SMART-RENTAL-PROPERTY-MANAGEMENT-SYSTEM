@@ -343,13 +343,13 @@ export default function ManagerBuildingDetailsPage() {
     setEditingUnit(u)
     setUnitForm({
       unitNumber: u.unitNumber || u.number || '',
-      unitType: u.unitType || u.type || 'APARTMENT',
+      unitType: u.unitType || u.type || '',
       area: u.area != null ? String(u.area) : '',
-      bedrooms: u.bedrooms != null ? String(u.bedrooms) : '1',
-      bathrooms: u.bathrooms != null ? String(u.bathrooms) : '1',
+      bedrooms: u.bedrooms != null ? String(u.bedrooms) : '',
+      bathrooms: u.bathrooms != null ? String(u.bathrooms) : '',
       monthlyRent: u.monthlyRent != null ? String(u.monthlyRent) : '',
       securityDeposit: u.securityDeposit != null ? String(u.securityDeposit) : '',
-      status: u.status || 'VACANT',
+      status: u.status || '',
       description: u.description || '',
     })
     setUnitModalError(null)
@@ -366,13 +366,13 @@ export default function ManagerBuildingDetailsPage() {
 
     const payload = {
       unitNumber: unitForm.unitNumber.trim(),
-      unitType: unitForm.unitType,
+      unitType: unitForm.unitType || undefined,
       area: unitForm.area ? Number(unitForm.area) : undefined,
       bedrooms: unitForm.bedrooms ? Number(unitForm.bedrooms) : undefined,
       bathrooms: unitForm.bathrooms ? Number(unitForm.bathrooms) : undefined,
       monthlyRent: Number(unitForm.monthlyRent),
       securityDeposit: Number(unitForm.securityDeposit),
-      status: unitForm.status,
+      status: unitForm.status || undefined,
       description: unitForm.description.trim() || undefined,
       floorId: Number(fId),
     }
@@ -725,7 +725,7 @@ export default function ManagerBuildingDetailsPage() {
                                           Unit {unit.unitNumber || unit.number}
                                         </h4>
                                         <span className="text-[11px] text-[#5B6875]">
-                                          {unit.unitType || unit.type || 'Apartment'}
+                                          {unit.unitType || unit.type || '—'}
                                         </span>
                                       </div>
                                     </div>
@@ -1070,6 +1070,7 @@ export default function ManagerBuildingDetailsPage() {
                       setUnitForm((prev) => ({ ...prev, unitType: e.target.value }))
                     }
                     options={[
+                      { label: 'Select unit type', value: '' },
                       { label: 'Apartment', value: 'APARTMENT' },
                       { label: 'Room', value: 'ROOM' },
                     ]}
@@ -1171,6 +1172,7 @@ export default function ManagerBuildingDetailsPage() {
                     setUnitForm((prev) => ({ ...prev, status: e.target.value }))
                   }
                   options={[
+                    { label: 'Select status', value: '' },
                     { label: 'Vacant', value: 'VACANT' },
                     { label: 'Occupied', value: 'OCCUPIED' },
                     { label: 'Reserved', value: 'RESERVED' },
@@ -1275,7 +1277,7 @@ export default function ManagerBuildingDetailsPage() {
                     Type
                   </span>
                   <span className="font-semibold text-[#243447]">
-                    {viewingUnit.unitType || 'Apartment'}
+                    {viewingUnit.unitType || '—'}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6] space-y-0.5 text-center">

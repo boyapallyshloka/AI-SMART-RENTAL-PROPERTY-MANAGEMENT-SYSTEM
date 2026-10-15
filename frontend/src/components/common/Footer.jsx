@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
 
 /**
- * Reusable Footer Component for HomeSphere
+ * Reusable Footer Component for SmartEstate
  * Designed to sit naturally at the bottom of scrollable views.
- * Subtle, professional, and matching the HomeSphere design language (#315A7D, #5B6875, #D9E0E6).
+ * Subtle, professional, and matching the SmartEstate design language (#315A7D, #5B6875, #D9E0E6).
  *
  * @param {Object} props
  * @param {string} [props.className='']
@@ -27,7 +27,7 @@ export default function Footer({ className = '', variant = 'default' }) {
         <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 text-[#315A7D] shrink-0" />
           <span>
-            &copy; {currentYear} <strong className="text-[#243447] font-medium">HomeSphere Property Management</strong>. All rights reserved.
+            &copy; {currentYear} <strong className="text-[#243447] font-medium">SmartEstate Property Management</strong>. All rights reserved.
           </span>
         </div>
 

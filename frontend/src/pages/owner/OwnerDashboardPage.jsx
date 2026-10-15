@@ -30,6 +30,7 @@ export default function OwnerDashboardPage() {
   const [properties, setProperties] = useState([])
   const [maintenanceRequests, setMaintenanceRequests] = useState([])
   const [invoices, setInvoices] = useState([])
+  const [dataAvailability, setDataAvailability] = useState({ properties: false, maintenance: false, invoices: false })
 
   const loadDashboardData = async () => {
     setLoading(true)
@@ -41,6 +42,19 @@ export default function OwnerDashboardPage() {
         getMaintenanceRequests(),
         getInvoices(),
       ])
+
+      const availability = {
+        properties: propsRes.status === 'fulfilled',
+        maintenance: maintRes.status === 'fulfilled',
+        invoices: invRes.status === 'fulfilled',
+      }
+      setDataAvailability(availability)
+      const unavailableSources = Object.entries(availability)
+        .filter(([, isAvailable]) => !isAvailable)
+        .map(([source]) => source === 'maintenance' ? 'maintenance requests' : source)
+      if (unavailableSources.length) {
+        setErrorMessage(`Unable to load ${unavailableSources.join(', ')}. Related dashboard values are unavailable.`)
+      }
 
       const loadedProps =
         propsRes.status === 'fulfilled'
@@ -74,6 +88,7 @@ export default function OwnerDashboardPage() {
       setInvoices(loadedInvoices)
     } catch (err) {
       console.error('Failed to load owner dashboard data:', err)
+      setDataAvailability({ properties: false, maintenance: false, invoices: false })
       setErrorMessage(
         err?.response?.data?.message ||
           err?.message ||
@@ -89,24 +104,31 @@ export default function OwnerDashboardPage() {
   }, [])
 
   // Derived metrics from real backend data
-  const totalProperties = properties.length
-  const totalUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.totalUnits) || 0),
-    0
+  const totalProperties = dataAvailability.properties ? properties.length : null
+  const unitCountsAvailable = dataAvailability.properties && (
+    properties.length === 0 || properties.every((property) =>
+      property.totalUnits != null && Number.isFinite(Number(property.totalUnits))
+    )
   )
-  const openMaintenance = maintenanceRequests.filter((m) =>
+  const totalUnits = unitCountsAvailable
+    ? properties.reduce((sum, property) => sum + Number(property.totalUnits), 0)
+    : null
+  const openMaintenance = dataAvailability.maintenance ? maintenanceRequests.filter((m) =>
     ['OPEN', 'ACCEPTED', 'ASSIGNED', 'IN_PROGRESS'].includes(
       String(m.status || '').toUpperCase()
     )
-  ).length
+  ).length : null
 
-  const paidInvoices = invoices.filter(
+  const paidInvoices = dataAvailability.invoices ? invoices.filter(
     (inv) => String(inv.status || '').toUpperCase() === 'PAID'
+  ) : []
+  const revenueAvailable = dataAvailability.invoices && paidInvoices.every((invoice) =>
+    (invoice.amount != null || invoice.totalAmount != null) &&
+    Number.isFinite(Number(invoice.amount ?? invoice.totalAmount))
   )
-  const totalRevenue = paidInvoices.reduce(
-    (sum, inv) => sum + (Number(inv.amount || inv.totalAmount) || 0),
-    0
-  )
+  const totalRevenue = revenueAvailable
+    ? paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount ?? invoice.totalAmount), 0)
+    : null
 
   const ownerDisplayName = user?.name || user?.username || 'Owner'
 
@@ -180,28 +202,28 @@ export default function OwnerDashboardPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
               <MetricCard
                 title="Total Properties"
-                value={`${totalProperties} ${totalProperties === 1 ? 'Property' : 'Properties'}`}
-                subtitle={`${totalUnits} units configured`}
+                value={totalProperties == null ? '—' : `${totalProperties} ${totalProperties === 1 ? 'Property' : 'Properties'}`}
+                subtitle={`${totalUnits ?? '—'} units configured`}
                 icon={<Building2 className="w-4 h-4 text-[#315A7D]" />}
                 iconBg="bg-[#EBF2F7] border-[#D9E2EC]"
               />
               <MetricCard
                 title="Revenue Collected"
-                value={formatCurrency(totalRevenue)}
-                subtitle={`${paidInvoices.length} settled invoices`}
+                value={totalRevenue == null ? '—' : formatCurrency(totalRevenue)}
+                subtitle={dataAvailability.invoices ? `${paidInvoices.length} settled invoices` : 'Invoice data unavailable'}
                 icon={<IndianRupee className="w-4 h-4 text-[#2E7D5B]" />}
                 iconBg="bg-[#EAF5EF] border-[#D0E7D9]"
               />
               <MetricCard
                 title="Invoices Issued"
-                value={`${invoices.length} Total`}
-                subtitle={`${invoices.length - paidInvoices.length} pending settlement`}
+                value={dataAvailability.invoices ? `${invoices.length} Total` : '—'}
+                subtitle={dataAvailability.invoices ? `${invoices.length - paidInvoices.length} pending settlement` : 'Invoice data unavailable'}
                 icon={<CreditCard className="w-4 h-4 text-[#315A7D]" />}
                 iconBg="bg-[#EBF2F7] border-[#D9E2EC]"
               />
               <MetricCard
                 title="Open Maintenance"
-                value={`${openMaintenance} Tickets`}
+                value={openMaintenance == null ? '—' : `${openMaintenance} Tickets`}
                 subtitle="Requires service action"
                 icon={<Wrench className="w-4 h-4 text-[#B7791F]" />}
                 iconBg="bg-[#FEF6EC] border-[#FAD7B2]"
@@ -226,7 +248,9 @@ export default function OwnerDashboardPage() {
                   </Link>
                 </div>
 
-                {properties.length === 0 ? (
+                {!dataAvailability.properties ? (
+                  <EmptyState icon={<Building2 className="w-7 h-7 text-[#5B6875]" />} title="Property data unavailable" description="The backend did not return property records. Retry to load your portfolio." />
+                ) : properties.length === 0 ? (
                   <EmptyState
                     icon={<Building2 className="w-7 h-7 text-[#5B6875]" />}
                     title="No properties registered yet"
@@ -246,7 +270,7 @@ export default function OwnerDashboardPage() {
                       const propName = prop.propertyName || prop.name || 'Untitled Property'
                       const addressStr = prop.city
                         ? `${prop.city}${prop.state ? `, ${prop.state}` : ''}`
-                        : prop.address || 'Location registered'
+                        : prop.address || 'Location not set'
 
                       return (
                         <div key={propId} className="py-2.5 flex items-center justify-between text-sm hover:bg-[#F8FAFC] px-1.5 rounded-lg transition-colors -mx-1.5">
@@ -266,7 +290,7 @@ export default function OwnerDashboardPage() {
                             </p>
                           </div>
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#F0F5FA] text-[#315A7D] border border-[#D9E2EC] shrink-0">
-                            {prop.propertyType || prop.type || 'RESIDENTIAL'}
+                            {prop.propertyType || prop.type || 'Type unavailable'}
                           </span>
                         </div>
                       )
@@ -334,7 +358,9 @@ export default function OwnerDashboardPage() {
                   </Link>
                 </div>
 
-                {recentMaintenance.length === 0 ? (
+                {!dataAvailability.maintenance ? (
+                  <EmptyState icon={<Wrench className="w-7 h-7 text-[#5B6875]" />} title="Maintenance data unavailable" description="The backend did not return maintenance requests." />
+                ) : recentMaintenance.length === 0 ? (
                   <EmptyState
                     icon={<Wrench className="w-7 h-7 text-[#5B6875]" />}
                     title="No maintenance requests"
@@ -344,9 +370,8 @@ export default function OwnerDashboardPage() {
                   <div className="divide-y divide-[#EDF2F7]">
                     {recentMaintenance.slice(0, 3).map((ticket) => {
                       const tId = ticket.requestId || ticket.id
-                      const dateStr = ticket.requestedDate
-                        ? new Date(ticket.requestedDate).toLocaleDateString()
-                        : ticket.submittedDate || 'Recent'
+                      const requestDate = ticket.requestedDate || ticket.submittedDate || ticket.createdAt
+                      const dateStr = requestDate ? new Date(requestDate).toLocaleDateString() : 'Date unavailable'
 
                       return (
                         <div key={tId} className="py-2.5 flex items-center justify-between gap-3 text-sm hover:bg-[#F8FAFC] px-1.5 rounded-lg transition-colors -mx-1.5">
@@ -359,14 +384,14 @@ export default function OwnerDashboardPage() {
                                 to={`/owner/maintenance/${tId}`}
                                 className="font-semibold text-[#1B2B4A] text-xs sm:text-sm hover:text-[#315A7D] truncate block transition-colors"
                               >
-                                #{tId} &bull; {ticket.category || 'Maintenance'}: {ticket.description || 'Request details'}
+                                #{tId} &bull; {ticket.category || 'Maintenance'}: {ticket.description || 'Details unavailable'}
                               </Link>
                               <p className="text-[11px] text-[#64748B] mt-0.5">
                                 Submitted {dateStr}
                               </p>
                             </div>
                           </div>
-                          <StatusBadge status={ticket.status || 'OPEN'} size="xs" />
+                          {ticket.status ? <StatusBadge status={ticket.status} size="xs" /> : <span className="text-[10px] text-[#64748B]">Status unavailable</span>}
                         </div>
                       )
                     })}
@@ -390,7 +415,9 @@ export default function OwnerDashboardPage() {
                   </Link>
                 </div>
 
-                {recentInvoices.length === 0 ? (
+                {!dataAvailability.invoices ? (
+                  <EmptyState icon={<FileText className="w-7 h-7 text-[#5B6875]" />} title="Invoice data unavailable" description="The backend did not return invoice records." />
+                ) : recentInvoices.length === 0 ? (
                   <EmptyState
                     icon={<FileText className="w-7 h-7 text-[#5B6875]" />}
                     title="No invoices generated"
@@ -413,15 +440,15 @@ export default function OwnerDashboardPage() {
                                 Invoice #{invId}
                               </p>
                               <p className="text-[11px] text-[#64748B]">
-                                Due {inv.dueDate || 'Current cycle'}
+                              Due {inv.dueDate || 'Date unavailable'}
                               </p>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             <span className="font-semibold text-xs sm:text-sm text-[#1B2B4A] block mb-0.5">
-                              {formatCurrency(amount)}
+                              {inv.amount != null || inv.totalAmount != null ? formatCurrency(amount) : '—'}
                             </span>
-                            <StatusBadge status={inv.status || 'PENDING'} size="xs" />
+                            {inv.status ? <StatusBadge status={inv.status} size="xs" /> : <span className="text-[10px] text-[#64748B]">Status unavailable</span>}
                           </div>
                         </div>
                       )

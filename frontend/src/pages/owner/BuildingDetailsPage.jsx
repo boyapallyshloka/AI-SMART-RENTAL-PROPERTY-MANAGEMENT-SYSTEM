@@ -113,7 +113,7 @@ export default function BuildingDetailsPage() {
               floorId: f.floorId ?? f.id,
               name: f.floorName ?? f.name,
               floorName: f.floorName ?? f.name,
-              floorNumber: f.floorNumber ?? f.number ?? 0,
+              floorNumber: f.floorNumber ?? f.number ?? null,
               buildingId: f.buildingId ?? buildingId,
               buildingName: f.buildingName ?? b.buildingName,
               propertyId: f.propertyId ?? b.propertyId,
@@ -605,11 +605,11 @@ export default function BuildingDetailsPage() {
             <div className="flex items-center gap-3">
               <div className="px-3.5 py-2 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-center">
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#5B6875]">Floors</p>
-                <p className="text-xl font-bold text-[#243447]">{building.totalFloors ?? 0}</p>
+                <p className="text-xl font-bold text-[#243447]">{building.totalFloors ?? '—'}</p>
               </div>
               <div className="px-3.5 py-2 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-center">
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#5B6875]">Units</p>
-                <p className="text-xl font-bold text-[#315A7D]">{building.totalUnits ?? 0}</p>
+                <p className="text-xl font-bold text-[#315A7D]">{building.totalUnits ?? '—'}</p>
               </div>
             </div>
           </div>

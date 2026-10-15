@@ -1,6 +1,7 @@
 
 package com.rental.rental_management_backend.rental.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -55,6 +56,12 @@ public class RentalApplication {
 
     @Column(name = "preferred_lease_duration_months")
     private Integer preferredLeaseDurationMonths;
+
+    @Column(name = "monthly_income", precision = 12, scale = 2)
+    private BigDecimal monthlyIncome;
+
+    @Column(name = "employer_occupation", length = 200)
+    private String employerOccupation;
 
     @Column(name = "message", columnDefinition = "TEXT")
     private String message;
@@ -149,6 +156,22 @@ public class RentalApplication {
 
     public void setPreferredLeaseDurationMonths(Integer preferredLeaseDurationMonths) {
         this.preferredLeaseDurationMonths = preferredLeaseDurationMonths;
+    }
+
+    public BigDecimal getMonthlyIncome() {
+        return monthlyIncome;
+    }
+
+    public void setMonthlyIncome(BigDecimal monthlyIncome) {
+        this.monthlyIncome = monthlyIncome;
+    }
+
+    public String getEmployerOccupation() {
+        return employerOccupation;
+    }
+
+    public void setEmployerOccupation(String employerOccupation) {
+        this.employerOccupation = employerOccupation;
     }
 
     public String getMessage() {

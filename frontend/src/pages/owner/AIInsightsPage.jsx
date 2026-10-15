@@ -1,182 +1,184 @@
-import React, { useState, useEffect } from 'react'
+import React, { useRef, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { MOCK_AI_INSIGHTS } from '../../utils/aiInsightsMockData'
-import {
-  Button,
-  StatusBadge,
-  EmptyState,
-  Loader,
-} from '../../components/ui'
-import {
-  Sparkles,
-  RotateCcw,
-  CheckCircle2,
-  TrendingUp,
-  AlertCircle,
-  ShieldCheck,
-  Building2,
-  Info,
-  Layers,
-} from 'lucide-react'
+import { predictRentalDemand } from '../../api/aiApi'
+import { Button, EmptyState } from '../../components/ui'
+import { AlertCircle, Info, RotateCcw, Sparkles, TrendingUp } from 'lucide-react'
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+  value: index + 1,
+  label: new Date(2000, index, 1).toLocaleDateString('en-IN', { month: 'long' }),
+}))
+
+const initialPeriod = new Date()
 
 export default function AIInsightsPage() {
-  const [insights, setInsights] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [noticeMessage, setNoticeMessage] = useState('')
+  const [form, setForm] = useState({
+    city: '',
+    area: '',
+    year: initialPeriod.getFullYear(),
+    month: initialPeriod.getMonth() + 1,
+  })
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const lastRequest = useRef(null)
 
-  useEffect(() => {
-    // Brief simulated loading to demonstrate Loader component
-    const timer = setTimeout(() => {
-      setInsights(MOCK_AI_INSIGHTS)
+  const runPrediction = async (request) => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await predictRentalDemand(request)
+      const data = response?.data ?? response
+      if (data?.success === false) {
+        throw new Error('The backend could not generate a rental-demand forecast for this location and period.')
+      }
+      setResult(data)
+      lastRequest.current = request
+    } catch (requestError) {
+      setResult(null)
+      setError(requestError?.message || 'Could not retrieve the forecast from the backend.')
+    } finally {
       setLoading(false)
-    }, 250)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const handleRefresh = () => {
-    setRefreshing(true)
-    setTimeout(() => {
-      setRefreshing(false)
-      setNoticeMessage('AI insights refreshed with latest portfolio telemetry.')
-      setTimeout(() => setNoticeMessage(''), 4000)
-    }, 400)
-  }
-
-  // Category icon mapping helper
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'Pricing Optimization':
-        return <TrendingUp className="w-4 h-4 text-[#3F7D58]" />
-      case 'Market Dynamics':
-        return <Sparkles className="w-4 h-4 text-[#315A7D]" />
-      case 'Retention & Capacity':
-        return <Building2 className="w-4 h-4 text-[#315A7D]" />
-      case 'Revenue Security':
-        return <ShieldCheck className="w-4 h-4 text-[#3F7D58]" />
-      case 'Asset Protection':
-        return <AlertCircle className="w-4 h-4 text-[#B7791F]" />
-      case 'Financial Yield':
-      default:
-        return <Layers className="w-4 h-4 text-[#315A7D]" />
     }
   }
 
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const request = {
+      city: form.city.trim(),
+      area: form.area.trim(),
+      year: Number(form.year),
+      month: Number(form.month),
+    }
+    if (!request.city || !request.area) {
+      setError('Enter a city and area before requesting a forecast.')
+      setResult(null)
+      return
+    }
+    runPrediction(request)
+  }
+
+  const forecastValue = result?.predictedDemandCount ?? result?.prediction
+
   return (
-    <DashboardLayout
-      defaultRole="owner"
-      activeItem="ai-insights"
-      pageTitle="AI Insights"
-    >
-      <div className="space-y-6">
-        {/* Notice Notification */}
-        {noticeMessage && (
-          <div className="p-4 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8] text-[#2A583B] text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#3F7D58] shrink-0" />
-              <span>{noticeMessage}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setNoticeMessage('')}
-              className="text-[#3F7D58] hover:text-[#2A583B] font-bold px-1"
-            >
-              &times;
-            </button>
+    <DashboardLayout defaultRole="owner" activeItem="ai-insights" pageTitle="AI Insights">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <header>
+          <h1 className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight text-[#243447] sm:text-3xl">
+            <Sparkles className="h-6 w-6 text-[#315A7D]" /> Rental Demand Forecast
+          </h1>
+          <p className="mt-1 text-sm text-[#5B6875]">
+            Request a forecast from the backend for a city, locality, and month.
+          </p>
+        </header>
+
+        <div className="flex items-start gap-3 rounded-lg border border-[#F4E2B6] bg-[#FEF7EC] p-4 text-sm text-[#8A5B16]">
+          <Info className="mt-0.5 h-5 w-5 shrink-0" />
+          <p><strong>Decision-support only.</strong> Use this forecast as one input when planning. It is not a guarantee of future demand.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-[#D9E0E6] bg-white p-5 shadow-2xs">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-[#243447]">
+              City
+              <input
+                required
+                value={form.city}
+                onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
+                autoComplete="address-level2"
+                className="mt-1 block w-full rounded-md border border-[#D9E0E6] px-3 py-2 font-normal"
+              />
+            </label>
+            <label className="text-sm font-medium text-[#243447]">
+              Area / locality
+              <input
+                required
+                value={form.area}
+                onChange={(event) => setForm((current) => ({ ...current, area: event.target.value }))}
+                autoComplete="address-level3"
+                className="mt-1 block w-full rounded-md border border-[#D9E0E6] px-3 py-2 font-normal"
+              />
+            </label>
+            <label className="text-sm font-medium text-[#243447]">
+              Forecast year
+              <input
+                required
+                type="number"
+                min="2020"
+                max="2100"
+                value={form.year}
+                onChange={(event) => setForm((current) => ({ ...current, year: event.target.value }))}
+                className="mt-1 block w-full rounded-md border border-[#D9E0E6] px-3 py-2 font-normal"
+              />
+            </label>
+            <label className="text-sm font-medium text-[#243447]">
+              Forecast month
+              <select
+                value={form.month}
+                onChange={(event) => setForm((current) => ({ ...current, month: event.target.value }))}
+                className="mt-1 block w-full rounded-md border border-[#D9E0E6] bg-white px-3 py-2 font-normal"
+              >
+                {monthOptions.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" isLoading={loading} leftIcon={<TrendingUp className="h-4 w-4" />}>
+              Get forecast
+            </Button>
+            {lastRequest.current && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading}
+                leftIcon={<RotateCcw className="h-4 w-4" />}
+                onClick={() => runPrediction(lastRequest.current)}
+              >
+                Refresh forecast
+              </Button>
+            )}
+          </div>
+        </form>
+
+        {error && (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-[#F4B4B4] bg-[#FDF2F2] p-3 text-sm text-[#8A2E2C]">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}
           </div>
         )}
 
-        {/* Page Header with Refresh Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-                AI Portfolio Insights
-              </h1>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EAF2F7] text-[#315A7D] border border-[#D9E0E6]">
-                <Sparkles className="w-3 h-3 text-[#315A7D]" /> Real-time
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-[#5B6875] mt-1">
-              Predictive asset analytics, revenue optimization, and proactive maintenance forecasts
-            </p>
-          </div>
-
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<RotateCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />}
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh Insights'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Mandatory Advisory Notice */}
-        <div className="p-4 rounded-xl bg-[#FEF7EC] border border-[#F4E2B6] text-[#8A5B16] text-xs sm:text-sm flex items-start gap-3">
-          <Info className="w-5 h-5 text-[#B7791F] shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <strong className="font-semibold text-[#8A5B16]">
-              Decision-Support Notice:{' '}
-            </strong>
-            AI insights are decision-support recommendations and should be reviewed by a property manager before taking financial or operational action.
-          </div>
-        </div>
-
-        {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-xl border border-[#D9E0E6] p-12 shadow-xs flex justify-center">
-            <Loader text="Synthesizing portfolio intelligence..." size="md" center />
+          <div className="rounded-lg border border-[#D9E0E6] bg-white p-8 text-center text-sm text-[#5B6875]" role="status">
+            Requesting forecast from the backend…
           </div>
-        ) : insights.length === 0 ? (
-          /* Empty State */
-          <div className="bg-white rounded-xl border border-[#D9E0E6] p-8 shadow-xs">
-            <EmptyState
-              icon={<Sparkles className="w-8 h-8" />}
-              title="No AI insights generated"
-              message="Telemetry data is currently insufficient to produce predictive recommendations."
-            />
-          </div>
-        ) : (
-          /* Six Insight Cards Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {insights.map((card) => (
-              <div
-                key={card.id}
-                className="bg-white rounded-xl border border-[#D9E0E6] p-6 shadow-xs hover:border-[#315A7D] transition-all flex flex-col justify-between space-y-4"
-              >
-                {/* Card Top: Category and Status Badge */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5B6875]">
-                    {getCategoryIcon(card.category)}
-                    <span>{card.category}</span>
-                  </div>
-                  <StatusBadge status={card.status} size="sm" />
-                </div>
-
-                {/* Card Body: Title, Value/Prediction, Confidence */}
-                <div className="space-y-2">
-                  <h2 className="text-base font-bold text-[#243447]">
-                    {card.title}
-                  </h2>
-                  <div className="text-xl sm:text-2xl font-extrabold text-[#315A7D] tracking-tight">
-                    {card.prediction}
-                  </div>
-                  <div className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-[#F7F8FA] text-[#243447] border border-[#D9E0E6]">
-                    {card.confidence}
-                  </div>
-                </div>
-
-                {/* Card Bottom: Explanation */}
-                <div className="pt-3 border-t border-[#D9E0E6] text-xs text-[#5B6875] leading-relaxed">
-                  {card.explanation}
-                </div>
+        ) : result ? (
+          <section className="rounded-lg border border-[#D9E0E6] bg-white p-6 shadow-2xs" aria-live="polite">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[#243447]">Rental demand forecast</h2>
+                <p className="mt-1 text-sm text-[#5B6875]">
+                  {[result.areaLocality || form.area, result.city || form.city, result.forecastPeriod].filter(Boolean).join(' · ')}
+                </p>
               </div>
-            ))}
-          </div>
+              {result.modelVersion && <span className="rounded-md border border-[#D9E0E6] bg-[#F7F8FA] px-2 py-1 text-xs text-[#5B6875]">Model {result.modelVersion}</span>}
+            </div>
+            {forecastValue == null ? (
+              <div className="mt-5"><EmptyState title="Forecast value unavailable" message="The backend response did not include a predicted demand value." /></div>
+            ) : (
+              <div className="mt-5 rounded-lg bg-[#EAF2F7] p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#5B6875]">Predicted demand</p>
+                <p className="mt-1 text-3xl font-bold text-[#315A7D]">
+                  {Number(forecastValue).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  {result.demandUnit ? <span className="ml-2 text-base font-medium">{result.demandUnit}</span> : null}
+                </p>
+              </div>
+            )}
+          </section>
+        ) : (
+          <EmptyState
+            icon={<Sparkles className="h-7 w-7" />}
+            title="No forecast requested yet"
+            message="Enter a city, locality, and forecast period to request live output from the rental-demand service."
+          />
         )}
       </div>
     </DashboardLayout>

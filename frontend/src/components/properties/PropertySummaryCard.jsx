@@ -19,39 +19,23 @@ import { Building2, Users, IndianRupee, Home } from 'lucide-react'
  */
 export default function PropertySummaryCard({ properties = [] }) {
   const totalProperties = properties.length
-
-  const totalUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.totalUnits) || 0),
-    0
+  const countFields = ['totalUnits', 'occupiedUnits', 'vacantUnits', 'reservedUnits', 'maintenanceUnits', 'occupiedRevenue']
+  const unitMetricsAvailable = properties.length === 0 || properties.every((property) =>
+    countFields.every((field) => property[field] != null && Number.isFinite(Number(property[field])))
   )
+  const sumMetric = (field) => unitMetricsAvailable
+    ? properties.reduce((sum, property) => sum + Number(property[field]), 0)
+    : null
 
-  const occupiedUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.occupiedUnits) || 0),
-    0
-  )
-
-  const vacantUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.vacantUnits) || 0),
-    0
-  )
-
-  const reservedUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.reservedUnits) || 0),
-    0
-  )
-
-  const maintenanceUnits = properties.reduce(
-    (sum, p) => sum + (Number(p.maintenanceUnits) || 0),
-    0
-  )
-
-  const occupancyRate =
-    totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
-
-  const monthlyRevenue = properties.reduce(
-    (sum, p) => sum + (Number(p.occupiedRevenue) || 0),
-    0
-  )
+  const totalUnits = sumMetric('totalUnits')
+  const occupiedUnits = sumMetric('occupiedUnits')
+  const vacantUnits = sumMetric('vacantUnits')
+  const reservedUnits = sumMetric('reservedUnits')
+  const maintenanceUnits = sumMetric('maintenanceUnits')
+  const monthlyRevenue = sumMetric('occupiedRevenue')
+  const occupancyRate = totalUnits != null && totalUnits > 0 && occupiedUnits != null
+    ? Math.round((occupiedUnits / totalUnits) * 100)
+    : totalUnits === 0 ? 0 : null
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -93,18 +77,22 @@ export default function PropertySummaryCard({ properties = [] }) {
         </div>
         <div>
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-            {totalUnits}
+            {totalUnits ?? '—'}
           </p>
           <p className="text-xs text-[#5B6875] mt-0.5 truncate">
-            {occupiedUnits} occupied &bull; {vacantUnits} vacant
-            {reservedUnits > 0 ? ` • ${reservedUnits} res.` : ''}
-            {maintenanceUnits > 0 ? ` • ${maintenanceUnits} maint.` : ''}
+            {unitMetricsAvailable ? (
+              <>
+                {occupiedUnits} occupied &bull; {vacantUnits} vacant
+                {reservedUnits > 0 ? ` • ${reservedUnits} res.` : ''}
+                {maintenanceUnits > 0 ? ` • ${maintenanceUnits} maint.` : ''}
+              </>
+            ) : 'Unit data unavailable'}
           </p>
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Ready to lease</span>
           <span className="text-[#3F7D58] font-semibold">
-            {vacantUnits} Vacant
+            {vacantUnits ?? '—'} Vacant
           </span>
         </div>
       </div>
@@ -121,19 +109,21 @@ export default function PropertySummaryCard({ properties = [] }) {
         </div>
         <div>
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-            {occupancyRate}%
+            {occupancyRate == null ? '—' : `${occupancyRate}%`}
           </p>
-          <div className="w-full bg-[#F7F8FA] border border-[#D9E0E6] h-2 rounded-full mt-2 overflow-hidden">
-            <div
-              className="bg-[#315A7D] h-full rounded-full transition-all duration-300"
-              style={{ width: `${occupancyRate}%` }}
-            />
-          </div>
+          {occupancyRate != null && (
+            <div className="w-full bg-[#F7F8FA] border border-[#D9E0E6] h-2 rounded-full mt-2 overflow-hidden">
+              <div
+                className="bg-[#315A7D] h-full rounded-full transition-all duration-300"
+                style={{ width: `${occupancyRate}%` }}
+              />
+            </div>
+          )}
         </div>
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Target: &gt;90%</span>
           <span className="text-[#315A7D] font-semibold">
-            {occupancyRate >= 80 ? 'Healthy' : 'Below Target'}
+            {occupancyRate == null ? 'Unavailable' : occupancyRate >= 80 ? 'Healthy' : 'Below Target'}
           </span>
         </div>
       </div>
@@ -150,7 +140,7 @@ export default function PropertySummaryCard({ properties = [] }) {
         </div>
         <div>
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#243447]">
-            ₹{Number(monthlyRevenue || 0).toLocaleString('en-IN')}
+            {monthlyRevenue == null ? '—' : `₹${monthlyRevenue.toLocaleString('en-IN')}`}
           </p>
           <p className="text-xs text-[#5B6875] mt-0.5">
             Occupied unit receivables
@@ -159,7 +149,7 @@ export default function PropertySummaryCard({ properties = [] }) {
         <div className="pt-2 border-t border-[#D9E0E6] flex items-center justify-between text-[11px] text-[#5B6875]">
           <span>Yielding units</span>
           <span className="text-[#B7791F] font-semibold">
-            {occupiedUnits} Occupied
+            {occupiedUnits ?? '—'} Occupied
           </span>
         </div>
       </div>

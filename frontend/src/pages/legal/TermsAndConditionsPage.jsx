@@ -37,7 +37,7 @@ export default function TermsAndConditionsPage() {
   return (
     <LegalPageLayout
       title="Terms & Conditions"
-      subtitle="These Terms & Conditions govern your access to and use of the HomeSphere Property Management application, including all associated dashboards, lease workflows, and communications."
+      subtitle="These Terms & Conditions govern your access to and use of the SmartEstate Property Management application, including all associated dashboards, lease workflows, and communications."
       lastUpdated="September 2026"
       effectiveDate="September 1, 2026"
       activeDoc="terms"
@@ -56,13 +56,13 @@ export default function TermsAndConditionsPage() {
             <h2 className="text-lg font-semibold text-[#243447]">
               Acceptance of Terms
             </h2>
-            <p className="text-xs text-[#5B6875]">Binding agreement between users and HomeSphere</p>
+            <p className="text-xs text-[#5B6875]">Binding agreement between users and SmartEstate</p>
           </div>
         </div>
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            By accessing or using the HomeSphere Property Management application (&ldquo;HomeSphere,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;the platform&rdquo;), you agree to comply with and be bound by these Terms &amp; Conditions and our accompanying Privacy Policy.
+            By accessing or using the SmartEstate Property Management application (&ldquo;SmartEstate,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;the platform&rdquo;), you agree to comply with and be bound by these Terms &amp; Conditions and our accompanying Privacy Policy.
           </p>
           <p>
             If you are entering into these terms on behalf of a company, property management firm, or real estate partnership, you represent and warrant that you possess the authority to bind that entity. If you do not agree to these terms, you must discontinue use of the platform.
@@ -83,13 +83,13 @@ export default function TermsAndConditionsPage() {
             <h2 className="text-lg font-semibold text-[#243447]">
               Platform Scope & Role
             </h2>
-            <p className="text-xs text-[#5B6875]">Nature of HomeSphere software services</p>
+            <p className="text-xs text-[#5B6875]">Nature of SmartEstate software services</p>
           </div>
         </div>
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere provides cloud-based software tools for managing rental properties, tracking unit occupancies, drafting lease records, coordinating maintenance dispatches, and logging rental payments.
+            SmartEstate provides cloud-based software tools for managing rental properties, tracking unit occupancies, drafting lease records, coordinating maintenance dispatches, and logging rental payments.
           </p>
 
           <div className="p-4 rounded-lg bg-[#EAF2F7] border border-[#D9E0E6] space-y-2 text-xs">
@@ -98,7 +98,7 @@ export default function TermsAndConditionsPage() {
               Clarification of Software Role
             </p>
             <p className="text-[#5B6875] leading-relaxed">
-              HomeSphere is an independent technology provider. We are not a licensed real estate broker, leasing agent, landlord, escrow agency, or legal advisor. All rental decisions, lease commitments, property inspections, and contractual terms are established directly between property owners and prospective or active tenants.
+              SmartEstate is an independent technology provider. We are not a licensed real estate broker, leasing agent, landlord, escrow agency, or legal advisor. All rental decisions, lease commitments, property inspections, and contractual terms are established directly between property owners and prospective or active tenants.
             </p>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            To use HomeSphere, users must register an account and maintain accurate, current contact credentials:
+            To use SmartEstate, users must register an account and maintain accurate, current contact credentials:
           </p>
           <ul className="space-y-2 text-xs sm:text-sm">
             <li className="flex items-start gap-2">
@@ -136,7 +136,7 @@ export default function TermsAndConditionsPage() {
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-[#315A7D] shrink-0 mt-0.5" />
-              <span><strong>Notification of Breach:</strong> You must promptly notify HomeSphere if you suspect unauthorized access or security compromises involving your account.</span>
+              <span><strong>Notification of Breach:</strong> You must promptly notify SmartEstate if you suspect unauthorized access or security compromises involving your account.</span>
             </li>
           </ul>
         </div>
@@ -161,7 +161,7 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            Property owners and property managers who publish or configure rental units through HomeSphere agree that:
+            Property owners and property managers who publish or configure rental units through SmartEstate agree that:
           </p>
           <ul className="space-y-1.5 text-xs sm:text-sm list-disc list-inside pl-2">
             <li>All property descriptions, rents, fees, and unit amenities must be truthful and accurate.</li>
@@ -190,11 +190,11 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere provides standardized forms and digital agreement records for leasing convenience. You acknowledge:
+            SmartEstate provides standardized forms and digital agreement records for leasing convenience. You acknowledge:
           </p>
           <div className="space-y-2.5 text-xs sm:text-sm">
             <p>
-              <strong>Direct Contractual Relationship:</strong> Any lease agreement finalized or recorded via HomeSphere is a direct contract between the landlord/owner and the tenant. HomeSphere is not a guarantor, co-signer, or party to any lease agreement.
+              <strong>Direct Contractual Relationship:</strong> Any lease agreement finalized or recorded via SmartEstate is a direct contract between the landlord/owner and the tenant. SmartEstate is not a guarantor, co-signer, or party to any lease agreement.
             </p>
             <p>
               <strong>Local Legal Review:</strong> Tenancy laws, notice periods, and security deposit regulations vary across jurisdictions. Users are advised to review lease terms with qualified legal counsel in their respective region.
@@ -226,7 +226,7 @@ export default function TermsAndConditionsPage() {
           </p>
           <ul className="space-y-1.5 text-xs sm:text-sm list-disc list-inside pl-2">
             <li>Electronic transactions executed through integrated payment gateways are subject to the terms of those respective payment processors.</li>
-            <li>HomeSphere is not liable for transaction reversals, bank processing delays, or disputed chargebacks between tenants and property owners.</li>
+            <li>SmartEstate is not liable for transaction reversals, bank processing delays, or disputed chargebacks between tenants and property owners.</li>
             <li>Users are responsible for verifying their own financial logs and reconciliation statements.</li>
           </ul>
         </div>
@@ -251,7 +251,7 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            The HomeSphere maintenance module facilitates routine repair logging and dispatch communication.
+            The SmartEstate maintenance module facilitates routine repair logging and dispatch communication.
           </p>
 
           <div className="p-4 rounded-lg bg-[#FDF4F4] border border-[#F2C0C0] text-xs space-y-2">
@@ -260,7 +260,7 @@ export default function TermsAndConditionsPage() {
               Critical Emergency Protocol
             </p>
             <p className="text-[#5B6875] leading-relaxed">
-              HomeSphere is an administrative ticketing tool and is not monitored continuously for emergencies. For life-threatening situations, active fires, gas leaks, structural collapse, or immediate physical safety hazards, you must dial 911 or your local emergency dispatch immediately before submitting an application ticket.
+              SmartEstate is an administrative ticketing tool and is not monitored continuously for emergencies. For life-threatening situations, active fires, gas leaks, structural collapse, or immediate physical safety hazards, you must dial 911 or your local emergency dispatch immediately before submitting an application ticket.
             </p>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function TermsAndConditionsPage() {
         </div>
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
-          <p>When using HomeSphere, you agree not to:</p>
+          <p>When using SmartEstate, you agree not to:</p>
           <ul className="space-y-1.5 text-xs sm:text-sm list-disc list-inside pl-2">
             <li>Submit false, fraudulent, or defamatory rental listings, reviews, or tenant applications.</li>
             <li>Engage in discriminatory housing practices prohibited by applicable law.</li>
@@ -314,10 +314,10 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            HomeSphere retains all right, title, and interest in and to the platform, including user interfaces, designs, software architecture, branding, and documentation.
+            SmartEstate retains all right, title, and interest in and to the platform, including user interfaces, designs, software architecture, branding, and documentation.
           </p>
           <p>
-            You retain ownership of the property photographs, text descriptions, and lease documents you upload. By uploading content, you grant HomeSphere a limited, non-exclusive license to host, display, and process your data solely as required to provide platform services.
+            You retain ownership of the property photographs, text descriptions, and lease documents you upload. By uploading content, you grant SmartEstate a limited, non-exclusive license to host, display, and process your data solely as required to provide platform services.
           </p>
         </div>
       </section>
@@ -341,7 +341,7 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            THE HOMESPHERE PLATFORM AND SERVICES ARE PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+            THE SmartEstate PLATFORM AND SERVICES ARE PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
           </p>
           <p className="text-xs">
             We do not warrant that platform operations will be uninterrupted, error-free, or entirely free of security vulnerabilities.
@@ -368,7 +368,7 @@ export default function TermsAndConditionsPage() {
 
         <div className="text-sm text-[#5B6875] leading-relaxed space-y-3">
           <p>
-            TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, HOMESPHERE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR USE, INCURRED BY YOU OR ANY THIRD PARTY, ARISING OUT OF OR IN CONNECTION WITH THE USE OF OR INABILITY TO USE THE PLATFORM.
+            TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, SmartEstate SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR USE, INCURRED BY YOU OR ANY THIRD PARTY, ARISING OUT OF OR IN CONNECTION WITH THE USE OF OR INABILITY TO USE THE PLATFORM.
           </p>
         </div>
       </section>
@@ -446,10 +446,9 @@ export default function TermsAndConditionsPage() {
             If you have questions regarding these Terms &amp; Conditions, please direct inquiries to:
           </p>
           <div className="p-4 rounded-lg bg-[#F7F8FA] border border-[#D9E0E6] text-xs space-y-1.5 font-mono text-[#243447]">
-            <p><strong>HomeSphere Legal &amp; Platform Support</strong></p>
-            <p>Support Inquiries: support@homesphere.com</p>
-            <p>Compliance Inquiries: legal@homesphere.com</p>
-            <p>Platform: HomeSphere Property Management SaaS</p>
+            <p><strong>SmartEstate Legal &amp; Platform Support</strong></p>
+            <p>Support and compliance contact addresses are not configured in this application.</p>
+            <p>Platform: SmartEstate Property Management SaaS</p>
           </div>
         </div>
       </section>

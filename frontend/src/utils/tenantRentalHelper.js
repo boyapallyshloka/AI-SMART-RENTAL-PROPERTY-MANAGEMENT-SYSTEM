@@ -1,10 +1,16 @@
 import { getMyAgreements } from '../api/agreementApi'
 import { getMyApplications } from '../api/applicationApi'
-import { getMyProperties, getPropertyDetails } from '../api/propertyApi'
+import { getPropertyDetails } from '../api/propertyApi'
 
 let cachedRentalContext = null
 let cacheTimestamp = 0
 const CACHE_TTL_MS = 10000 // 10 seconds cache to optimize drill-down
+
+const optionalNumber = (value) => {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
 
 export const clearTenantRentalCache = () => {
   cachedRentalContext = null
@@ -71,29 +77,12 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
     matchedApp =
       rawApps.find(
         (a) => String(a.status || '').toUpperCase() === 'APPROVED'
-      ) || rawApps[0] || null
+      ) || null
   }
 
   // Resolve propertyId
   let resolvedPropertyId =
     matchedApp?.propertyId || activeAgreement?.propertyId || null
-
-  // If no propertyId found, fallback to check getMyProperties
-  if (!resolvedPropertyId) {
-    try {
-      const myPropsRes = await getMyProperties()
-      const propsList = Array.isArray(myPropsRes?.data)
-        ? myPropsRes.data
-        : Array.isArray(myPropsRes)
-        ? myPropsRes
-        : []
-      if (propsList.length > 0) {
-        resolvedPropertyId = propsList[0].propertyId || propsList[0].id
-      }
-    } catch (propErr) {
-      console.warn('Fallback getMyProperties check failed:', propErr)
-    }
-  }
 
   if (!resolvedPropertyId) {
     // No active rental or property associated with tenant
@@ -137,25 +126,25 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
           id: u.unitId ?? u.id,
           unitId: u.unitId ?? u.id,
           unitNumber: u.unitNumber ?? u.number ?? '',
-          unitType: u.unitType ?? u.type ?? 'APARTMENT',
-          status: u.status ?? 'VACANT',
-          monthlyRent: Number(u.monthlyRent ?? u.rentAmount ?? u.rent ?? 0),
-          securityDeposit: Number(u.securityDeposit ?? u.deposit ?? 0),
-          area: Number(u.area ?? 0),
-          bedrooms: Number(u.bedrooms ?? 0),
-          bathrooms: Number(u.bathrooms ?? 0),
+          unitType: u.unitType ?? u.type ?? null,
+          status: u.status ?? null,
+          monthlyRent: optionalNumber(u.monthlyRent ?? u.rentAmount ?? u.rent),
+          securityDeposit: optionalNumber(u.securityDeposit ?? u.deposit),
+          area: optionalNumber(u.area),
+          bedrooms: optionalNumber(u.bedrooms),
+          bathrooms: optionalNumber(u.bathrooms),
           description: u.description ?? '',
           floorId: f.floorId ?? f.id,
           floorName: f.floorName ?? f.name,
-          floorNumber: f.floorNumber ?? f.number ?? 0,
+          floorNumber: f.floorNumber ?? f.number ?? null,
           buildingId: b.buildingId ?? b.id,
           buildingName: b.buildingName ?? b.name,
           propertyId: resolvedPropertyId,
-          propertyName: propObj.propertyName || propObj.name || 'Rental Property',
+          propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || null,
           floor: {
             floorId: f.floorId ?? f.id,
             floorName: f.floorName ?? f.name,
-            floorNumber: f.floorNumber ?? f.number ?? 0,
+            floorNumber: f.floorNumber ?? f.number ?? null,
             building: {
               buildingId: b.buildingId ?? b.id,
               buildingName: b.buildingName ?? b.name,
@@ -173,11 +162,11 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
         floorId: f.floorId ?? f.id,
         name: f.floorName ?? f.name,
         floorName: f.floorName ?? f.name,
-        floorNumber: f.floorNumber ?? f.number ?? 0,
+        floorNumber: f.floorNumber ?? f.number ?? null,
         buildingId: b.buildingId ?? b.id,
         buildingName: b.buildingName ?? b.name,
         propertyId: resolvedPropertyId,
-        propertyName: propObj.propertyName || propObj.name || 'Rental Property',
+        propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || null,
         units: mappedUnits,
       }
     })
@@ -196,7 +185,7 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
       totalUnits: b.totalUnits ?? calculatedUnits,
       description: b.description || '',
       propertyId: resolvedPropertyId,
-      propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || 'Rental Property',
+      propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || null,
       property: propObj,
       floors: mappedFloors,
     }
@@ -224,9 +213,9 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
     property: {
       id: resolvedPropertyId,
       propertyId: resolvedPropertyId,
-      name: propObj.propertyName || propObj.name || matchedApp?.propertyName || 'Rental Property',
-      propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || 'Rental Property',
-      type: propObj.propertyType || propObj.type || 'Property',
+      name: propObj.propertyName || propObj.name || matchedApp?.propertyName || null,
+      propertyName: propObj.propertyName || propObj.name || matchedApp?.propertyName || null,
+      type: propObj.propertyType || propObj.type || null,
       description: propObj.description || '',
       address: addrObj?.street || '',
       city: addrObj?.city || '',
@@ -243,11 +232,11 @@ export const resolveTenantRentalContext = async ({ forceRefresh = false } = {}) 
         currentUnit?.unitNumber ||
         (matchedApp?.unitNumber ? String(matchedApp.unitNumber) : null) ||
         (resolvedUnitId ? String(resolvedUnitId) : null),
-      status: activeAgreement
-        ? `${activeAgreement.status || 'ACTIVE'} Lease`
-        : matchedApp
-        ? `${matchedApp.status || 'APPROVED'} Application`
-        : 'Active Lease',
+      status: activeAgreement?.status
+        ? `${activeAgreement.status} Lease`
+        : matchedApp?.status
+        ? `${matchedApp.status} Application`
+        : null,
       startDate: activeAgreement?.startDate || null,
       endDate: activeAgreement?.endDate || null,
       monthlyRent: activeAgreement?.monthlyRent || matchedApp?.monthlyRent || currentUnit?.monthlyRent || null,

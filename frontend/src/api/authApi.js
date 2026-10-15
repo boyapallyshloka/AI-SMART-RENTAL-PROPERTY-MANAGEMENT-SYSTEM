@@ -1,11 +1,4 @@
 import axiosClient from './axiosClient.js'
-import {
-  mockLogin,
-  mockRegister,
-  mockLogout,
-  mockForgotPassword,
-  mockResetPassword,
-} from './mockAuth.js'
 import { ROLES, normalizeRole, getRoleLabel } from '../utils/roles.js'
 
 /**
@@ -15,26 +8,8 @@ import { ROLES, normalizeRole, getRoleLabel } from '../utils/roles.js'
  * - POST /api/auth/login
  * - POST /api/auth/register
  * 
- * Active Implementation: Spring Boot REST Backend via axiosClient
- * Fallback: mockAuth.js (development / offline fallback)
+ * Authentication is handled only by the Spring Boot REST backend.
  */
-let useMockFallback =
-  typeof import.meta !== 'undefined' &&
-  import.meta?.env?.VITE_USE_MOCK_AUTH === 'true'
-
-/**
- * Toggle mock authentication fallback for development or automated testing
- * @param {boolean} enabled
- */
-export const setUseMockAuth = (enabled) => {
-  useMockFallback = Boolean(enabled)
-}
-
-/**
- * Check if mock authentication fallback is currently active
- * @returns {boolean}
- */
-export const isMockAuthActive = () => useMockFallback
 
 /**
  * Normalize Spring Boot LoginResponse DTO into frontend application user state
@@ -48,7 +23,7 @@ export const normalizeLoginResponse = (raw) => {
   const fullName =
     [raw.firstName, raw.lastName].filter(Boolean).join(' ') ||
     raw.name ||
-    `User (${label})`
+    ''
 
   const avatarText =
     raw.avatarText ||
@@ -65,7 +40,7 @@ export const normalizeLoginResponse = (raw) => {
     phone: raw.phone || '',
     gender: raw.gender || '',
     role: canonicalRole,
-    status: raw.status || 'ACTIVE',
+    status: raw.status || null,
     avatarText: avatarText.toUpperCase(),
     roleLabel: label,
   }
@@ -78,24 +53,6 @@ export const normalizeLoginResponse = (raw) => {
  * Response: LoginResponse { token, userId, firstName, lastName, email, role }
  */
 export const login = async (credentials) => {
-  if (useMockFallback) {
-    const res = await mockLogin(credentials)
-    if (!res.success) {
-      return {
-        success: false,
-        error: res.error,
-        isPending: res.isPending || false,
-      }
-    }
-    return {
-      success: true,
-      token: res.data.token,
-      user: normalizeLoginResponse(res.data),
-      status: res.data.status || 'ACTIVE',
-    }
-  }
-
-  // Active implementation: Spring Boot REST Backend via axiosClient
   try {
     const payload = {
       email: (credentials?.email || '').trim().toLowerCase(),
@@ -106,22 +63,26 @@ export const login = async (credentials) => {
       success: true,
       token: data.token,
       user: normalizeLoginResponse(data),
-      status: data.status || 'ACTIVE',
+      status: data.status || null,
     }
   } catch (error) {
+    const backendMessage =
+      error?.message || error?.data?.message || error?.data?.error || ''
+    const requiresEmailVerification =
+      /verify your email address before logging in/i.test(backendMessage)
     const isPending =
-      error.message === 'Account is not active' ||
-      error.data?.message === 'Account is not active' ||
+      backendMessage === 'Account is not active' ||
       (error.status === 403 && error.data?.isPending)
 
     const errorMessage = isPending
       ? 'Your account is pending administrator verification. You will be able to sign in once approved.'
-      : error.message || 'Authentication failed'
+      : backendMessage || 'Authentication failed'
 
     return {
       success: false,
       error: errorMessage,
       isPending,
+      requiresEmailVerification,
     }
   }
 }
@@ -143,36 +104,14 @@ export const register = async (userData) => {
     }
   }
 
-  if (useMockFallback) {
-    const res = await mockRegister(userData)
-    if (!res.success) {
-      return {
-        success: false,
-        error: res.error,
-      }
-    }
-    return {
-      success: true,
-      user: normalizeLoginResponse(res.data),
-      token: res.token || null,
-      status: res.status,
-      isPending: res.isPending || false,
-    }
-  }
-
-  // Active implementation: Spring Boot REST Backend via axiosClient
+  // Spring Boot REST Backend via the shared authenticated axiosClient.
   try {
     const nameParts = (userData.name || '').trim().split(/\s+/)
-    const firstName = (
-      userData.firstName ||
-      nameParts[0] ||
-      'User'
-    ).slice(0, 50)
+    const firstName = (userData.firstName || nameParts[0] || '').slice(0, 50)
     const lastName = (
       userData.lastName ||
       nameParts.slice(1).join(' ') ||
-      nameParts[0] ||
-      getRoleLabel(canonicalRole)
+      ''
     ).slice(0, 50)
 
     const payload = {
@@ -180,8 +119,8 @@ export const register = async (userData) => {
       lastName,
       email: (userData.email || '').trim().toLowerCase(),
       password: userData.password || '',
-      phone: (userData.phone || '9876543210').trim(),
-      gender: userData.gender || 'OTHER',
+      phone: (userData.phone || '').trim(),
+      gender: userData.gender || '',
       role: canonicalRole,
     }
 
@@ -193,8 +132,11 @@ export const register = async (userData) => {
       success: true,
       user: normalizeLoginResponse(data),
       token: data.token || null,
-      status: data.status || (isPending ? 'PENDING' : 'ACTIVE'),
+      status: data.status || (isPending ? 'PENDING' : null),
       isPending,
+      // The backend sends an OTP during registration; verification must happen
+      // before this user can obtain a login token.
+      requiresEmailVerification: true,
     }
   } catch (error) {
     return {
@@ -205,20 +147,37 @@ export const register = async (userData) => {
 }
 
 /**
+ * Verify the six-digit email OTP issued during registration.
+ * Backend: POST /api/auth/verify-email-otp { email, otp }
+ */
+export const verifyEmailOtp = async ({ email, otp }) => {
+  return axiosClient.post('/auth/verify-email-otp', {
+    email: String(email || '').trim().toLowerCase(),
+    otp: String(otp || '').trim(),
+  })
+}
+
+/**
+ * Request a new email verification OTP.
+ * Backend: POST /api/auth/resend-email-otp?email={email}
+ */
+export const resendEmailOtp = async (email) => {
+  return axiosClient.post('/auth/resend-email-otp', null, {
+    params: { email: String(email || '').trim().toLowerCase() },
+  })
+}
+
+/**
  * Terminate user session and remove stored credentials
  * Spring Boot backend uses stateless JWT architecture.
  */
 export const logout = async () => {
-  try {
-    if (useMockFallback) {
-      await mockLogout()
-    }
-  } finally {
-    // Clear all token representations used by axiosClient and AuthContext
-    localStorage.removeItem('token')
-    localStorage.removeItem('homesphere_token')
-    localStorage.removeItem('homesphere_user')
-  }
+  // Spring Boot uses stateless JWT authentication; clear the client session.
+  localStorage.removeItem('token')
+  localStorage.removeItem('smartestate_token')
+  localStorage.removeItem('smartestate_user')
+  localStorage.removeItem('homesphere_token')
+  localStorage.removeItem('homesphere_user')
   return { success: true }
 }
 
@@ -235,9 +194,6 @@ export const forgotPassword = async (emailOrData) => {
       ? (emailOrData.email || '').trim().toLowerCase()
       : String(emailOrData || '').trim().toLowerCase()
 
-  if (useMockFallback) {
-    return mockForgotPassword(email)
-  }
   return axiosClient.post('/auth/forgot-password', { email })
 }
 
@@ -265,9 +221,6 @@ export const resetPassword = async (tokenOrData, maybeNewPassword) => {
   token = String(token).trim()
   newPassword = String(newPassword)
 
-  if (useMockFallback) {
-    return mockResetPassword(token, newPassword)
-  }
   return axiosClient.post('/auth/reset-password', {
     token,
     newPassword,
@@ -292,10 +245,6 @@ export const changePassword = async ({ currentPassword, newPassword }) => {
  * Spring Boot Endpoint: GET /api/users/me
  */
 export const getCurrentUser = async () => {
-  if (useMockFallback) {
-    const stored = localStorage.getItem('homesphere_user')
-    return stored ? JSON.parse(stored) : null
-  }
   const data = await axiosClient.get('/users/me')
   return normalizeLoginResponse(data)
 }

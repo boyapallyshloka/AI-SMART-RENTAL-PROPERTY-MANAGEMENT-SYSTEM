@@ -17,7 +17,6 @@ const SYSTEM_SETTINGS_ENDPOINTS = [
     auth: 'ROLE_SUPER_ADMIN',
     description:
       'Persist updated global platform settings with server-side validation and emit a configuration mutation event for audit trail retention.',
-    body: '{\n  "platformName": "HomeSphere",\n  "supportEmail": "admin@homesphere.com",\n  "maintenanceAutoAssign": true,\n  "maxUploadSizeMb": 25,\n  "sessionTimeoutMinutes": 60,\n  "paymentGatewayMode": "PRODUCTION"\n}',
   },
   {
     method: 'POST',

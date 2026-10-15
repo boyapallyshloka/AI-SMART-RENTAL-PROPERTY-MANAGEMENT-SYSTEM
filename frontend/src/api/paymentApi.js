@@ -185,6 +185,32 @@ export const downloadInvoiceReceipt = async (invoiceDocument, suggestedFileName)
   return await downloadInvoicePdf(invoiceDocument, suggestedFileName)
 }
 
+/**
+ * AI Decision Support: Retrieve tenant payment-risk analysis
+ * Endpoint: GET /api/payments/payment-risk/{tenantId}
+ * Permitted roles: SUPER_ADMIN, PROPERTY_OWNER, PROPERTY_MANAGER
+ *
+ * @param {number|string} tenantId - Tenant identifier
+ * @returns {Promise<{
+ *   success: boolean,
+ *   module: string,
+ *   risk_label?: number,
+ *   risk_probability?: number,
+ *   risk_status: string,
+ *   model?: string,
+ *   model_version?: string
+ * }>}
+ */
+export const getPaymentRisk = async (tenantId) => {
+  if (!tenantId) {
+    throw new Error('Tenant ID is required to retrieve payment-risk analysis.')
+  }
+  return await axiosClient.get(
+    `/payments/payment-risk/${encodeURIComponent(tenantId)}`,
+    { timeout: 60000 }
+  )
+}
+
 // Re-export invoice APIs for backward compatibility and unified access
 export {
   INVOICE_STATUSES,

@@ -4,6 +4,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import PropertyFilter from '../../components/properties/PropertyFilter'
 import PropertyGrid from '../../components/properties/PropertyGrid'
 import PropertyCard from '../../components/properties/PropertyCard'
+import PropertyMapLocationPicker from '../../components/properties/PropertyMapLocationPicker'
 import { Input, Select, Button } from '../../components/ui'
 import {
   getPublicProperties,
@@ -44,6 +45,7 @@ import {
 
 // Backend PropertyType enum options
 const PROPERTY_TYPE_OPTIONS = [
+  { value: '', label: 'Select a property type' },
   { value: 'APARTMENT', label: 'Apartment' },
   { value: 'HOUSE', label: 'Independent House' },
   { value: 'VILLA', label: 'Villa' },
@@ -54,6 +56,7 @@ const PROPERTY_TYPE_OPTIONS = [
 
 // Backend FurnishingStatus enum options
 const FURNISHING_OPTIONS = [
+  { value: '', label: 'Select a furnishing preference' },
   { value: 'UNFURNISHED', label: 'Unfurnished' },
   { value: 'SEMI_FURNISHED', label: 'Semi-Furnished' },
   { value: 'FULLY_FURNISHED', label: 'Fully Furnished' },
@@ -61,6 +64,7 @@ const FURNISHING_OPTIONS = [
 
 // Standard bedroom options
 const BEDROOM_OPTIONS = [
+  { value: '', label: 'Select minimum bedrooms' },
   { value: 0, label: 'Studio / Any' },
   { value: 1, label: '1 Bedroom (1 BHK)' },
   { value: 2, label: '2 Bedrooms (2 BHK)' },
@@ -71,9 +75,9 @@ const BEDROOM_OPTIONS = [
 const INITIAL_PREFERENCE_STATE = {
   preferredCity: '',
   maxBudget: '',
-  minBedrooms: 2,
-  preferredPropertyType: 'APARTMENT',
-  furnishingPreference: 'SEMI_FURNISHED',
+  minBedrooms: '',
+  preferredPropertyType: '',
+  furnishingPreference: '',
   parkingRequired: false,
   preferredAmenityIds: [],
   maxDistanceKm: '',
@@ -191,7 +195,7 @@ function mapRecommendationToProperty(item) {
     propertyId: propertyId,
     name: prop.propertyName || prop.name || `Property #${propertyId}`,
     propertyName: prop.propertyName || prop.name || `Property #${propertyId}`,
-    propertyType: prop.propertyType || prop.type || 'APARTMENT',
+    propertyType: prop.propertyType || prop.type,
     city: city,
     location: addr.city || city || addr.addressLine1 || prop.location || '',
     address: addr.addressLine1 || prop.address || '',
@@ -201,7 +205,7 @@ function mapRecommendationToProperty(item) {
     totalArea: prop.totalArea || prop.area,
     images: validImages,
     imageUrl: resolvedImageUrl,
-    status: prop.status || 'AVAILABLE',
+    status: prop.status,
     aiMatchScore: aiScore,
     matchCriteria,
     approxDistanceKm,
@@ -310,9 +314,9 @@ function filterProperties(properties = [], filters = {}) {
     }
 
     if (filters.parking && filters.parking !== 'All Parking') {
-      const hasParking =
-        prop.parkingAvailable === true ||
-        (prop.parking && prop.parking !== 'None' && prop.parking !== 'No Parking')
+      const hasParking = prop.parkingAvailable != null
+        ? prop.parkingAvailable === true || String(prop.parkingAvailable).toLowerCase() === 'true'
+        : Boolean(prop.parking && prop.parking !== 'None' && prop.parking !== 'No Parking')
       if (!hasParking) return false
     }
 
@@ -380,7 +384,9 @@ export default function PropertySearchPage() {
   const [prefSuccessMessage, setPrefSuccessMessage] = useState('')
   const [prefErrorMessage, setPrefErrorMessage] = useState('')
   const [availableAmenities, setAvailableAmenities] = useState([])
-  const [gpsCaptureLoading, setGpsCaptureLoading] = useState(false)
+  // Reverse-geocode feedback driven by PropertyMapLocationPicker callbacks
+  const [hubGeoLoading, setHubGeoLoading] = useState(false)
+  const [hubGeoError, setHubGeoError] = useState(null)
   const [isPreferencesCollapsed, setIsPreferencesCollapsed] = useState(false)
 
   // ==========================================
@@ -430,7 +436,7 @@ export default function PropertySearchPage() {
         if (user) {
           user.tenantId = tid
           try {
-            localStorage.setItem('homesphere_user', JSON.stringify(user))
+            localStorage.setItem('SmartEstate_user', JSON.stringify(user))
           } catch {
             // Ignore storage errors
           }
@@ -480,9 +486,9 @@ export default function PropertySearchPage() {
         setPreferenceData({
           preferredCity: data.preferredCity || '',
           maxBudget: data.maxBudget != null ? String(data.maxBudget) : '',
-          minBedrooms: data.minBedrooms != null ? Number(data.minBedrooms) : 2,
-          preferredPropertyType: data.preferredPropertyType || 'APARTMENT',
-          furnishingPreference: data.furnishingPreference || 'SEMI_FURNISHED',
+          minBedrooms: data.minBedrooms != null ? Number(data.minBedrooms) : '',
+          preferredPropertyType: data.preferredPropertyType || '',
+          furnishingPreference: data.furnishingPreference || '',
           parkingRequired: Boolean(data.parkingRequired),
           preferredAmenityIds: amenityIds,
           maxDistanceKm: data.maxDistanceKm != null ? String(data.maxDistanceKm) : '',
@@ -864,32 +870,42 @@ export default function PropertySearchPage() {
     })
   }
 
-  const handleUseCurrentLocationForHub = () => {
-    if (typeof window === 'undefined' || !navigator?.geolocation) {
-      alert('Geolocation is not supported by your browser.')
-      return
-    }
+  /**
+   * Called by PropertyMapLocationPicker on map click, marker drag, or "Use My Location".
+   * Updates preferredLatitude and preferredLongitude in preferenceData.
+   * Does NOT save default map-center coordinates — the picker only fires this after a real user interaction.
+   */
+  const handleHubLocationChange = useCallback(({ latitude, longitude }) => {
+    setPreferenceData((prev) => ({
+      ...prev,
+      preferredLatitude: String(latitude),
+      preferredLongitude: String(longitude),
+    }))
+    setHubGeoLoading(true)
+    setHubGeoError(null)
+  }, [])
 
-    setGpsCaptureLoading(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGpsCaptureLoading(false)
-        if (pos?.coords) {
-          setPreferenceData((prev) => ({
-            ...prev,
-            preferredLatitude: String(pos.coords.latitude.toFixed(6)),
-            preferredLongitude: String(pos.coords.longitude.toFixed(6)),
-          }))
-        }
-      },
-      (err) => {
-        setGpsCaptureLoading(false)
-        console.warn('Geolocation capture failed:', err?.message || err)
-        alert('Could not retrieve current location. You may enter coordinates manually or leave blank.')
-      },
-      { timeout: 8000, enableHighAccuracy: false }
-    )
-  }
+  /**
+   * Called by PropertyMapLocationPicker after a successful reverse-geocode.
+   * Only populates preferredCity when the response includes a city value.
+   * The field remains editable; this is a convenience fill, not a lock.
+   */
+  const handleHubAddressResolved = useCallback((result) => {
+    setHubGeoLoading(false)
+    setHubGeoError(null)
+    if (result?.city) {
+      setPreferenceData((prev) => ({ ...prev, preferredCity: result.city }))
+    }
+  }, [])
+
+  /**
+   * Called by PropertyMapLocationPicker when reverse-geocode fails or returns 404.
+   * Coordinates in preferenceData are preserved; tenant can type city manually.
+   */
+  const handleHubLookupError = useCallback((_err, { message }) => {
+    setHubGeoLoading(false)
+    setHubGeoError(message || 'Address lookup unavailable. You can enter the city manually.')
+  }, [])
 
   const handleResetPreferences = () => {
     setPrefValidationErrors({})
@@ -954,6 +970,14 @@ export default function PropertySearchPage() {
     const filtered = filterProperties(rawProperties, filters)
     return sortProperties(filtered, sortBy)
   }, [rawProperties, filters, sortBy])
+
+  const availableCities = useMemo(() => {
+    const cities = rawProperties
+      .map((property) => property.city || property.address?.city || property.propertyAddress?.city)
+      .map((city) => String(city || '').trim())
+      .filter(Boolean)
+    return [...new Set(cities)].sort((a, b) => a.localeCompare(b))
+  }, [rawProperties])
 
   const handleResetFilters = () => {
     setFilters(INITIAL_FILTERS)
@@ -1139,7 +1163,10 @@ export default function PropertySearchPage() {
                           options={BEDROOM_OPTIONS}
                           value={preferenceData.minBedrooms}
                           onChange={(e) => {
-                            setPreferenceData((prev) => ({ ...prev, minBedrooms: Number(e.target.value) }))
+                            setPreferenceData((prev) => ({
+                              ...prev,
+                              minBedrooms: e.target.value === '' ? '' : Number(e.target.value),
+                            }))
                             if (prefValidationErrors.minBedrooms) {
                               setPrefValidationErrors((prev) => ({ ...prev, minBedrooms: null }))
                             }
@@ -1221,39 +1248,60 @@ export default function PropertySearchPage() {
                         />
                       </div>
 
-                      <div className="sm:col-span-2 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
-                            Preferred Location Hub (Optional Coordinates)
-                          </label>
-                          <button
-                            type="button"
-                            onClick={handleUseCurrentLocationForHub}
-                            disabled={gpsCaptureLoading || isPrefSaving}
-                            className="inline-flex items-center gap-1 text-[11px] text-[#315A7D] hover:underline cursor-pointer disabled:opacity-50"
-                          >
-                            <MapPin className="w-3 h-3" />
-                            <span>{gpsCaptureLoading ? 'Detecting GPS...' : 'Use current location as hub'}</span>
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            placeholder="Latitude (e.g. 17.4065)"
-                            value={preferenceData.preferredLatitude}
-                            onChange={(e) =>
-                              setPreferenceData((prev) => ({ ...prev, preferredLatitude: e.target.value }))
-                            }
-                            disabled={isPrefSaving}
-                          />
-                          <Input
-                            placeholder="Longitude (e.g. 78.4772)"
-                            value={preferenceData.preferredLongitude}
-                            onChange={(e) =>
-                              setPreferenceData((prev) => ({ ...prev, preferredLongitude: e.target.value }))
-                            }
-                            disabled={isPrefSaving}
-                          />
-                        </div>
+                      <div className="sm:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#5B6875]">
+                          Preferred Location Hub
+                          <span className="normal-case font-normal text-[#5B6875] ml-1">(optional — click map or drag pin)</span>
+                        </label>
+
+                        {/* Interactive map picker — initializes from saved coords when valid */}
+                        <PropertyMapLocationPicker
+                          latitude={
+                            preferenceData.preferredLatitude !== '' &&
+                            !isNaN(Number(preferenceData.preferredLatitude))
+                              ? Number(preferenceData.preferredLatitude)
+                              : undefined
+                          }
+                          longitude={
+                            preferenceData.preferredLongitude !== '' &&
+                            !isNaN(Number(preferenceData.preferredLongitude))
+                              ? Number(preferenceData.preferredLongitude)
+                              : undefined
+                          }
+                          onLocationChange={handleHubLocationChange}
+                          onAddressResolved={handleHubAddressResolved}
+                          onLookupError={handleHubLookupError}
+                          autoReverseGeocode={true}
+                        />
+
+                        {/* Inline reverse-geocode feedback (loading / error) */}
+                        {hubGeoLoading && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-[#315A7D] px-1">
+                            <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
+                            <span>Looking up address from coordinates…</span>
+                          </div>
+                        )}
+                        {!hubGeoLoading && hubGeoError && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-amber-700 px-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span>{hubGeoError}</span>
+                          </div>
+                        )}
+
+                        {/* Read-only coordinate display */}
+                        {preferenceData.preferredLatitude !== '' && preferenceData.preferredLongitude !== '' && (
+                          <div className="flex items-center gap-3 px-2 py-1.5 rounded-md bg-[#F7F8FA] border border-[#D9E0E6] text-[11px] text-[#5B6875]">
+                            <MapPin className="w-3 h-3 text-[#315A7D] shrink-0" />
+                            <span>
+                              Lat:{' '}
+                              <strong className="font-mono text-[#243447]">{preferenceData.preferredLatitude}</strong>
+                            </span>
+                            <span>
+                              Lng:{' '}
+                              <strong className="font-mono text-[#243447]">{preferenceData.preferredLongitude}</strong>
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1491,6 +1539,7 @@ export default function PropertySearchPage() {
             onFilterChange={setFilters}
             onResetFilters={handleResetFilters}
             totalResults={filteredProperties.length}
+            availableCities={availableCities}
           />
 
           {/* Property Grid Results */}

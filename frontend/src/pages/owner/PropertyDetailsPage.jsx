@@ -37,7 +37,7 @@ import { formatCurrency } from '../../utils/currency'
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal'
 import AssignPropertyManagerModal from '../../components/properties/AssignPropertyManagerModal'
 import PropertyMapLocationPicker from '../../components/properties/PropertyMapLocationPicker'
-import { getPincodeDetails } from '../../api/locationApi'
+import { getPincodeDetails, searchPincodes } from '../../api/locationApi'
 import { StatusBadge, Button, EmptyState, Loader, Input, Select } from '../../components/ui'
 import {
   ArrowLeft,
@@ -57,7 +57,6 @@ import {
   Sparkles,
   Shield,
   FileText,
-  Wrench,
   AlertCircle,
   AlertTriangle,
   Trash2,
@@ -132,6 +131,16 @@ export default function PropertyDetailsPage() {
   const [pincodeLookupMessage, setPincodeLookupMessage] = useState(null)
   const [mapLookupMessage, setMapLookupMessage] = useState(null)
   const [areaSuggestions, setAreaSuggestions] = useState([])
+  const [isSearchingPincode, setIsSearchingPincode] = useState(false)
+  const [pincodeSuggestions, setPincodeSuggestions] = useState([])
+  const [isPincodeDropdownOpen, setIsPincodeDropdownOpen] = useState(false)
+  const [pincodeSearchError, setPincodeSearchError] = useState(null)
+  const [highlightedPincodeIndex, setHighlightedPincodeIndex] = useState(-1)
+  const pincodeSearchDebounceRef = React.useRef(null)
+  const pincodeSearchRequestIdRef = React.useRef(0)
+  const pincodeLookupRequestIdRef = React.useRef(0)
+  const pincodeDropdownRef = React.useRef(null)
+  const propertyLoadInProgressRef = React.useRef(null)
   const [propertyImages, setPropertyImages] = useState([])
   const [isLoadingImages, setIsLoadingImages] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
@@ -174,149 +183,196 @@ export default function PropertyDetailsPage() {
     }
   }, [location.state])
 
-  const loadProperty = async () => {
-    if (!id) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      // Consolidated details endpoint alongside getPropertyById to guarantee manager data integrity
-      // Backend /details omits manager fields in convertPropertyToResponse, but /properties/{id} preserves them
-      const [detailsRes, singleRes] = await Promise.allSettled([
-        getPropertyDetails(id),
-        getPropertyById(id),
-      ])
-
-      const data =
-        detailsRes.status === 'fulfilled'
-          ? detailsRes.value?.data || detailsRes.value
-          : null
-      const singleProp =
-        singleRes.status === 'fulfilled'
-          ? singleRes.value?.data || singleRes.value
-          : null
-
-      if (!data && !singleProp) {
-        throw detailsRes.status === 'rejected'
-          ? detailsRes.reason
-          : new Error('Property not found')
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        pincodeDropdownRef.current &&
+        !pincodeDropdownRef.current.contains(e.target)
+      ) {
+        setIsPincodeDropdownOpen(false)
       }
-
-      // 1. Property: merge consolidated details with single property to guarantee manager fields
-      const detailsProp = data?.property || (data?.propertyId ? data : null)
-      const rawProperty = {
-        ...(detailsProp || {}),
-        ...(singleProp || {}),
-        // Preserve manager fields if present in either source
-        propertyManagerId:
-          singleProp?.propertyManagerId ??
-          detailsProp?.propertyManagerId ??
-          data?.propertyManagerId ??
-          null,
-        managerName:
-          singleProp?.managerName ??
-          detailsProp?.managerName ??
-          data?.managerName ??
-          null,
-        managerEmail:
-          singleProp?.managerEmail ??
-          detailsProp?.managerEmail ??
-          data?.managerEmail ??
-          null,
-        managerPhone:
-          singleProp?.managerPhone ??
-          detailsProp?.managerPhone ??
-          data?.managerPhone ??
-          null,
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      if (pincodeSearchDebounceRef.current) {
+        clearTimeout(pincodeSearchDebounceRef.current)
       }
+    }
+  }, [])
 
-      if (rawProperty && (rawProperty.propertyId || rawProperty.id)) {
-        setProperty(mapBackendPropertyToUi(rawProperty))
-      } else {
-        setProperty(null)
-      }
+  const loadProperty = () => {
+    if (!id) return Promise.resolve()
+    const requestKey = String(id)
+    // React StrictMode re-runs mount effects in development. Share the active
+    // load for this property instead of issuing duplicate slow details requests.
+    const activeLoad = propertyLoadInProgressRef.current
+    if (activeLoad?.id === requestKey) return activeLoad.promise
 
-      // 2. Address
-      const rawAddress = data?.address || null
-      if (rawAddress && (rawAddress.addressId || rawAddress.addressLine1)) {
-        setAddressData(rawAddress)
-      } else {
-        setAddressData(null)
-      }
+    const loadPromise = (async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        // Consolidated details endpoint alongside getPropertyById to guarantee manager data integrity
+        // Backend /details omits manager fields in convertPropertyToResponse, but /properties/{id} preserves them
+        const [detailsRes, singleRes] = await Promise.allSettled([
+          getPropertyDetails(id),
+          getPropertyById(id),
+        ])
 
-      // 3. Images
-      const rawImages = Array.isArray(data?.images) ? data.images : []
-      setPropertyImages(rawImages)
-      if (rawImages.length > 0 && selectedImageIndex >= rawImages.length) {
-        setSelectedImageIndex(0)
-      }
+        const data =
+          detailsRes.status === 'fulfilled'
+            ? detailsRes.value?.data || detailsRes.value
+            : null
+        const singleProp =
+          singleRes.status === 'fulfilled'
+            ? singleRes.value?.data || singleRes.value
+            : null
 
-      // 4. Amenities
-      const rawAmenities = Array.isArray(data?.amenities) ? data.amenities : []
-      setPropertyAmenities(rawAmenities)
+        // Ignore a response from a previous property if the route changed while
+        // its request was still in flight.
+        if (propertyLoadInProgressRef.current?.id !== requestKey) return
 
-      // 5. Buildings with nested Floors and Units
-      let rawBuildings = Array.isArray(data?.buildings) ? data.buildings : []
-      if (rawBuildings.length === 0 && id) {
-        try {
-          const bRes = await getBuildingsByProperty(id)
-          const bList = Array.isArray(bRes?.data)
-            ? bRes.data
-            : Array.isArray(bRes)
-            ? bRes
-            : []
-          if (bList.length > 0) {
-            rawBuildings = bList
-          }
-        } catch (bErr) {
-          console.warn('Fallback getBuildingsByProperty failed:', bErr)
+        if (!data && !singleProp) {
+          throw detailsRes.status === 'rejected'
+            ? detailsRes.reason
+            : new Error('Property not found')
         }
-      }
 
-      const parsedBuildings = rawBuildings.map((item) => {
-        const b = item.building || item
-        const rawFloors = Array.isArray(item.floors) ? item.floors : []
-        const floors = rawFloors.map((fItem) => {
-          const fl = fItem.floor || fItem
-          const rawUnits = Array.isArray(fItem.units) ? fItem.units : []
-          const units = rawUnits.map((uItem) => uItem.unit || uItem)
+        // 1. Property: merge consolidated details with single property to guarantee manager fields
+        const detailsProp = data?.property || (data?.propertyId ? data : null)
+        const rawProperty = {
+          ...(detailsProp || {}),
+          ...(singleProp || {}),
+          // Preserve manager fields if present in either source
+          propertyManagerId:
+            singleProp?.propertyManagerId ??
+            detailsProp?.propertyManagerId ??
+            data?.propertyManagerId ??
+            null,
+          managerName:
+            singleProp?.managerName ??
+            detailsProp?.managerName ??
+            data?.managerName ??
+            null,
+          managerEmail:
+            singleProp?.managerEmail ??
+            detailsProp?.managerEmail ??
+            data?.managerEmail ??
+            null,
+          managerPhone:
+            singleProp?.managerPhone ??
+            detailsProp?.managerPhone ??
+            data?.managerPhone ??
+            null,
+        }
+
+        if (rawProperty && (rawProperty.propertyId || rawProperty.id)) {
+          setProperty(mapBackendPropertyToUi(rawProperty))
+        } else {
+          setProperty(null)
+        }
+
+        // Only replace consolidated sections when that endpoint succeeded. A
+        // failed details request must not erase data from an earlier successful
+        // response just because the basic property endpoint still succeeded.
+        if (detailsRes.status === 'fulfilled') {
+          // 2. Address
+          const rawAddress = data?.address || null
+          if (rawAddress && (rawAddress.addressId || rawAddress.addressLine1)) {
+            setAddressData(rawAddress)
+          } else {
+            setAddressData(null)
+          }
+
+          // 3. Images
+          const rawImages = Array.isArray(data?.images) ? data.images : []
+          setPropertyImages(rawImages)
+          if (rawImages.length > 0 && selectedImageIndex >= rawImages.length) {
+            setSelectedImageIndex(0)
+          }
+
+          // 4. Amenities
+          const rawAmenities = Array.isArray(data?.amenities) ? data.amenities : []
+          setPropertyAmenities(rawAmenities)
+        }
+
+        // 5. Buildings with nested Floors and Units
+        let rawBuildings = Array.isArray(data?.buildings) ? data.buildings : []
+        let hasBuildingsSnapshot =
+          detailsRes.status === 'fulfilled' && Array.isArray(data?.buildings)
+        if (rawBuildings.length === 0 && id) {
+          try {
+            const bRes = await getBuildingsByProperty(id)
+            const bList = Array.isArray(bRes?.data)
+              ? bRes.data
+              : Array.isArray(bRes)
+              ? bRes
+              : []
+            rawBuildings = bList
+            hasBuildingsSnapshot = true
+          } catch (bErr) {
+            console.warn('Fallback getBuildingsByProperty failed:', bErr)
+          }
+        }
+
+        if (propertyLoadInProgressRef.current?.id !== requestKey) return
+
+        const parsedBuildings = rawBuildings.map((item) => {
+          const b = item.building || item
+          const rawFloors = Array.isArray(item.floors) ? item.floors : []
+          const floors = rawFloors.map((fItem) => {
+            const fl = fItem.floor || fItem
+            const rawUnits = Array.isArray(fItem.units) ? fItem.units : []
+            const units = rawUnits.map((uItem) => uItem.unit || uItem)
+            return {
+              ...fl,
+              floorId: fl.floorId != null ? fl.floorId : fl.id,
+              floorNumber: fl.floorNumber,
+              floorName: fl.floorName,
+              units,
+            }
+          })
+          const totalUnitsFromFloors = floors.reduce(
+            (sum, fl) => sum + (fl.units?.length || 0),
+            0
+          )
           return {
-            ...fl,
-            floorId: fl.floorId != null ? fl.floorId : fl.id,
-            floorNumber: fl.floorNumber,
-            floorName: fl.floorName,
-            units,
+            ...b,
+            buildingId: b.buildingId != null ? b.buildingId : b.id,
+            buildingName: b.buildingName || b.name || 'Unnamed Building',
+            totalFloors: b.totalFloors != null ? b.totalFloors : floors.length,
+            totalUnits:
+              b.totalUnits != null ? b.totalUnits : totalUnitsFromFloors,
+            floors,
           }
         })
-        const totalUnitsFromFloors = floors.reduce(
-          (sum, fl) => sum + (fl.units?.length || 0),
-          0
-        )
-        return {
-          ...b,
-          buildingId: b.buildingId != null ? b.buildingId : b.id,
-          buildingName: b.buildingName || b.name || 'Unnamed Building',
-          totalFloors: b.totalFloors != null ? b.totalFloors : floors.length,
-          totalUnits:
-            b.totalUnits != null ? b.totalUnits : totalUnitsFromFloors,
-          floors,
+        if (hasBuildingsSnapshot) {
+          setPropertyBuildings(parsedBuildings)
         }
-      })
-      setPropertyBuildings(parsedBuildings)
-    } catch (err) {
-      console.error(`Failed to load consolidated property details for ID ${id}:`, err)
-      if (err?.response?.status === 404) {
-        setProperty(null)
-      } else {
-        const errorMsg =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Failed to load property details. Please try again later.'
-        setError(errorMsg)
-        setProperty(null)
+      } catch (err) {
+        if (propertyLoadInProgressRef.current?.id !== requestKey) return
+        console.error(`Failed to load consolidated property details for ID ${id}:`, err)
+        if (err?.response?.status === 404) {
+          setProperty(null)
+        } else {
+          const errorMsg =
+            err?.response?.data?.message ||
+            err?.message ||
+            'Failed to load property details. Please try again later.'
+          setError(errorMsg)
+          setProperty(null)
+        }
+      } finally {
+        if (propertyLoadInProgressRef.current?.promise === loadPromise) {
+          propertyLoadInProgressRef.current = null
+          setIsLoading(false)
+        }
       }
-    } finally {
-      setIsLoading(false)
-    }
+    })()
+
+    propertyLoadInProgressRef.current = { id: requestKey, promise: loadPromise }
+    return loadPromise
   }
 
   const loadAddress = async () => {
@@ -460,6 +516,15 @@ export default function PropertyDetailsPage() {
     setPincodeLookupMessage(null)
     setMapLookupMessage(null)
     setAreaSuggestions([])
+    setIsSearchingPincode(false)
+    setPincodeSuggestions([])
+    setIsPincodeDropdownOpen(false)
+    setPincodeSearchError(null)
+    setHighlightedPincodeIndex(-1)
+    if (pincodeSearchDebounceRef.current) {
+      clearTimeout(pincodeSearchDebounceRef.current)
+    }
+    pincodeSearchRequestIdRef.current += 1
     setIsEditingAddress(true)
   }
 
@@ -482,6 +547,15 @@ export default function PropertyDetailsPage() {
     setPincodeLookupMessage(null)
     setMapLookupMessage(null)
     setAreaSuggestions([])
+    setIsSearchingPincode(false)
+    setPincodeSuggestions([])
+    setIsPincodeDropdownOpen(false)
+    setPincodeSearchError(null)
+    setHighlightedPincodeIndex(-1)
+    if (pincodeSearchDebounceRef.current) {
+      clearTimeout(pincodeSearchDebounceRef.current)
+    }
+    pincodeSearchRequestIdRef.current += 1
     setIsEditingAddress(true)
   }
 
@@ -563,7 +637,112 @@ export default function PropertyDetailsPage() {
     })
   }
 
-  const handlePincodeChange = async (e) => {
+  const executePincodeLookup = async (targetPincode) => {
+    const cleanPin = String(targetPincode || '').trim()
+    if (!cleanPin || cleanPin.length !== 6) return
+
+    setIsLookingUpPincode(true)
+    setPincodeLookupMessage(null)
+    const lookupId = ++pincodeLookupRequestIdRef.current
+
+    try {
+      const pinData = await getPincodeDetails(cleanPin)
+      if (lookupId !== pincodeLookupRequestIdRef.current) {
+        return // Discard stale lookup
+      }
+
+      if (pinData) {
+        // Populate country, state, city, preserving manually entered fields and coordinates
+        setAddressForm((prev) => ({
+          ...prev,
+          pincode: pinData.pincode || cleanPin,
+          state: pinData.state || prev.state,
+          city: pinData.city || pinData.district || prev.city,
+          country: pinData.country || prev.country || 'India',
+        }))
+
+        setAddressFieldErrors((prev) => {
+          const updated = { ...prev }
+          delete updated.pincode
+          if (pinData.state) delete updated.state
+          if (pinData.city || pinData.district) delete updated.city
+          if (pinData.country || prev.country) delete updated.country
+          return updated
+        })
+
+        if (Array.isArray(pinData.areas) && pinData.areas.length > 0) {
+          setAreaSuggestions(pinData.areas)
+        } else {
+          setAreaSuggestions([])
+        }
+
+        const locText = [pinData.city || pinData.district, pinData.state]
+          .filter(Boolean)
+          .join(', ')
+        setPincodeLookupMessage({
+          type: 'success',
+          text: locText ? `Pincode resolved: ${locText}` : 'Pincode resolved successfully',
+        })
+      }
+    } catch (pinErr) {
+      if (lookupId !== pincodeLookupRequestIdRef.current) {
+        return
+      }
+      console.warn('Pincode lookup error:', pinErr)
+      setAreaSuggestions([])
+      const is404 =
+        pinErr?.status === 404 ||
+        pinErr?.response?.status === 404 ||
+        pinErr?.isNotFound ||
+        pinErr?.originalError?.response?.status === 404
+      const msg = is404
+        ? 'Address lookup is unavailable for this pincode. You can enter address fields manually.'
+        : pinErr?.response?.data?.message ||
+          pinErr?.message ||
+          'Address lookup is unavailable for this pincode. You can enter address fields manually.'
+      setPincodeLookupMessage({
+        type: 'error',
+        text: msg,
+      })
+    } finally {
+      if (lookupId === pincodeLookupRequestIdRef.current) {
+        setIsLookingUpPincode(false)
+      }
+    }
+  }
+
+  const handleSelectPincodeSuggestion = (suggestion) => {
+    if (!suggestion || !suggestion.pincode) return
+
+    // Cancel pending search and clear timers
+    if (pincodeSearchDebounceRef.current) {
+      clearTimeout(pincodeSearchDebounceRef.current)
+    }
+    pincodeSearchRequestIdRef.current += 1
+    setIsSearchingPincode(false)
+    setIsPincodeDropdownOpen(false)
+    setHighlightedPincodeIndex(-1)
+    setPincodeSuggestions([])
+    setPincodeSearchError(null)
+
+    // Set the selected pincode
+    const selectedPin = String(suggestion.pincode)
+    setAddressForm((prev) => ({
+      ...prev,
+      pincode: selectedPin,
+    }))
+
+    setAddressFieldErrors((prev) => {
+      const copy = { ...prev }
+      delete copy.pincode
+      return copy
+    })
+
+    // Call full GET /location/pincode/{pincode} lookup to populate country, state, city, and area suggestions
+    executePincodeLookup(selectedPin)
+  }
+
+  const handlePincodeChange = (e) => {
     const rawVal = e.target.value
     // Indian postal pincodes are numeric 6 digits
     const cleaned = rawVal.replace(/\D/g, '').slice(0, 6)
@@ -580,64 +759,136 @@ export default function PropertyDetailsPage() {
       return copy
     })
 
-    if (cleaned.length === 6) {
-      setIsLookingUpPincode(true)
-      setPincodeLookupMessage(null)
+    setPincodeLookupMessage(null)
+    setPincodeSearchError(null)
+    setHighlightedPincodeIndex(-1)
+
+    if (pincodeSearchDebounceRef.current) {
+      clearTimeout(pincodeSearchDebounceRef.current)
+    }
+
+    // Do NOT call full lookup on keystrokes.
+    // Start searching after 3 numeric digits
+    if (cleaned.length < 3) {
+      setIsSearchingPincode(false)
+      setPincodeSuggestions([])
+      setIsPincodeDropdownOpen(false)
+      pincodeSearchRequestIdRef.current += 1
+      return
+    }
+
+    setIsSearchingPincode(true)
+    setIsPincodeDropdownOpen(true)
+
+    // Debounce search requests
+    pincodeSearchDebounceRef.current = setTimeout(async () => {
+      const currentRequestId = ++pincodeSearchRequestIdRef.current
       try {
-        const pinData = await getPincodeDetails(cleaned)
-        if (pinData) {
-          setAddressForm((prev) => ({
-            ...prev,
-            state: pinData.state || prev.state,
-            city: pinData.city || pinData.district || prev.city,
-            country: pinData.country || prev.country || 'India',
-          }))
-
-          setAddressFieldErrors((prev) => {
-            const updated = { ...prev }
-            if (pinData.state) delete updated.state
-            if (pinData.city || pinData.district) delete updated.city
-            if (pinData.country) delete updated.country
-            return updated
-          })
-
-          if (Array.isArray(pinData.areas) && pinData.areas.length > 0) {
-            setAreaSuggestions(pinData.areas)
-          } else {
-            setAreaSuggestions([])
-          }
-
-          const locText = [pinData.city || pinData.district, pinData.state]
-            .filter(Boolean)
-            .join(', ')
-          setPincodeLookupMessage({
-            type: 'success',
-            text: locText ? `Pincode resolved: ${locText}` : 'Pincode resolved',
-          })
+        const results = await searchPincodes(cleaned)
+        // Discard stale response
+        if (currentRequestId !== pincodeSearchRequestIdRef.current) {
+          return
         }
-      } catch (pinErr) {
-        console.warn('Pincode lookup error:', pinErr)
-        setAreaSuggestions([])
-        const is404 =
-          pinErr?.status === 404 ||
-          pinErr?.response?.status === 404 ||
-          pinErr?.isNotFound ||
-          pinErr?.originalError?.response?.status === 404
-        const msg = is404
-          ? 'Address lookup is unavailable for this pincode. You can enter address fields manually.'
-          : pinErr?.response?.data?.message ||
-            pinErr?.message ||
-            'Address lookup is unavailable for this pincode. You can enter address fields manually.'
-        setPincodeLookupMessage({
-          type: 'error',
-          text: msg,
-        })
+
+        const rawList = Array.isArray(results) ? results : []
+        // Deduplicate suggestions and ensure unique entries labeled with pincode, district, state
+        const seen = new Set()
+        const unique = []
+        for (const item of rawList) {
+          if (!item || !item.pincode) continue
+          const pinStr = String(item.pincode).trim()
+          const distStr = item.district ? String(item.district).trim() : ''
+          const stStr = item.state ? String(item.state).trim() : ''
+          const key = `${pinStr}|${distStr}|${stStr}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            unique.push({
+              pincode: pinStr,
+              district: distStr,
+              state: stStr,
+            })
+          }
+        }
+
+        setPincodeSuggestions(unique)
+        setPincodeSearchError(null)
+        setIsPincodeDropdownOpen(true)
+      } catch (err) {
+        if (currentRequestId !== pincodeSearchRequestIdRef.current) {
+          return
+        }
+        console.warn('Pincode autocomplete search failed:', err)
+        setPincodeSuggestions([])
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          'Failed to search pincodes. You can enter details manually.'
+        setPincodeSearchError(msg)
       } finally {
-        setIsLookingUpPincode(false)
+        if (currentRequestId === pincodeSearchRequestIdRef.current) {
+          setIsSearchingPincode(false)
+        }
       }
-    } else {
-      setPincodeLookupMessage(null)
-      setAreaSuggestions([])
+    }, 300)
+  }
+
+  const handlePincodeKeyDown = (e) => {
+    if (isPincodeDropdownOpen && pincodeSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setHighlightedPincodeIndex((prev) =>
+          prev < pincodeSuggestions.length - 1 ? prev + 1 : 0
+        )
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setHighlightedPincodeIndex((prev) =>
+          prev > 0 ? prev - 1 : pincodeSuggestions.length - 1
+        )
+        return
+      }
+      if (e.key === 'Enter') {
+        if (
+          highlightedPincodeIndex >= 0 &&
+          highlightedPincodeIndex < pincodeSuggestions.length
+        ) {
+          e.preventDefault()
+          handleSelectPincodeSuggestion(pincodeSuggestions[highlightedPincodeIndex])
+          return
+        }
+        if (pincodeSuggestions.length === 1) {
+          e.preventDefault()
+          handleSelectPincodeSuggestion(pincodeSuggestions[0])
+          return
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setIsPincodeDropdownOpen(false)
+        setHighlightedPincodeIndex(-1)
+        return
+      }
+      if (e.key === 'Tab') {
+        setIsPincodeDropdownOpen(false)
+        setHighlightedPincodeIndex(-1)
+        return
+      }
+    }
+
+    if (e.key === 'Enter' && addressForm.pincode.length === 6) {
+      e.preventDefault()
+      setIsPincodeDropdownOpen(false)
+      executePincodeLookup(addressForm.pincode)
+    }
+  }
+
+  const handlePincodeFocus = () => {
+    if (
+      addressForm.pincode.length >= 3 &&
+      (pincodeSuggestions.length > 0 || isSearchingPincode || pincodeSearchError)
+    ) {
+      setIsPincodeDropdownOpen(true)
     }
   }
 
@@ -699,11 +950,41 @@ export default function PropertyDetailsPage() {
     setIsSubmittingAddress(true)
     setAddressError(null)
     try {
+      // Send only fields supported by PropertyAddressRequest:
+      // addressLine1, addressLine2, area, areaType, city, state, country, pincode, numeric latitude/longitude
+      const addressPayload = {
+        addressLine1: addressForm.addressLine1.trim(),
+        area: addressForm.area.trim(),
+        city: addressForm.city.trim(),
+        state: addressForm.state.trim(),
+        country: addressForm.country.trim(),
+        pincode: addressForm.pincode.trim(),
+      }
+
+      if (addressForm.addressLine2 && addressForm.addressLine2.trim()) {
+        addressPayload.addressLine2 = addressForm.addressLine2.trim()
+      }
+      if (addressForm.areaType && addressForm.areaType.trim()) {
+        addressPayload.areaType = addressForm.areaType.trim()
+      }
+      if (addressForm.latitude !== '' && addressForm.latitude != null) {
+        const lat = Number(addressForm.latitude)
+        if (!Number.isNaN(lat)) {
+          addressPayload.latitude = lat
+        }
+      }
+      if (addressForm.longitude !== '' && addressForm.longitude != null) {
+        const lng = Number(addressForm.longitude)
+        if (!Number.isNaN(lng)) {
+          addressPayload.longitude = lng
+        }
+      }
+
       if (addressData?.addressId) {
-        await updateAddress(id, addressForm)
+        await updateAddress(id, addressPayload)
         setToastMessage('Property address updated successfully.')
       } else {
-        await createAddress(id, addressForm)
+        await createAddress(id, addressPayload)
         setToastMessage('Property address created successfully.')
       }
       setIsEditingAddress(false)
@@ -1041,15 +1322,25 @@ export default function PropertyDetailsPage() {
   const allUnits = propertyBuildings.flatMap((b) =>
     (b.floors || []).flatMap((fl) => fl.units || [])
   )
-  const totalUnitsCalculated = allUnits.length > 0 ? allUnits.length : (Number(property.totalUnits) || 0)
-  const occupiedUnitsCalculated = allUnits.length > 0
-    ? allUnits.filter((u) => u.status === 'OCCUPIED' || u.status === 'RENTED').length
-    : (Number(property.occupiedUnits) || (property.status === 'OCCUPIED' ? 1 : 0))
-
-  const total = totalUnitsCalculated || 1
-  const occupied = occupiedUnitsCalculated
-  const vacant = Math.max(0, total - occupied)
-  const occupancyPct = total > 0 ? Math.round((occupied / total) * 100) : 0
+  const unitStatusesAvailable = allUnits.length > 0 && allUnits.every((unit) => unit.status != null)
+  const total = property.totalUnits != null
+    ? Number(property.totalUnits)
+    : allUnits.length > 0
+    ? allUnits.length
+    : null
+  const occupied = property.occupiedUnits != null
+    ? Number(property.occupiedUnits)
+    : unitStatusesAvailable
+    ? allUnits.filter((unit) => ['OCCUPIED', 'RENTED'].includes(String(unit.status).toUpperCase())).length
+    : null
+  const vacant = property.vacantUnits != null
+    ? Number(property.vacantUnits)
+    : total != null && occupied != null
+    ? Math.max(0, total - occupied)
+    : null
+  const occupancyPct = total > 0 && occupied != null
+    ? Math.round((occupied / total) * 100)
+    : null
   const currentImage = propertyImages[selectedImageIndex] || propertyImages[0] || null
 
   return (
@@ -1175,11 +1466,12 @@ export default function PropertyDetailsPage() {
                   <StatusBadge status={property.status} size="sm" />
                   <select
                     aria-label="Change property status"
-                    value={property.status || 'AVAILABLE'}
+                    value={property.status || ''}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     disabled={isUpdatingStatus}
                     className="text-xs font-semibold rounded-md border border-[#D9E0E6] bg-white text-[#243447] py-1 px-2 focus:outline-none focus:ring-1 focus:ring-[#315A7D] cursor-pointer hover:border-[#315A7D] transition-colors disabled:opacity-60"
                   >
+                    {!property.status && <option value="" disabled>Status unavailable</option>}
                     {CANONICAL_PROPERTY_STATUSES.map((st) => (
                       <option key={st} value={st}>
                         {st === 'UNDER_MAINTENANCE'
@@ -1660,23 +1952,108 @@ export default function PropertyDetailsPage() {
                       required
                     />
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 relative" ref={pincodeDropdownRef}>
                       <div className="relative">
                         <Input
                           label="Pincode (6 Digits)"
-                          placeholder="e.g. 500081"
+                          placeholder="e.g. 500081 (type 3+ digits to search)"
                           value={addressForm.pincode}
                           onChange={handlePincodeChange}
+                          onKeyDown={handlePincodeKeyDown}
+                          onFocus={handlePincodeFocus}
                           error={addressFieldErrors.pincode}
+                          autoComplete="off"
+                          role="combobox"
+                          aria-expanded={isPincodeDropdownOpen}
+                          aria-autocomplete="list"
+                          aria-controls="pincode-suggestions-list"
+                          aria-activedescendant={
+                            highlightedPincodeIndex >= 0
+                              ? `pincode-sugg-${highlightedPincodeIndex}`
+                              : undefined
+                          }
                           required
                         />
-                        {isLookingUpPincode && (
+                        {isSearchingPincode ? (
                           <div className="absolute right-3 top-8 flex items-center gap-1.5 text-xs text-[#315A7D] bg-white/90 px-1 py-0.5 rounded pointer-events-none">
                             <Loader size="xs" />
-                            <span>Verifying...</span>
+                            <span>Searching...</span>
                           </div>
-                        )}
+                        ) : isLookingUpPincode ? (
+                          <div className="absolute right-3 top-8 flex items-center gap-1.5 text-xs text-[#315A7D] bg-white/90 px-1 py-0.5 rounded pointer-events-none">
+                            <Loader size="xs" />
+                            <span>Resolving...</span>
+                          </div>
+                        ) : null}
                       </div>
+
+                      {/* Autocomplete Suggestions Dropdown */}
+                      {isPincodeDropdownOpen && addressForm.pincode.length >= 3 && (
+                        <div
+                          id="pincode-suggestions-list"
+                          role="listbox"
+                          className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-[#D9E0E6] rounded-xl shadow-lg max-h-56 overflow-y-auto"
+                        >
+                          {isSearchingPincode && pincodeSuggestions.length === 0 ? (
+                            <div className="p-3 text-xs text-[#5B6875] flex items-center gap-2">
+                              <Loader size="xs" />
+                              <span>Searching postal codes for &quot;{addressForm.pincode}&quot;...</span>
+                            </div>
+                          ) : pincodeSearchError ? (
+                            <div className="p-3 text-xs text-amber-800 bg-amber-50 flex items-center gap-2 border-b border-amber-100">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>{pincodeSearchError}</span>
+                            </div>
+                          ) : pincodeSuggestions.length === 0 ? (
+                            <div className="p-3 text-xs text-[#5B6875] text-center">
+                              No matching pincodes found for &quot;{addressForm.pincode}&quot;. You can enter address fields manually.
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="px-3 py-1.5 bg-[#F7F8FA] border-b border-[#D9E0E6] text-[10px] font-semibold text-[#5B6875] flex justify-between items-center">
+                                <span>Suggestions ({pincodeSuggestions.length})</span>
+                                <span className="text-[9px] text-[#98A2B3]">Use ↑↓ to navigate, Enter to select</span>
+                              </div>
+                              <ul className="divide-y divide-slate-100">
+                                {pincodeSuggestions.map((sugg, idx) => {
+                                  const isHighlighted = idx === highlightedPincodeIndex
+                                  return (
+                                    <li
+                                      key={`${sugg.pincode}-${sugg.district}-${sugg.state}-${idx}`}
+                                      id={`pincode-sugg-${idx}`}
+                                      role="option"
+                                      aria-selected={isHighlighted}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        handleSelectPincodeSuggestion(sugg)
+                                      }}
+                                      onMouseEnter={() => setHighlightedPincodeIndex(idx)}
+                                      className={`px-3 py-2 text-xs cursor-pointer flex items-center justify-between transition-colors ${
+                                        isHighlighted
+                                          ? 'bg-[#F0F5FA] text-[#315A7D]'
+                                          : 'hover:bg-slate-50 text-[#243447]'
+                                      }`}
+                                    >
+                                      <div className="flex flex-col">
+                                        <span className="font-semibold text-sm tracking-wide text-[#243447]">
+                                          {sugg.pincode}
+                                        </span>
+                                        <span className="text-[11px] text-[#5B6875]">
+                                          {[sugg.district, sugg.state].filter(Boolean).join(', ') || 'India'}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] font-medium text-[#315A7D] bg-white border border-[#D9E0E6] px-1.5 py-0.5 rounded shadow-2xs">
+                                        Select & Autofill
+                                      </span>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {pincodeLookupMessage && (
                         <p
                           className={`text-[11px] font-medium flex items-center gap-1 mt-1 ${
@@ -1763,6 +2140,15 @@ export default function PropertyDetailsPage() {
                         setPincodeLookupMessage(null)
                         setMapLookupMessage(null)
                         setAreaSuggestions([])
+                        setIsSearchingPincode(false)
+                        setPincodeSuggestions([])
+                        setIsPincodeDropdownOpen(false)
+                        setPincodeSearchError(null)
+                        setHighlightedPincodeIndex(-1)
+                        if (pincodeSearchDebounceRef.current) {
+                          clearTimeout(pincodeSearchDebounceRef.current)
+                        }
+                        pincodeSearchRequestIdRef.current += 1
                       }}
                     >
                       Cancel
@@ -1909,7 +2295,7 @@ export default function PropertyDetailsPage() {
                     <span>Furnishing</span>
                   </div>
                   <p className="text-sm font-bold text-[#243447] truncate">
-                    {property.furnishing || 'Unfurnished'}
+                    {property.furnishing || '—'}
                   </p>
                 </div>
 
@@ -1919,7 +2305,7 @@ export default function PropertyDetailsPage() {
                     <span>Parking</span>
                   </div>
                   <p className="text-sm font-bold text-[#243447] truncate">
-                    {property.parking || (property.parkingAvailable ? 'Available' : 'None')}
+                    {property.parking || (property.parkingAvailable == null ? '—' : property.parkingAvailable ? 'Available' : 'None')}
                   </p>
                 </div>
               </div>
@@ -2413,7 +2799,7 @@ export default function PropertyDetailsPage() {
                   Occupancy Metrics
                 </h2>
                 <span className="text-xs font-bold text-[#315A7D]">
-                  {occupancyPct}%
+                  {occupancyPct == null ? '—' : `${occupancyPct}%`}
                 </span>
               </div>
 
@@ -2421,13 +2807,15 @@ export default function PropertyDetailsPage() {
                 <div className="w-full bg-[#F7F8FA] h-2.5 rounded-full overflow-hidden border border-[#D9E0E6]">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      occupancyPct >= 90
+                      occupancyPct == null
+                        ? 'bg-[#CBD5E1]'
+                        : occupancyPct >= 90
                         ? 'bg-[#3F7D58]'
                         : occupancyPct >= 50
                         ? 'bg-[#315A7D]'
                         : 'bg-[#B7791F]'
                     }`}
-                    style={{ width: `${occupancyPct}%` }}
+                    style={{ width: `${occupancyPct ?? 0}%` }}
                   />
                 </div>
 
@@ -2435,19 +2823,19 @@ export default function PropertyDetailsPage() {
                   <div className="p-2 rounded-xl bg-[#F7F8FA] border border-[#D9E0E6]">
                     <p className="text-xs text-[#5B6875]">Total</p>
                     <p className="text-sm font-bold text-[#243447]">
-                      {total}
+                      {total ?? '—'}
                     </p>
                   </div>
                   <div className="p-2 rounded-xl bg-[#EDF7EE] border border-[#C6DEC8]">
                     <p className="text-xs text-[#2A583B]">Occupied</p>
                     <p className="text-sm font-bold text-[#2A583B]">
-                      {occupied}
+                      {occupied ?? '—'}
                     </p>
                   </div>
                   <div className="p-2 rounded-xl bg-[#FEF7EC] border border-[#F4E2B6]">
                     <p className="text-xs text-[#8A5B16]">Vacant</p>
                     <p className="text-sm font-bold text-[#8A5B16]">
-                      {vacant}
+                      {vacant ?? '—'}
                     </p>
                   </div>
                 </div>
@@ -2621,13 +3009,13 @@ export default function PropertyDetailsPage() {
                 <div className="flex justify-between pt-2">
                   <span className="text-[#5B6875]">Furnishing:</span>
                   <span className="font-semibold text-[#243447]">
-                    {property.furnishing || 'Unfurnished'}
+                    {property.furnishing || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2">
                   <span className="text-[#5B6875]">Parking:</span>
                   <span className="font-semibold text-[#243447]">
-                    {property.parking || (property.parkingAvailable ? 'Available' : 'None')}
+                    {property.parking || (property.parkingAvailable == null ? '—' : property.parkingAvailable ? 'Available' : 'None')}
                   </span>
                 </div>
               </div>
@@ -2683,14 +3071,9 @@ export default function PropertyDetailsPage() {
                     Generate Tenant Agreement
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  leftIcon={<Wrench className="w-4 h-4" />}
-                  onClick={() => alert('Maintenance dispatch placeholder')}
-                >
-                  Schedule Unit Inspection
-                </Button>
+                <p className="rounded-md border border-[#D9E0E6] bg-[#F7F8FA] p-3 text-xs text-[#5B6875]">
+                  Inspection scheduling is unavailable because the backend does not provide an inspection-request service.
+                </p>
                 <Button
                   variant="outline"
                   className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
