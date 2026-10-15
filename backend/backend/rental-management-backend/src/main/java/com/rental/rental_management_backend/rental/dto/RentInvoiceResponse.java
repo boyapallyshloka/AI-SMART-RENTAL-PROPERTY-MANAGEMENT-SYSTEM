@@ -92,6 +92,22 @@ public void setTenantId(Long tenantId) {
     this.tenantId = tenantId;
 }
 
+public String getTenantName() {
+    return tenantName;
+}
+
+public void setTenantName(String tenantName) {
+    this.tenantName = tenantName;
+}
+
+public String getTenantEmail() {
+    return tenantEmail;
+}
+
+public void setTenantEmail(String tenantEmail) {
+    this.tenantEmail = tenantEmail;
+}
+
 
 public Long getUnitId() {
     return unitId;
