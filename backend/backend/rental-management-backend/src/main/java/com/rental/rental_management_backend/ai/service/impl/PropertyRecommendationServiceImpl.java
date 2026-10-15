@@ -23,12 +23,13 @@ import com.rental.rental_management_backend.ai.dto.M2RecommendationItem;
 import com.rental.rental_management_backend.ai.dto.M2RecommendationRequest;
 import com.rental.rental_management_backend.ai.dto.M2RecommendationResponse;
 import com.rental.rental_management_backend.ai.service.PropertyRecommendationService;
-import com.rental.rental_management_backend.property.dto.PropertyDetailsResponse;
+import com.rental.rental_management_backend.property.dto.PropertyCardResponse;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.property.enums.UnitStatus;
+import com.rental.rental_management_backend.property.repository.PropertyRepository;
 import com.rental.rental_management_backend.property.repository.UnitRepository;
-import com.rental.rental_management_backend.property.service.PropertyDetailsService;
 import com.rental.rental_management_backend.tenant.repository.TenantRepository;
+import com.rental.rental_management_backend.s3.service.S3Service;
 
 @Service
 @Transactional(readOnly = true)
@@ -41,7 +42,9 @@ public class PropertyRecommendationServiceImpl
 
     private final UnitRepository unitRepository;
 
-    private final PropertyDetailsService propertyDetailsService;
+    private final PropertyRepository propertyRepository;
+
+    private final S3Service s3Service;
 
     private final ObjectMapper objectMapper;
 
@@ -55,7 +58,9 @@ public class PropertyRecommendationServiceImpl
 
             UnitRepository unitRepository,
 
-            PropertyDetailsService propertyDetailsService,
+            PropertyRepository propertyRepository,
+
+            S3Service s3Service,
 
             ObjectMapper objectMapper) {
 
@@ -65,7 +70,9 @@ public class PropertyRecommendationServiceImpl
 
         this.unitRepository = unitRepository;
 
-        this.propertyDetailsService = propertyDetailsService;
+        this.propertyRepository = propertyRepository;
+
+        this.s3Service = s3Service;
 
         this.objectMapper = objectMapper;
 
@@ -284,21 +291,34 @@ public class PropertyRecommendationServiceImpl
 
             /*
              * --------------------------------------------------------
-             * PROPERTY DETAILS
+             * LIGHTWEIGHT PROPERTY CARD
              * --------------------------------------------------------
              *
-             * Get current property information from PostgreSQL.
+             * Get only the information required to display the
+             * recommendation card.
+             *
+             * Full property details are NOT loaded here.
+             *
+             * Full details are loaded only when the tenant opens
+             * the property using:
+             *
+             * GET /api/properties/public/{propertyId}
              */
+
+            PropertyCardResponse propertyCard;
 
             try {
 
-                PropertyDetailsResponse propertyDetails =
-                        propertyDetailsService
-                                .getPublicPropertyDetails(
-                                        recommendedPropertyId);
+                propertyCard =
+                        propertyRepository
+                                .findPropertyCardById(
+                                        recommendedPropertyId)
+                                .orElse(null);
 
-                recommendation.setPropertyDetails(
-                        propertyDetails);
+                if (propertyCard == null) {
+
+                    continue;
+                }
 
             } catch (Exception ex) {
 
@@ -311,6 +331,12 @@ public class PropertyRecommendationServiceImpl
 
                 continue;
             }
+
+            propertyCard.setImageUrl(
+                    toPresignedImageUrl(
+                            propertyCard.getImageUrl()));
+
+            recommendation.setPropertyCard(propertyCard);
 
             /*
              * --------------------------------------------------------
@@ -633,5 +659,19 @@ public class PropertyRecommendationServiceImpl
                 longitude
 
         };
+    }
+
+    private String toPresignedImageUrl(String imageUrl) {
+
+        if (imageUrl == null
+                || imageUrl.isBlank()
+                || imageUrl.startsWith("http://")
+                || imageUrl.startsWith("https://")
+                || imageUrl.startsWith("/uploads/")) {
+
+            return imageUrl;
+        }
+
+        return s3Service.generatePresignedUrl(imageUrl);
     }
 }

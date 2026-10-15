@@ -8,6 +8,7 @@ import {
   APPLICATION_STATUSES,
 } from '../../api/applicationApi'
 import PaymentRiskAnalysisCard from '../../components/applications/PaymentRiskAnalysisCard'
+import TenantDocumentsCard from '../../components/applications/TenantDocumentsCard'
 import {
   Button,
   StatusBadge,
@@ -696,6 +697,8 @@ export default function ManagerApplicationDetailsPage() {
                 </div>
               </div>
             </div>
+
+            <TenantDocumentsCard tenantId={application.tenantId} />
 
             {/* AI Decision Support: Tenant Payment-Risk Analysis */}
             <PaymentRiskAnalysisCard tenantId={application.tenantId} />

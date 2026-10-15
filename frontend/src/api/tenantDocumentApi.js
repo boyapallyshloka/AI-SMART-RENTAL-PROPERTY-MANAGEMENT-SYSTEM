@@ -58,6 +58,22 @@ export const getMyTenantDocuments = async () => {
   return axiosClient.get('/tenants/me/documents')
 }
 
+/** Retrieve documents for a tenant (requires backend authorization for the caller's role). */
+export const getTenantDocuments = async (tenantId) => {
+  if (!tenantId) return []
+  return axiosClient.get(`/tenants/${tenantId}/documents`)
+}
+
+/** Update a tenant document's review status (SUPER_ADMIN only). */
+export const updateTenantDocumentVerification = async (tenantId, documentId, status) => {
+  if (!tenantId || !documentId) throw new Error('Tenant and document IDs are required.')
+  return axiosClient.patch(
+    `/tenants/${tenantId}/documents/${documentId}/verification`,
+    null,
+    { params: { status } }
+  )
+}
+
 /**
  * Retrieve a specific document by ID
  * Endpoint: GET /api/tenants/me/documents/{documentId}

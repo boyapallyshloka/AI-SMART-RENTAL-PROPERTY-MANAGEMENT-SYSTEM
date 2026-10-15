@@ -100,9 +100,17 @@ const INITIAL_FILTERS = {
 function mapRecommendationToProperty(item) {
   if (!item) return null
 
+  // M2 now returns a lightweight card nested under propertyCard. Keep the
+  // previous propertyDetails shape as a compatibility fallback.
+  const card = item.propertyCard || null
   const details = item.propertyDetails || {}
-  const prop = details.property || (item.propertyDetails ? details : item)
+  const prop = card || details.property || (item.propertyDetails ? details : item)
   const addr = details.address || prop.address || {}
+  const addressText = typeof addr === 'string'
+    ? addr
+    : [addr.addressLine1, addr.addressLine2, addr.area, addr.city, addr.state, addr.pincode]
+        .filter(Boolean)
+        .join(', ')
   const images = Array.isArray(details.images) && details.images.length > 0
     ? details.images
     : (Array.isArray(prop.images) ? prop.images : [])
@@ -128,7 +136,7 @@ function mapRecommendationToProperty(item) {
     matchCriteria.push('Amenities')
   }
 
-  const propertyId = item.propertyId || prop.propertyId || prop.id
+  const propertyId = item.propertyId || card?.id || prop.propertyId || prop.id
   let monthlyRent = item.monthlyRent != null ? item.monthlyRent : prop.monthlyRent
   if (monthlyRent == null && Array.isArray(item.availableUnits) && item.availableUnits.length > 0) {
     const rents = item.availableUnits
@@ -149,7 +157,7 @@ function mapRecommendationToProperty(item) {
     }
   }
 
-  const city = item.propertyCity || prop.city || addr.city
+  const city = item.propertyCity || prop.city || (typeof addr === 'object' ? addr.city : '')
 
   const rawDist = item.approxDistanceKm != null ? item.approxDistanceKm : md.distance?.approxDistanceKm
   const approxDistanceKm =
@@ -194,15 +202,18 @@ function mapRecommendationToProperty(item) {
     propertyName: prop.propertyName || prop.name || `Property #${propertyId}`,
     propertyType: prop.propertyType || prop.type,
     city: city,
-    location: addr.city || city || addr.addressLine1 || prop.location || '',
-    address: addr.addressLine1 || prop.address || '',
+    location: addressText || city || prop.location || '',
+    address: addressText || '',
     monthlyRent: monthlyRent,
     bedrooms: bedrooms,
     bathrooms: prop.bathrooms,
-    totalArea: prop.totalArea || prop.area,
+    area: prop.areaSqft ?? prop.totalArea ?? prop.area,
+    totalArea: prop.areaSqft ?? prop.totalArea ?? prop.area,
+    yearBuilt: prop.yearBuilt,
     images: validImages,
     imageUrl: resolvedImageUrl,
     status: prop.status,
+    isFavorite: prop.isFavorite,
     aiMatchScore: aiScore,
     matchCriteria,
     approxDistanceKm,

@@ -15,6 +15,11 @@ export const getMyTenantProfile = async () => {
   return axiosClient.get('/tenants/me')
 }
 
+/** Search tenant profiles. SUPER_ADMIN access is required by the backend. */
+export const searchTenants = async (keyword) => {
+  return axiosClient.get('/tenants/search', { params: { keyword: keyword?.trim() || '' } })
+}
+
 /**
  * Update profile information for the authenticated Tenant
  * Endpoint: PUT /api/tenants/me

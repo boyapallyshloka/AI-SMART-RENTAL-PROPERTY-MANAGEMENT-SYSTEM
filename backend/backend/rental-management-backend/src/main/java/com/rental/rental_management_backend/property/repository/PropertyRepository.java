@@ -2,7 +2,9 @@ package com.rental.rental_management_backend.property.repository;
 
 import java.util.List;
 import java.util.Optional;
+
 import com.rental.rental_management_backend.property.dto.PropertyCardResponse;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
@@ -198,6 +200,7 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             @Param("bedrooms")
             Integer bedrooms
     );
+
     @Query("""
     SELECT new com.rental.rental_management_backend.property.dto.PropertyCardResponse(
         p.propertyId,
@@ -233,6 +236,66 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
     FROM Property p
     WHERE p.status = :status
     """)
-List<PropertyCardResponse> findAvailablePropertyCards(
-        @Param("status") PropertyStatus status);
+    List<PropertyCardResponse> findAvailablePropertyCards(
+            @Param("status") PropertyStatus status);
+
+    /*
+     * Lightweight property card lookup for M2 recommendations.
+     *
+     * This returns only the information required for the
+     * recommendation card.
+     *
+     * Full property details are loaded only when the tenant
+     * opens the property using:
+     *
+     * GET /api/properties/public/{propertyId}
+     */
+    @Query("""
+        SELECT new com.rental.rental_management_backend.property.dto.PropertyCardResponse(
+            p.propertyId,
+            p.propertyName,
+            CAST(p.propertyType AS string),
+            CAST(p.status AS string),
+            p.totalArea,
+            p.yearBuilt,
+            (
+                SELECT CONCAT(CONCAT(a.addressLine1, ', '), a.city)
+                FROM PropertyAddress a
+                WHERE a.property = p
+            ),
+            COALESCE(
+                (
+                    SELECT primaryImage.imageUrl
+                    FROM PropertyImage primaryImage
+                    WHERE primaryImage.property = p
+                      AND primaryImage.imageId = (
+                          SELECT MIN(primaryImageId.imageId)
+                          FROM PropertyImage primaryImageId
+                          WHERE primaryImageId.property = p
+                            AND primaryImageId.isPrimary = true
+                      )
+                ),
+                (
+                    SELECT fallbackImage.imageUrl
+                    FROM PropertyImage fallbackImage
+                    WHERE fallbackImage.property = p
+                      AND fallbackImage.imageId = (
+                          SELECT MIN(fallbackImageId.imageId)
+                          FROM PropertyImage fallbackImageId
+                          WHERE fallbackImageId.property = p
+                            AND fallbackImage.imageId = (
+                                SELECT MIN(fallbackImageId2.imageId)
+                                FROM PropertyImage fallbackImageId2
+                                WHERE fallbackImageId2.property = p
+                            )
+                      )
+                )
+            ),
+            false
+        )
+        FROM Property p
+        WHERE p.propertyId = :propertyId
+        """)
+    Optional<PropertyCardResponse> findPropertyCardById(
+            @Param("propertyId") Long propertyId);
 }

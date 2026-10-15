@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.service;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public interface TenantDocumentService {
             Long documentId);
 
     List<TenantDocumentResponse> getTenantDocuments(
+            String email,
             Long tenantId);
 
     TenantDocumentResponse updateVerificationStatus(

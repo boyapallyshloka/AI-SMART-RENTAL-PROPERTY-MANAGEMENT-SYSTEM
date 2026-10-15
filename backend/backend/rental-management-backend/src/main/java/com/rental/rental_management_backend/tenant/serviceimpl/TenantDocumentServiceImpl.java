@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.rental.rental_management_backend.User.Repository.UserRepository;
 import com.rental.rental_management_backend.User.entity.User;
 import com.rental.rental_management_backend.User.enums.RoleType;
+import com.rental.rental_management_backend.rental.entity.RentalApplication;
+import com.rental.rental_management_backend.rental.repository.RentalApplicationRepository;
 import com.rental.rental_management_backend.s3.service.S3Service;
 import com.rental.rental_management_backend.tenant.dto.TenantDocumentResponse;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
@@ -33,12 +35,15 @@ public class TenantDocumentServiceImpl
 
     private final UserRepository userRepository;
 
+    private final RentalApplicationRepository rentalApplicationRepository;
+
     private final S3Service s3Service;
 
     public TenantDocumentServiceImpl(
             TenantDocumentRepository tenantDocumentRepository,
             TenantRepository tenantRepository,
             UserRepository userRepository,
+            RentalApplicationRepository rentalApplicationRepository,
             S3Service s3Service) {
 
         this.tenantDocumentRepository =
@@ -49,6 +54,9 @@ public class TenantDocumentServiceImpl
 
         this.userRepository =
                 userRepository;
+
+        this.rentalApplicationRepository =
+                rentalApplicationRepository;
 
         this.s3Service =
                 s3Service;
@@ -244,13 +252,17 @@ public class TenantDocumentServiceImpl
     }
 
     // =========================================================
-    // SUPER ADMIN - GET TENANT DOCUMENTS
+    // GET TENANT DOCUMENTS
     // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public List<TenantDocumentResponse> getTenantDocuments(
+            String email,
             Long tenantId) {
+
+        User authenticatedUser =
+                getAuthenticatedUser(email);
 
         Tenant tenant =
                 tenantRepository
@@ -259,6 +271,127 @@ public class TenantDocumentServiceImpl
                                 new RuntimeException(
                                         "Tenant not found with ID: "
                                                 + tenantId));
+
+        /*
+         * SUPER_ADMIN can view documents
+         * for any tenant.
+         */
+        if (authenticatedUser.getRole()
+                == RoleType.SUPER_ADMIN) {
+
+            return getTenantDocumentsList(tenant);
+        }
+
+        /*
+         * PROPERTY_OWNER and PROPERTY_MANAGER
+         * require property-level authorization.
+         */
+        if (authenticatedUser.getRole()
+                == RoleType.PROPERTY_OWNER
+                || authenticatedUser.getRole()
+                == RoleType.PROPERTY_MANAGER) {
+
+            boolean authorized =
+                    tenantHasAuthorizedProperty(
+                            tenantId,
+                            authenticatedUser);
+
+            if (!authorized) {
+
+                throw new RuntimeException(
+                        "You are not authorized to view documents for this tenant");
+            }
+
+            return getTenantDocumentsList(tenant);
+        }
+
+        throw new RuntimeException(
+                "You are not authorized to view tenant documents");
+    }
+
+    // =========================================================
+    // CHECK PROPERTY AUTHORIZATION
+    // =========================================================
+
+    private boolean tenantHasAuthorizedProperty(
+            Long tenantId,
+            User authenticatedUser) {
+
+        List<RentalApplication> applications =
+                rentalApplicationRepository
+                        .findByTenant_TenantId(tenantId);
+
+        for (RentalApplication application : applications) {
+
+            if (application.getUnit() == null
+                    || application.getUnit()
+                            .getFloor() == null
+                    || application.getUnit()
+                            .getFloor()
+                            .getBuilding() == null
+                    || application.getUnit()
+                            .getFloor()
+                            .getBuilding()
+                            .getProperty() == null) {
+
+                continue;
+            }
+
+            var property =
+                    application.getUnit()
+                            .getFloor()
+                            .getBuilding()
+                            .getProperty();
+
+            /*
+             * PROPERTY_OWNER:
+             *
+             * The authenticated user must be
+             * the owner of the property's owner field.
+             */
+            if (authenticatedUser.getRole()
+                    == RoleType.PROPERTY_OWNER) {
+
+                if (property.getOwner() != null
+                        && property.getOwner()
+                                .getId()
+                                .equals(authenticatedUser.getId())) {
+
+                    return true;
+                }
+            }
+
+            /*
+             * PROPERTY_MANAGER:
+             *
+             * The authenticated user must be the
+             * user assigned to the property's manager.
+             */
+            if (authenticatedUser.getRole()
+                    == RoleType.PROPERTY_MANAGER) {
+
+                if (property.getPropertyManager() != null
+                        && property.getPropertyManager()
+                                .getUser() != null
+                        && property.getPropertyManager()
+                                .getUser()
+                                .getId()
+                                .equals(authenticatedUser.getId())) {
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // =========================================================
+    // GET TENANT DOCUMENT LIST
+    // =========================================================
+
+    private List<TenantDocumentResponse> getTenantDocumentsList(
+            Tenant tenant) {
 
         return tenantDocumentRepository
                 .findByTenant(tenant)
@@ -311,6 +444,28 @@ public class TenantDocumentServiceImpl
                 tenantDocumentRepository.save(document);
 
         return mapToResponse(updatedDocument);
+    }
+
+    // =========================================================
+    // GET AUTHENTICATED USER
+    // =========================================================
+
+    private User getAuthenticatedUser(
+            String email) {
+
+        if (email == null
+                || email.isBlank()) {
+
+            throw new RuntimeException(
+                    "Authenticated user email not found");
+        }
+
+        return userRepository
+                .findByEmail(
+                        email.trim().toLowerCase())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Authenticated user not found"));
     }
 
     // =========================================================

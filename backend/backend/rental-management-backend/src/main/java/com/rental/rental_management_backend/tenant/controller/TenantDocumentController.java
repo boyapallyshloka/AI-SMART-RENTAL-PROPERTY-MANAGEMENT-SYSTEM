@@ -1,3 +1,4 @@
+
 package com.rental.rental_management_backend.tenant.controller;
 
 import java.util.List;
@@ -130,18 +131,32 @@ public class TenantDocumentController {
     }
 
     // =========================================================
-    // SUPER ADMIN - GET TENANT DOCUMENTS
+    // GET TENANT DOCUMENTS
     // =========================================================
 
     @GetMapping("/{tenantId}/documents")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("""
+            hasAnyRole(
+                'SUPER_ADMIN',
+                'PROPERTY_OWNER',
+                'PROPERTY_MANAGER'
+            )
+            """)
     public ResponseEntity<List<TenantDocumentResponse>>
             getTenantDocuments(
+
+                    Authentication authentication,
+
                     @PathVariable Long tenantId) {
+
+        String email =
+                authentication.getName();
 
         return ResponseEntity.ok(
                 tenantDocumentService
-                        .getTenantDocuments(tenantId));
+                        .getTenantDocuments(
+                                email,
+                                tenantId));
     }
 
     // =========================================================
