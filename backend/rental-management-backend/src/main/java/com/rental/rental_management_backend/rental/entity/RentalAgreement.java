@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.rental.rental_management_backend.property.entity.Property;
 import com.rental.rental_management_backend.property.entity.Unit;
 import com.rental.rental_management_backend.rental.enums.AgreementStatus;
 import com.rental.rental_management_backend.tenant.entity.Tenant;
@@ -49,11 +50,15 @@ public class RentalAgreement {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "property_id")
+    private Property property;
+
     /*
      * Unit comes from the approved rental application.
      */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "unit_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id")
     private Unit unit;
 
     @NotNull(message = "Agreement start date is required")
@@ -169,6 +174,14 @@ public class RentalAgreement {
 
     public void setTenant(Tenant tenant) {
         this.tenant = tenant;
+    }
+
+    public Property getProperty() {
+        return property;
+    }
+
+    public void setProperty(Property property) {
+        this.property = property;
     }
 
     public Unit getUnit() {

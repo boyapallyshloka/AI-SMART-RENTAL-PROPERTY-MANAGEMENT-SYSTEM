@@ -1,5 +1,6 @@
 package com.rental.rental_management_backend.property.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.rental.rental_management_backend.property.enums.FurnishingStatus;
@@ -13,6 +14,10 @@ public class PropertyResponse {
     private String propertyName;
 
     private PropertyType propertyType;
+
+    private BigDecimal monthlyRent;
+
+    private BigDecimal securityDeposit;
 
     private String description;
 
@@ -67,6 +72,22 @@ public class PropertyResponse {
 
     public void setPropertyType(PropertyType propertyType) {
         this.propertyType = propertyType;
+    }
+
+    public BigDecimal getMonthlyRent() {
+        return monthlyRent;
+    }
+
+    public void setMonthlyRent(BigDecimal monthlyRent) {
+        this.monthlyRent = monthlyRent;
+    }
+
+    public BigDecimal getSecurityDeposit() {
+        return securityDeposit;
+    }
+
+    public void setSecurityDeposit(BigDecimal securityDeposit) {
+        this.securityDeposit = securityDeposit;
     }
 
     public String getDescription() {

@@ -23,6 +23,7 @@ import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestRe
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceRequestResponse;
 import com.rental.rental_management_backend.maintenance.dto.MaintenanceStatusUpdateRequest;
 import com.rental.rental_management_backend.maintenance.entity.MaintenanceRequest;
+import com.rental.rental_management_backend.maintenance.enums.MaintenancePayer;
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus;
 import com.rental.rental_management_backend.maintenance.repository.MaintenanceRequestRepository;
 
@@ -228,6 +229,10 @@ public class MaintenanceRequestServiceImpl
 
         maintenanceRequest.setPriority(
                 request.getPriority());
+
+        if (request.getPayer() != null) {
+            maintenanceRequest.setPayer(request.getPayer());
+        }
 
         maintenanceRequest.setStatus(
                 MaintenanceStatus.OPEN);
@@ -725,6 +730,10 @@ public class MaintenanceRequestServiceImpl
 
             existingRequest.setCost(
                     request.getCost());
+        }
+
+        if (request.getPayer() != null) {
+            existingRequest.setPayer(request.getPayer());
         }
 
         // -----------------------------------------------------
@@ -1436,6 +1445,11 @@ public class MaintenanceRequestServiceImpl
 
         response.setCost(
                 request.getCost());
+
+        response.setPayer(
+                request.getPayer() == null
+                        ? MaintenancePayer.OWNER_PAID
+                        : request.getPayer());
 
         return response;
     }

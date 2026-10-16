@@ -12,7 +12,8 @@ import jakarta.validation.constraints.Size;
 
 public class RentalApplicationCreateRequest {
 
-    @NotNull(message = "Unit ID is required")
+    private Long propertyId;
+
     private Long unitId;
 
     @FutureOrPresent(message = "Preferred move-in date cannot be in the past")
@@ -32,6 +33,14 @@ public class RentalApplicationCreateRequest {
     private String message;
 
     public RentalApplicationCreateRequest() {
+    }
+
+    public Long getPropertyId() {
+        return propertyId;
+    }
+
+    public void setPropertyId(Long propertyId) {
+        this.propertyId = propertyId;
     }
 
     public Long getUnitId() {

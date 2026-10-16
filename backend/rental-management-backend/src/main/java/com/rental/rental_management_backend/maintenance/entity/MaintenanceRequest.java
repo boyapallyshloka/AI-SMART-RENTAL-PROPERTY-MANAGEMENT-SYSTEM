@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceCategory;
+import com.rental.rental_management_backend.maintenance.enums.MaintenancePayer;
 import com.rental.rental_management_backend.maintenance.enums.MaintenancePriority;
 import com.rental.rental_management_backend.maintenance.enums.MaintenanceStatus;
 import com.rental.rental_management_backend.property.entity.Property;
@@ -154,6 +155,11 @@ public class MaintenanceRequest {
     )
     private BigDecimal cost;
 
+    // Nullable for compatibility with existing maintenance records.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payer", length = 20)
+    private MaintenancePayer payer = MaintenancePayer.OWNER_PAID;
+
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
@@ -172,6 +178,10 @@ public class MaintenanceRequest {
 
         if (status == null) {
             status = MaintenanceStatus.OPEN;
+        }
+
+        if (payer == null) {
+            payer = MaintenancePayer.OWNER_PAID;
         }
     }
 
@@ -277,5 +287,13 @@ public class MaintenanceRequest {
 
     public void setCost(BigDecimal cost) {
         this.cost = cost;
+    }
+
+    public MaintenancePayer getPayer() {
+        return payer;
+    }
+
+    public void setPayer(MaintenancePayer payer) {
+        this.payer = payer;
     }
 }

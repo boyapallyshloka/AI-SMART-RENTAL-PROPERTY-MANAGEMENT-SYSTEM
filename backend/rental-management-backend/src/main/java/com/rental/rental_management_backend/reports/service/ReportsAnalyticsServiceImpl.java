@@ -27,6 +27,7 @@ import com.rental.rental_management_backend.User.enums.RoleType;
 import com.rental.rental_management_backend.expense.entity.Expense;
 import com.rental.rental_management_backend.expense.repository.ExpenseRepository;
 import com.rental.rental_management_backend.maintenance.entity.MaintenanceRequest;
+import com.rental.rental_management_backend.maintenance.enums.MaintenancePayer;
 import com.rental.rental_management_backend.maintenance.repository.MaintenanceRequestRepository;
 import com.rental.rental_management_backend.payment.entity.Payment;
 import com.rental.rental_management_backend.payment.enums.PaymentStatus;
@@ -322,6 +323,10 @@ public class ReportsAnalyticsServiceImpl implements ReportsAnalyticsService {
                     || !"COMPLETED".equals(request.getStatus().name())
                     || request.getCost() == null
                     || request.getCompletedDate() == null) {
+                continue;
+            }
+
+            if (request.getPayer() == MaintenancePayer.TENANT_PAID) {
                 continue;
             }
 

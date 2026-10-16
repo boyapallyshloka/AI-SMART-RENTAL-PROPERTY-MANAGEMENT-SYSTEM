@@ -20,6 +20,8 @@ public interface RentalAgreementRepository
     @EntityGraph(attributePaths = {
             "rentalApplication",
             "tenant.user",
+            "property.owner",
+            "property.propertyManager.user",
             "unit.floor.building.property.owner"
     })
     @Query("SELECT agreement FROM RentalAgreement agreement")
@@ -28,6 +30,8 @@ public interface RentalAgreementRepository
     @EntityGraph(attributePaths = {
             "rentalApplication",
             "tenant.user",
+            "property.owner",
+            "property.propertyManager.user",
             "unit.floor.building.property.owner",
             "unit.floor.building.property.propertyManager.user"
     })
@@ -37,6 +41,8 @@ public interface RentalAgreementRepository
     @EntityGraph(attributePaths = {
             "rentalApplication",
             "tenant.user",
+            "property.owner",
+            "property.propertyManager.user",
             "unit.floor.building.property.owner",
             "unit.floor.building.property.propertyManager.user"
     })
@@ -54,6 +60,8 @@ public interface RentalAgreementRepository
     @EntityGraph(attributePaths = {
             "rentalApplication",
             "tenant.user",
+            "property.owner",
+            "property.propertyManager.user",
             "unit.floor.building.property.owner"
     })
     List<RentalAgreement>
@@ -65,6 +73,10 @@ public interface RentalAgreementRepository
     boolean
     existsByUnit_UnitIdAndStatus(
             Long unitId,
+            AgreementStatus status);
+
+    boolean existsByProperty_PropertyIdAndStatus(
+            Long propertyId,
             AgreementStatus status);
  // M3 Rental Demand Prediction
 

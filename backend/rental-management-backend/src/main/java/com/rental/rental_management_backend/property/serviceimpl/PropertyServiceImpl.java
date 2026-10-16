@@ -61,6 +61,7 @@ public class PropertyServiceImpl implements PropertyService {
 
 	    property.setPropertyName(request.getPropertyName());
 	    property.setPropertyType(request.getPropertyType());
+            applyPropertyRentalDetails(property, request, false);
 	    property.setDescription(request.getDescription());
 	    property.setTotalArea(request.getTotalArea());
 	    property.setFurnishingStatus(request.getFurnishingStatus());
@@ -244,6 +245,8 @@ private String toPublicImageUrl(String imageUrl) {
 
         property.setPropertyType(request.getPropertyType());
 
+        applyPropertyRentalDetails(property, request, true);
+
         property.setDescription(request.getDescription());
 
         property.setTotalArea(request.getTotalArea());
@@ -349,6 +352,28 @@ private String toPublicImageUrl(String imageUrl) {
         }
     }
 
+        private void applyPropertyRentalDetails(
+                        Property property,
+                        PropertyRequest request,
+                        boolean preserveMissingValues) {
+                PropertyType propertyType = request.getPropertyType();
+                boolean directRental = propertyType == PropertyType.HOUSE
+                                || propertyType == PropertyType.VILLA;
+
+                if (!directRental) {
+                        property.setMonthlyRent(null);
+                        property.setSecurityDeposit(null);
+                        return;
+                }
+
+                if (!preserveMissingValues || request.getMonthlyRent() != null) {
+                        property.setMonthlyRent(request.getMonthlyRent());
+                }
+                if (!preserveMissingValues || request.getSecurityDeposit() != null) {
+                        property.setSecurityDeposit(request.getSecurityDeposit());
+                }
+        }
+
     private PropertyResponse convertToResponse(
             Property property) {
 
@@ -366,6 +391,10 @@ private String toPublicImageUrl(String imageUrl) {
         response.setPropertyType(
                 property.getPropertyType()
         );
+
+        response.setMonthlyRent(property.getMonthlyRent());
+
+        response.setSecurityDeposit(property.getSecurityDeposit());
 
         response.setDescription(
                 property.getDescription()

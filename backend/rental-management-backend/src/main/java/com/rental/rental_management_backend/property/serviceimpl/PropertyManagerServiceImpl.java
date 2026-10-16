@@ -312,6 +312,7 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
 
         property.setPropertyName(request.getPropertyName());
         property.setPropertyType(request.getPropertyType());
+        applyPropertyRentalDetails(property, request);
         property.setDescription(request.getDescription());
         property.setTotalArea(request.getTotalArea());
         property.setFurnishingStatus(request.getFurnishingStatus());
@@ -323,4 +324,26 @@ public class PropertyManagerServiceImpl implements PropertyManagerService {
 
         return convertPropertyToResponse(updatedProperty);
     }
+
+        private void applyPropertyRentalDetails(
+                        Property property,
+                        PropertyRequest request) {
+                boolean directRental = request.getPropertyType()
+                                                == com.rental.rental_management_backend.property.enums.PropertyType.HOUSE
+                                || request.getPropertyType()
+                                                == com.rental.rental_management_backend.property.enums.PropertyType.VILLA;
+
+                if (!directRental) {
+                        property.setMonthlyRent(null);
+                        property.setSecurityDeposit(null);
+                        return;
+                }
+
+                if (request.getMonthlyRent() != null) {
+                        property.setMonthlyRent(request.getMonthlyRent());
+                }
+                if (request.getSecurityDeposit() != null) {
+                        property.setSecurityDeposit(request.getSecurityDeposit());
+                }
+        }
 }

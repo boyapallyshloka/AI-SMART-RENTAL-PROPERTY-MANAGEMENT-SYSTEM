@@ -142,7 +142,28 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             AND :maxRent IS NULL
             AND :bedrooms IS NULL
 
-            OR EXISTS (
+            OR (
+                p.propertyType IN (
+                    com.rental.rental_management_backend.property.enums.PropertyType.HOUSE,
+                    com.rental.rental_management_backend.property.enums.PropertyType.VILLA
+                )
+                AND :bedrooms IS NULL
+                AND (
+                    :minRent IS NULL
+                    OR p.monthlyRent >= :minRent
+                )
+                AND (
+                    :maxRent IS NULL
+                    OR p.monthlyRent <= :maxRent
+                )
+            )
+
+            OR (
+                p.propertyType NOT IN (
+                    com.rental.rental_management_backend.property.enums.PropertyType.HOUSE,
+                    com.rental.rental_management_backend.property.enums.PropertyType.VILLA
+                )
+                AND EXISTS (
                 SELECT u.unitId
                 FROM Unit u
                 JOIN u.floor f
@@ -166,6 +187,7 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
                 AND (
                     :bedrooms IS NULL
                     OR u.bedrooms = :bedrooms
+                )
                 )
             )
         )
@@ -231,7 +253,9 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
                    WHERE fallbackImageId.property = p
                ))
         ),
-        false
+        false,
+        p.monthlyRent,
+        p.securityDeposit
     )
     FROM Property p
     WHERE p.status = :status
@@ -291,7 +315,9 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
                       )
                 )
             ),
-            false
+            false,
+            p.monthlyRent,
+            p.securityDeposit
         )
         FROM Property p
         WHERE p.propertyId = :propertyId

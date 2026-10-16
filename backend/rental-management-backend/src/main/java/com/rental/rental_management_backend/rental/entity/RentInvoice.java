@@ -42,7 +42,7 @@ public class RentInvoice {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "unit_id", nullable = false)
+	@Column(name = "unit_id")
     private Long unitId;
 
     @Column(nullable = false)
